@@ -2,11 +2,11 @@
 use rusqlite::{params, Connection, Result};
 use crate::utils::card::{Card, RecallGrade, Review};//, Status, Topic, Review}
 use std::time::{SystemTime, UNIX_EPOCH};
+use crate::app::App;
 
 
 
-pub fn save_card(somecard: Card)-> Result<()>{
-    let conn = Connection::open("dbflash.db")?;
+pub fn save_card(conn: &Connection, somecard: Card)-> Result<()>{
 
     conn.execute(
         "INSERT INTO cards (question, answer, strength, stability, topic, initiated, complete, resolved, suspended, gain) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -16,8 +16,7 @@ pub fn save_card(somecard: Card)-> Result<()>{
     Ok(())
 }
 
-pub fn update_both(dependent: u32, dependency: u32) -> Result<()>{
-    let conn = Connection::open("dbflash.db")?;
+pub fn update_both(conn: &Connection, dependent: u32, dependency: u32) -> Result<()>{
     conn.execute(
         "INSERT INTO dependencies (dependent, dependency) VALUES (?1, ?2)",
         params![dependent, dependency],
@@ -25,8 +24,7 @@ pub fn update_both(dependent: u32, dependency: u32) -> Result<()>{
     Ok(())
 }
 
-pub fn revlog_new(card_id: u32, review: Review) -> Result<()> {
-    let conn = Connection::open("dbflash.db")?;
+pub fn revlog_new(conn: &Connection, card_id: u32, review: Review) -> Result<()> {
 
     conn.execute(
         "INSERT INTO revlog (unix, cid, grade, qtime, atime) VALUES (?1, ?2, ?3, ?4, ?5)",

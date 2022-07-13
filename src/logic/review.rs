@@ -9,6 +9,7 @@ use crate::utils::{
     interval,
 };
 
+use rusqlite::Connection;
 
 pub struct ReviewList{
     pub title: String,
@@ -20,9 +21,9 @@ pub struct ReviewList{
 
 
 impl ReviewList {
-    pub fn new()->ReviewList{
-        interval::calc_strength();
-        let thecards = load_cards().unwrap();
+    pub fn new(conn: &Connection)->ReviewList{
+        interval::calc_strength(conn);
+        let thecards = load_cards(conn).unwrap();
 
         let mut filtered = Vec::<u32>::new();
         for card in thecards{
@@ -50,7 +51,7 @@ impl ReviewList {
             start_qty: qty,
         }
     }
-    pub fn new_review(&mut self, card: Option<Card>, grade: RecallGrade){
+    pub fn new_review(&mut self, conn: &Connection, card: Option<Card>, grade: RecallGrade){
         if let None = card{
             return;
         }
@@ -58,8 +59,8 @@ impl ReviewList {
         let mut card = card.unwrap();
         let review = Review::from(&grade);
         card.history.push(review.clone());
-        revlog_new(card.card_id, review);
-        interval::calc_stability(&mut card);
+        revlog_new(conn, card.card_id, review);
+        interval::calc_stability(conn, &mut card);
         self.cards.pop();
 
         if self.cards.is_empty(){

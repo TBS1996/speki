@@ -10,14 +10,12 @@ pub struct deppair{
 
 }
 
-pub fn prev_id() -> Result<u32>{
-    let conn = Connection::open("dbflash.db")?;
+pub fn prev_id(conn: &Connection) -> Result<u32>{
     Ok(conn.last_insert_rowid() as u32)
 
 }
 
-pub fn highest_id() -> Result<u32> {
-    let conn = Connection::open("dbflash.db")?;
+pub fn highest_id(conn: &Connection) -> Result<u32> {
     let mut stmt = conn.prepare("SELECT * FROM cards")?;
 
     let card_iter = stmt.query_map([], |row| {
@@ -38,8 +36,7 @@ pub fn highest_id() -> Result<u32> {
     Ok(maxid)
 }
 
-pub fn get_history(id: u32) -> Result<Vec<Review>>{
-    let conn = Connection::open("dbflash.db")?;
+pub fn get_history(conn: &Connection, id: u32) -> Result<Vec<Review>>{
     let mut stmt = conn.prepare("SELECT * FROM revlog WHERE cid = ?")?;
     let rows = stmt.query_map([id], |row| {
         Ok(
@@ -61,9 +58,8 @@ pub fn get_history(id: u32) -> Result<Vec<Review>>{
     Ok(vecofrows)
 }
 
-pub fn load_cards() -> Result<Vec<Card>> {
+pub fn load_cards(conn: &Connection) -> Result<Vec<Card>> {
     let mut cardvec = Vec::<Card>::new();
-    let conn = Connection::open("dbflash.db")?;
     let mut stmt = conn.prepare("SELECT * FROM cards")?;
 
     
@@ -86,9 +82,9 @@ pub fn load_cards() -> Result<Vec<Card>> {
             status:        stat,
             strength:      row.get(3)?,
             stability:     row.get(4)?,
-            dependencies:  get_dependencies(row.get(0).unwrap()).unwrap(),
-            dependents:    get_dependents(row.get(0).unwrap()).unwrap(),
-            history:       get_history(row.get(0).unwrap()).unwrap(),  
+            dependencies:  get_dependencies(conn, row.get(0).unwrap()).unwrap(),
+            dependents:    get_dependents(conn, row.get(0).unwrap()).unwrap(),
+            history:       get_history(conn, row.get(0).unwrap()).unwrap(),  
             topic:         row.get(5)?,
             future: String::from("[]"),
             integrated: 1f32,
@@ -104,12 +100,8 @@ pub fn load_cards() -> Result<Vec<Card>> {
 
 
 
-pub fn get_dependencies(dependent: u32) -> Result<Vec<u32>>{
-
-    let conn = Connection::open("dbflash.db")?;
+pub fn get_dependencies(conn: &Connection, dependent: u32) -> Result<Vec<u32>>{
     let mut stmt = conn.prepare("SELECT * FROM dependencies")?;
-
-    
     let deppairs = Vec::<deppair>::new();
 
     let dep_iter = stmt.query_map([], |row| {
@@ -141,9 +133,8 @@ pub fn get_dependencies(dependent: u32) -> Result<Vec<u32>>{
 
 
 
-pub fn get_dependents(dependency: u32) -> Result<Vec<u32>>{
+pub fn get_dependents(conn: &Connection, dependency: u32) -> Result<Vec<u32>>{
 
-    let conn = Connection::open("dbflash.db")?;
     let mut stmt = conn.prepare("SELECT * FROM dependencies")?;
 
     

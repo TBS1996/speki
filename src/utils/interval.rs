@@ -1,3 +1,4 @@
+use crate::app::App;
 use crate::utils::{
     card::{Card, RecallGrade, Review},
     sql::{
@@ -7,6 +8,7 @@ use crate::utils::{
 };
 
 use std::time::{SystemTime, UNIX_EPOCH};
+use rusqlite::Connection;
 
 
 
@@ -24,8 +26,8 @@ fn time_passed_since_review(review: &Review) -> f32 {
 }
 
 
-pub fn calc_strength() {
-    let cards = load_cards().unwrap();
+pub fn calc_strength(conn: &Connection) {
+    let cards = load_cards(conn).unwrap();
 
     let mut strength;
     let mut passed;
@@ -38,14 +40,14 @@ pub fn calc_strength() {
             }
             passed = time_passed_since_review(&card.history[(card.history.len() - 1) as usize]);
             strength = func(passed, card.stability);
-            update_strength(&card, strength);
+            update_strength(conn, &card, strength);
         }
     }
 }
 
 
 
-pub fn calc_stability(mut card: &mut Card){
+pub fn calc_stability(conn: &Connection, mut card: &mut Card){
     let hislen         = (&card.history).len();
     
     if hislen < 2{
@@ -89,7 +91,7 @@ pub fn calc_stability(mut card: &mut Card){
     }
     card.stability = new_stability;
 
-    update_stability(card.clone());
+    update_stability(conn, card.clone());
 }
 
 

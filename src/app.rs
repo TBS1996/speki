@@ -2,7 +2,7 @@
 #![allow(non_camel_case_types)]
 
 
-
+use rusqlite::Connection;
 use crossterm::event::KeyCode;
 use std::collections::HashMap;
 
@@ -55,6 +55,7 @@ pub struct App<'a> {
     pub should_quit: bool,
     pub tabs: TabsState<'a>,
     pub cardmap: HashMap<u32, Card>,
+    pub conn: Connection,
     pub prev_key: KeyCode,
     pub review: ReviewList,
     pub add_card: NewCards,
@@ -64,19 +65,23 @@ pub struct App<'a> {
 
 impl<'a> App<'a> {
     pub fn new(enhanced_graphics: bool) -> App<'a> {
+        let conn = Connection::open("dbflash.db").expect("Failed to conncet to database.");
+        let revlist = ReviewList::new(&conn);
+        let browse = Browse::new(&conn);
         App {
             should_quit: false,
             tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀"]),
-            cardmap: App::load_cardmap(),
+            cardmap: App::load_cardmap(&conn),
+            conn: conn,
             prev_key: KeyCode::Null,
-            review: ReviewList::new(),
+            review: revlist,
             add_card: NewCards::new(),
-            browse: Browse::new(),
+            browse: browse,
         }
     }
 
-    fn load_cardmap() -> HashMap<u32, Card>{
-        let cards = load_cards().unwrap();
+    fn load_cardmap(conn: &Connection) -> HashMap<u32, Card>{
+        let cards = load_cards(conn).unwrap();
         let mut map = HashMap::new();
         let mut key: u32;
         let mut val: Card;
@@ -115,9 +120,4 @@ impl<'a> App<'a> {
         }
         self.prev_key = keyclone;
     }
-    
-
-
-
-
 }

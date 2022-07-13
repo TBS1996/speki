@@ -1,6 +1,7 @@
-
+use crate::app::App;
 use crate::utils::sql::fetch::load_cards;
 use tui::widgets::ListState;
+use rusqlite::Connection;
 
 pub struct StatefulList<T> {
     pub state: ListState,
@@ -15,8 +16,8 @@ impl<T> StatefulList<T> {
         }
     }
     
-    pub fn load_cards() -> StatefulList<u32> {
-        let cardvec = load_cards().unwrap();
+    pub fn load_cards(conn: &Connection) -> StatefulList<u32> {
+        let cardvec = load_cards(conn).unwrap();
         let mut items = Vec::<u32>::new();
         for card in cardvec{
             items.push(card.card_id);
@@ -88,9 +89,9 @@ pub struct Browse{
 }
 
 impl Browse {
-    pub fn new() -> Self{ 
+    pub fn new(conn: &Connection) -> Self{ 
         Browse {
-            filtered: StatefulList::<u32>::load_cards(),
+            filtered: StatefulList::<u32>::load_cards(conn),
             selected: StatefulList::<u32>::load_empty(),
             cursor: BrowseCursor::Filtered,
         }

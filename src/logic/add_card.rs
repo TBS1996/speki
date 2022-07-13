@@ -1,5 +1,7 @@
 #![allow(non_camel_case_types)]
 
+use crate::app::App;
+use rusqlite::Connection;
 use crate::utils::{
     sql::{
         fetch::{highest_id, load_cards, prev_id},
@@ -47,16 +49,16 @@ impl NewCards{
 
 
 
-    pub fn submit_card(&mut self) {
+    pub fn submit_card(&mut self, conn: &Connection) {
 
         match self.card.selection{
-            TextSelect::submit_finished   => self.card.submit_cardedit(Status::new_complete(),   self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
-            TextSelect::submit_unfinished => self.card.submit_cardedit(Status::new_incomplete(), self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
+            TextSelect::submit_finished   => self.card.submit_cardedit(conn, Status::new_complete(),   self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
+            TextSelect::submit_unfinished => self.card.submit_cardedit(conn, Status::new_incomplete(), self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
             _  => panic!("wtf"),
         }
 
 
-        let last_id: u32 = highest_id().unwrap();
+        let last_id: u32 = highest_id(conn).unwrap();
 
         self.card.id   = Some(last_id);
 //        panic!("wtf");
@@ -70,7 +72,7 @@ impl NewCards{
     }
 
 
-    pub fn done(&mut self){
+    pub fn done(&mut self, conn: &Connection){
         let cardlen = &self.cards.len();
         match &self.card.state{
             DepState::base => {},
@@ -78,13 +80,13 @@ impl NewCards{
                 let ency_id = self.card.id.unwrap();
                 let ent_id  = self.cards[cardlen - 2 as usize].id.unwrap();
 
-                update_both(ent_id, ency_id);
+                update_both(conn, ent_id, ency_id);
             },
             DepState::dependent  => {
                 let ency_id = self.cards[cardlen - 2 as usize].id.unwrap();
                 let ent_id  = self.card.id.unwrap(); 
 
-                update_both(ent_id, ency_id);
+                update_both(conn, ent_id, ency_id);
             },
         }
         
@@ -103,7 +105,7 @@ impl NewCards{
 
 
 
-    pub fn enterkey(&mut self){
+    pub fn enterkey(&mut self, conn: &Connection){
         if self.card.istextselected(){
             match self.card.selection{
                 TextSelect::question(_) => self.card.selection = TextSelect::answer(true),
@@ -115,18 +117,18 @@ impl NewCards{
             match self.card.selection {
                 TextSelect::question(_) => self.card.selection = TextSelect::question(true),
                 TextSelect::answer(_)   => self.card.selection = TextSelect::answer(true),
-                TextSelect::submit_finished   => self.submit_card(),
-                TextSelect::submit_unfinished => self.submit_card(),
+                TextSelect::submit_finished   => self.submit_card(conn),
+                TextSelect::submit_unfinished => self.submit_card(conn),
                 TextSelect::add_dependency => self.add_dependency(),
                 TextSelect::add_dependent  => self.add_dependent(),
-                TextSelect::new_card => self.done(),
+                TextSelect::new_card => self.done(conn),
             _ => {},
             }
         }
 }
-
-    pub fn get_max_id()-> u32{
-        let thecards = load_cards().unwrap();
+/*
+    pub fn get_max_id(app: &App)-> u32{
+        let thecards = load_cards(&app.conn).unwrap();
         let mut maxid = 0 as u32;
         for card in thecards{
             if card.card_id > maxid{
@@ -134,7 +136,7 @@ impl NewCards{
             }
         }
         maxid
-    }
+    }*/
 }
 
 
@@ -204,7 +206,7 @@ impl CardEdit{
     }
 
 
-    pub fn submit_cardedit(&mut self, status: Status, dependencies: Vec<u32>, dependents: Vec<u32>, topic: u32){
+    pub fn submit_cardedit(&mut self, conn: &Connection, status: Status, dependencies: Vec<u32>, dependents: Vec<u32>, topic: u32){
         let mut question = self.question.text.clone();
         let mut answer   = self.answer.text.clone();
         question.pop();
@@ -226,8 +228,8 @@ impl CardEdit{
 
         };
 
-        save_card(newcard);
-        revlog_new(highest_id().unwrap(), Review::from(&RecallGrade::Decent));
+        save_card(conn, newcard);
+        revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent));
     }
 
     pub fn addchar(&mut self, c: char){

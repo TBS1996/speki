@@ -1,5 +1,5 @@
 
-use rusqlite::{Connection, Result};
+use rusqlite::{Connection,Row, Result};
 use crate::utils::card::{Card, RecallGrade, Review, Status}; //, Topic, Review}
 
 #[derive(Clone)]
@@ -12,6 +12,16 @@ pub struct DepPair{
 pub fn prev_id(conn: &Connection) -> Result<u32>{
     Ok(conn.last_insert_rowid() as u32)
 
+}
+
+
+
+pub fn fetch_card(conn: &Connection, cid: u32) -> Result<Card> {
+    conn.query_row(
+        "SELECT * FROM cards WHERE id=?",
+        [cid],
+        |row| row2card(conn, &row),
+    )
 }
 
 pub fn highest_id(conn: &Connection) -> Result<u32> {
@@ -57,38 +67,16 @@ pub fn get_history(conn: &Connection, id: u32) -> Result<Vec<Review>>{
     Ok(vecofrows)
 }
 
+
+
 pub fn load_cards(conn: &Connection) -> Result<Vec<Card>> {
     let mut cardvec = Vec::<Card>::new();
     let mut stmt = conn.prepare("SELECT * FROM cards")?;
 
     
 
-    let card_iter = stmt.query_map([], |row| {
+    let card_iter = stmt.query_map([], |row| row2card(conn, &row))?;
 
-        let stat = Status{
-            initiated: row.get(6)?,
-            complete: row.get(7)?,
-            resolved: row.get(8)?,
-            suspended: row.get(9)?,
-        };
-
-
-
-        Ok(Card {
-            question:      row.get(1)?,
-            answer:        row.get(2)?,
-            status:        stat,
-            strength:      row.get(3)?,
-            stability:     row.get(4)?,
-            dependencies:  get_dependencies(conn, row.get(0).unwrap()).unwrap(),
-            dependents:    get_dependents(conn, row.get(0).unwrap()).unwrap(),
-            history:       get_history(conn, row.get(0).unwrap()).unwrap(),  
-            topic:         row.get(5)?,
-            future: String::from("[]"),
-            integrated: 1f32,
-            card_id: row.get(0)?,
-        })
-    })?;
     for card in card_iter {
         cardvec.push(card.unwrap().clone());}
     
@@ -163,3 +151,28 @@ pub fn get_dependents(conn: &Connection, dependency: u32) -> Result<Vec<u32>>{
 
 
 
+pub fn row2card(conn: &Connection, row: &Row) -> Result<Card>{
+        let stat = Status{
+            initiated: row.get(6)?,
+            complete: row.get(7)?,
+            resolved: row.get(8)?,
+            suspended: row.get(9)?,
+        };
+
+
+
+        Ok(Card {
+            question:      row.get(1)?,
+            answer:        row.get(2)?,
+            status:        stat,
+            strength:      row.get(3)?,
+            stability:     row.get(4)?,
+            dependencies:  get_dependencies(conn, row.get(0).unwrap()).unwrap(),
+            dependents:    get_dependents(conn, row.get(0).unwrap()).unwrap(),
+            history:       get_history(conn, row.get(0).unwrap()).unwrap(),  
+            topic:         row.get(5)?,
+            future: String::from("[]"),
+            integrated: 1f32,
+            card_id: row.get(0)?,
+        })
+}

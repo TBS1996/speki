@@ -1,7 +1,6 @@
 
 use rusqlite::{params, Connection, Result};
 use crate::utils::card::Card;
-use crate::app::App;
 
 
 pub fn update_strength(conn: &Connection, card: &Card, strength: f32) -> Result<()> {

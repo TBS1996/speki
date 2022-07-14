@@ -1,4 +1,3 @@
-use crate::app::App;
 use crate::utils::sql::fetch::load_cards;
 use tui::widgets::ListState;
 use rusqlite::Connection;

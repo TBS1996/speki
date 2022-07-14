@@ -4,7 +4,7 @@ use crate::utils::card::RecallGrade;
 
 pub fn review_event(app: &mut App, key: KeyCode) {
 
-    let mut card;
+    let card;
     match &app.review.card{
         Some(id) => card = Some(app.cardmap[&id].clone()),
         None     => card = None,

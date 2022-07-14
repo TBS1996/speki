@@ -1,5 +1,4 @@
 
-use rusqlite::Connection;
 use crate::app::App;
 use tui::{
     backend::Backend,

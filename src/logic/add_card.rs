@@ -1,10 +1,9 @@
 #![allow(non_camel_case_types)]
 
-use crate::app::App;
 use rusqlite::Connection;
 use crate::utils::{
     sql::{
-        fetch::{highest_id, load_cards, prev_id},
+        fetch::highest_id,
         insert::{update_both, save_card, revlog_new},
     },
     card::{Status, RecallGrade, Review, Card},
@@ -27,7 +26,7 @@ impl NewCards{
         }
     }
     pub fn add_dependency(&mut self){
-        let mut newcard = CardEdit::new();
+        let newcard = CardEdit::new();
 
         self.card = newcard;
         self.card.prompt = String::from("Adding new dependency");
@@ -37,7 +36,7 @@ impl NewCards{
     }
 
     pub fn add_dependent(&mut self){
-        let mut newcard = CardEdit::new();
+        let newcard = CardEdit::new();
 
         self.card = newcard;
         self.card.prompt = String::from("Adding new dependent");
@@ -80,13 +79,13 @@ impl NewCards{
                 let ency_id = self.card.id.unwrap();
                 let ent_id  = self.cards[cardlen - 2 as usize].id.unwrap();
 
-                update_both(conn, ent_id, ency_id);
+                update_both(conn, ent_id, ency_id).unwrap();
             },
             DepState::dependent  => {
                 let ency_id = self.cards[cardlen - 2 as usize].id.unwrap();
                 let ent_id  = self.card.id.unwrap(); 
 
-                update_both(conn, ent_id, ency_id);
+                update_both(conn, ent_id, ency_id).unwrap();
             },
         }
         
@@ -122,7 +121,6 @@ impl NewCards{
                 TextSelect::add_dependency => self.add_dependency(),
                 TextSelect::add_dependent  => self.add_dependent(),
                 TextSelect::new_card => self.done(conn),
-            _ => {},
             }
         }
 }
@@ -228,8 +226,8 @@ impl CardEdit{
 
         };
 
-        save_card(conn, newcard);
-        revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent));
+        save_card(conn, newcard).unwrap();
+        revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent)).unwrap();
     }
 
     pub fn addchar(&mut self, c: char){

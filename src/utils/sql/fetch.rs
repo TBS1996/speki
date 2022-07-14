@@ -1,10 +1,9 @@
 
-use rusqlite::{params, Connection, Result};
+use rusqlite::{Connection, Result};
 use crate::utils::card::{Card, RecallGrade, Review, Status}; //, Topic, Review}
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone)]
-pub struct deppair{
+pub struct DepPair{
     dependent: u32,
     dependency: u32,
 
@@ -65,7 +64,6 @@ pub fn load_cards(conn: &Connection) -> Result<Vec<Card>> {
     
 
     let card_iter = stmt.query_map([], |row| {
-        let mut temp: String;
 
         let stat = Status{
             initiated: row.get(6)?,
@@ -102,11 +100,10 @@ pub fn load_cards(conn: &Connection) -> Result<Vec<Card>> {
 
 pub fn get_dependencies(conn: &Connection, dependent: u32) -> Result<Vec<u32>>{
     let mut stmt = conn.prepare("SELECT * FROM dependencies")?;
-    let deppairs = Vec::<deppair>::new();
 
     let dep_iter = stmt.query_map([], |row| {
         Ok(
-            deppair{
+            DepPair{
                 dependent:  row.get(0)?,
                 dependency: row.get(1)?,
             }
@@ -138,11 +135,10 @@ pub fn get_dependents(conn: &Connection, dependency: u32) -> Result<Vec<u32>>{
     let mut stmt = conn.prepare("SELECT * FROM dependencies")?;
 
     
-    let deppairs = Vec::<deppair>::new();
 
     let dep_iter = stmt.query_map([], |row| {
         Ok(
-            deppair{
+            DepPair{
                 dependent:  row.get(0)?,
                 dependency: row.get(1)?,
             }

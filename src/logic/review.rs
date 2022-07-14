@@ -1,9 +1,8 @@
 #![allow(non_camel_case_types)]
-use crate::app::App;
 use crate::utils::{
     card::{Card, Review, RecallGrade},
     sql::{
-        fetch::{load_cards, prev_id},
+        fetch::load_cards,
         insert::revlog_new,
     },
     interval,
@@ -59,7 +58,7 @@ impl ReviewList {
         let mut card = card.unwrap();
         let review = Review::from(&grade);
         card.history.push(review.clone());
-        revlog_new(conn, card.card_id, review);
+        revlog_new(conn, card.card_id, review).unwrap();
         interval::calc_stability(conn, &mut card);
         self.cards.pop();
 

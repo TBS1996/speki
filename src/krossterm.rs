@@ -17,7 +17,7 @@ use tui::{
     Terminal,
 };
 
-pub fn run(enhanced_graphics: bool) -> 
+pub fn run() -> 
 Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
@@ -28,7 +28,7 @@ Result<(), Box<dyn Error>> {
 
     init_db().expect("Failed to create sqlite database");
     // create app and run it
-    let app = App::new(enhanced_graphics);
+    let app = App::new();
     let res = run_app(&mut terminal, app, Duration::new(0, 25));
 
     // restore terminal

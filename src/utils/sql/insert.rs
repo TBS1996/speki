@@ -1,8 +1,6 @@
 
 use rusqlite::{params, Connection, Result};
-use crate::utils::card::{Card, RecallGrade, Review};//, Status, Topic, Review}
-use std::time::{SystemTime, UNIX_EPOCH};
-use crate::app::App;
+use crate::utils::card::{Card, Review};//, Status, Topic, Review}
 
 
 

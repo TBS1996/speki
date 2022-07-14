@@ -1,4 +1,3 @@
-use crate::app::App;
 use crate::utils::{
     card::{Card, RecallGrade, Review},
     sql::{
@@ -13,8 +12,8 @@ use rusqlite::Connection;
 
 
 fn func(passed: f32, stability: f32) -> f32 {
-    let E = 2.7182_f32;
-    E.powf((0.9_f32).log(E) * passed/stability)
+    let e = 2.7182_f32;
+    e.powf((0.9_f32).log(e) * passed/stability)
 }
 
 fn time_passed_since_review(review: &Review) -> f32 { 
@@ -40,7 +39,7 @@ pub fn calc_strength(conn: &Connection) {
             }
             passed = time_passed_since_review(&card.history[(card.history.len() - 1) as usize]);
             strength = func(passed, card.stability);
-            update_strength(conn, &card, strength);
+            update_strength(conn, &card, strength).unwrap();
         }
     }
 }
@@ -74,7 +73,6 @@ pub fn calc_stability(conn: &Connection, mut card: &mut Card){
          RecallGrade::Failed => gradefactor = 0.5,
          RecallGrade::Decent => gradefactor = 2.,
          RecallGrade::Easy   => gradefactor = 4.,
-         _ => panic!("incorrect enum!!:  {}", "oh shit")
     }
 
     let mut new_stability;
@@ -91,7 +89,7 @@ pub fn calc_stability(conn: &Connection, mut card: &mut Card){
     }
     card.stability = new_stability;
 
-    update_stability(conn, card.clone());
+    update_stability(conn, card.clone()).unwrap();
 }
 
 

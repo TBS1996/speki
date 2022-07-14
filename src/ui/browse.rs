@@ -37,7 +37,7 @@ where
 
 
     let items: Vec<ListItem> = _app.browse.filtered.items.iter().map(|id| {
-        let mut lines = vec![Spans::from(_app.cardmap[id].question.clone())];
+        let lines = vec![Spans::from(_app.cardmap[id].question.clone())];
         ListItem::new(lines).style(Style::default().fg(Color::White).bg(Color::Cyan))
     }).collect();
 
@@ -68,7 +68,7 @@ where
 {
 
     let items: Vec<ListItem> = _app.browse.selected.items.iter().map(|id| {
-        let mut lines = vec![Spans::from(_app.cardmap[id].question.clone())];
+        let lines = vec![Spans::from(_app.cardmap[id].question.clone())];
         ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
     }).collect();
     

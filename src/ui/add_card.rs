@@ -61,7 +61,7 @@ where
     draw_field(f, chunks[0], vec![Span::from(cardedit.prompt.as_str())], "", Alignment::Center);
     draw_field(f, chunks[1], question, quesprompt, Alignment::Left);
     draw_field(f, chunks[2],   answer.clone(), ansprompt, Alignment::Left);
-    draw_bottom_menu(f, app, chunks[3], cardedit);
+    draw_bottom_menu(f, chunks[3], cardedit);
     
 }
 
@@ -99,7 +99,7 @@ where
 
     }
 
-fn draw_bottom_menu<B>(f: &mut Frame<B>, app: &mut App, area: Rect, cardedit: CardEdit)
+fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, cardedit: CardEdit)
     where
     B: Backend,
 {

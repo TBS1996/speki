@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_camel_case_types)]
 
 
 use rusqlite::Connection;
@@ -8,11 +6,11 @@ use std::collections::HashMap;
 
 use crate::utils::{
     sql::fetch::load_cards,
-    card::{Card, RecallGrade},
+    card::Card,
 };
 use crate::logic::{
     review::ReviewList,
-    browse::{Browse, BrowseCursor},
+    browse::Browse,
     add_card::{NewCards, TextSelect},
 };
 use crate::events::{
@@ -64,7 +62,7 @@ pub struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    pub fn new(enhanced_graphics: bool) -> App<'a> {
+    pub fn new() -> App<'a> {
         let conn = Connection::open("dbflash.db").expect("Failed to conncet to database.");
         let revlist = ReviewList::new(&conn);
         let browse = Browse::new(&conn);

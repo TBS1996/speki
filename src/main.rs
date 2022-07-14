@@ -10,11 +10,11 @@ mod app;
 use std::env;
 
 use crate::krossterm::run;
-use std::{error::Error, time::Duration};
+use std::error::Error;
 
 
 fn main() -> Result<(), Box<dyn Error>> {
     env::set_var("RUST_BACKTRACE", "1");
-    run(true)?;
+    run()?;
     Ok(())
 }

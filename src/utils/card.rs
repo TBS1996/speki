@@ -1,4 +1,3 @@
-#![allow(non_camel_case_types)]
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde_derive::{Deserialize, Serialize};
 

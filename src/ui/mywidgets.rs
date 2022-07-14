@@ -1,17 +1,11 @@
-use crate::utils::card::Card;
-use std::collections::HashMap;
 use crate::app::App;
-use crate::logic::{
-    browse::BrowseCursor,
-    add_card::{Page, TextSelect, CardEdit},
-};
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{
-        Block, Borders, Gauge, Paragraph, Row, Tabs, Wrap, Table, Cell, ListItem, List},
+        Block, Borders, Paragraph, Row, Wrap, Table, Cell},
     Frame,
 };
 
@@ -133,14 +127,14 @@ where
 
 
 
-
+/*
 fn filter_status<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
 where
     B: Backend,
 {
 
     let items: Vec<ListItem> = _app.browse.selected.items.iter().map(|id| {
-        let mut lines = vec![Spans::from(_app.cardmap[id].question.clone())];
+        let lines = vec![Spans::from(_app.cardmap[id].question.clone())];
         ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
     }).collect();
     
@@ -164,3 +158,5 @@ where
     f.render_stateful_widget(items, area, &mut _app.browse.selected.state);
 
 }
+
+*/

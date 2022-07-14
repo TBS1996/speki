@@ -4,7 +4,7 @@ use crate::logic::add_card::TextSelect;
 
 pub fn add_card_event(app: &mut App, key: KeyCode){
     if app.add_card.card.istextselected(){
-        if let TextSelect::question(_) = app.add_card.card.selection{
+        if let TextSelect::Question(_) = app.add_card.card.selection{
             match key{
                 KeyCode::Right  => app.add_card.card.question.next(),
                 KeyCode::Delete => app.add_card.card.question.delete(),
@@ -14,7 +14,7 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
                  _ => {},
             }
         }
-        else if let TextSelect::answer(_) = app.add_card.card.selection{
+        else if let TextSelect::Answer(_) = app.add_card.card.selection{
             match key{
                 KeyCode::Left  => app.add_card.card.answer.prev(),
                 KeyCode::Delete => app.add_card.card.answer.delete(),

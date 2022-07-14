@@ -17,8 +17,8 @@ where
     B: Backend,
 {
     match app.add_card.card.page{
-        Page::editing => editing(f, app, area),
-        Page::confirming => submit_options(f, app, area),
+        Page::Editing => editing(f, app, area),
+        Page::Confirming => submit_options(f, app, area),
     }
 }
 
@@ -38,7 +38,7 @@ where
     
     if cardedit.istextselected(){
         match cardedit.selection{
-            TextSelect::question(_) => {
+            TextSelect::Question(_) => {
                 question = cursorsplit(cardedit.question.text.as_str(), cardedit.question.cursor);
                 answer   = vec![Span::from(cardedit.answer.text.as_str())];
                 },
@@ -54,8 +54,8 @@ where
         }
 
 
-    let quesprompt = if cardedit.selection == TextSelect::question(false) {"QUESTION"} else {"question"};
-    let ansprompt  = if cardedit.selection == TextSelect::answer(false) {"ANSWER"} else {"answer"};
+    let quesprompt = if cardedit.selection == TextSelect::Question(false) {"QUESTION"} else {"question"};
+    let ansprompt  = if cardedit.selection == TextSelect::Answer(false) {"ANSWER"} else {"answer"};
 
     
     draw_field(f, chunks[0], vec![Span::from(cardedit.prompt.as_str())], "", Alignment::Center);
@@ -84,9 +84,9 @@ where
     let mut ent  = vec![Span::from("Add dependent")];
 
     match app.add_card.card.selection {
-        TextSelect::new_card   => {new  = vec![Span::styled("Add new card",   Style::default().add_modifier(Modifier::REVERSED))]},
-        TextSelect::add_dependency => {ency  = vec![Span::styled("Add dependency", Style::default().add_modifier(Modifier::REVERSED))]},
-        TextSelect::add_dependent    => {ent = vec![Span::styled("Add dependent",       Style::default().add_modifier(Modifier::REVERSED))]},
+        TextSelect::NewCard   => {new  = vec![Span::styled("Add new card",   Style::default().add_modifier(Modifier::REVERSED))]},
+        TextSelect::AddDependency => {ency  = vec![Span::styled("Add dependency", Style::default().add_modifier(Modifier::REVERSED))]},
+        TextSelect::AddDependent    => {ent = vec![Span::styled("Add dependent",       Style::default().add_modifier(Modifier::REVERSED))]},
         _ => {},
 }
 
@@ -115,8 +115,8 @@ fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, cardedit: CardEdit)
     let mut unf = vec![Span::from("Submit as unfinished")];
 
     match cardedit.selection {
-        TextSelect::submit_finished   => {fin  = vec![Span::styled("Submit as finished",   Style::default().add_modifier(Modifier::REVERSED))]},
-        TextSelect::submit_unfinished => {unf  = vec![Span::styled("Submit as unfinished", Style::default().add_modifier(Modifier::REVERSED))]},
+        TextSelect::SubmitFinished   => {fin  = vec![Span::styled("Submit as finished",   Style::default().add_modifier(Modifier::REVERSED))]},
+        TextSelect::SubmitUnfinished => {unf  = vec![Span::styled("Submit as unfinished", Style::default().add_modifier(Modifier::REVERSED))]},
         _ => {},
 
     }

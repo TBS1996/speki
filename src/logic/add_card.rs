@@ -29,8 +29,8 @@ impl NewCards{
 
         self.card = newcard;
         self.card.prompt = String::from("Adding new dependency");
-        self.card.page = Page::editing;
-        self.card.state = DepState::dependency;
+        self.card.page = Page::Editing;
+        self.card.state = DepState::Dependency;
         //self.cards.push(self.card.clone());
     }
 
@@ -39,8 +39,8 @@ impl NewCards{
 
         self.card = newcard;
         self.card.prompt = String::from("Adding new dependent");
-        self.card.page = Page::editing;
-        self.card.state = DepState::dependent;
+        self.card.page = Page::Editing;
+        self.card.state = DepState::Dependent;
         //self.cards.push(self.card.clone());
     }
 
@@ -50,8 +50,8 @@ impl NewCards{
     pub fn submit_card(&mut self, conn: &Connection) {
 
         match self.card.selection{
-            TextSelect::submit_finished   => self.card.submit_cardedit(conn, Status::new_complete(),   self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
-            TextSelect::submit_unfinished => self.card.submit_cardedit(conn, Status::new_incomplete(), self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
+            TextSelect::SubmitFinished   => self.card.submit_cardedit(conn, Status::new_complete(),   self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
+            TextSelect::SubmitUnfinished => self.card.submit_cardedit(conn, Status::new_incomplete(), self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
             _  => panic!("wtf"),
         }
 
@@ -64,8 +64,8 @@ impl NewCards{
             None => panic!("wtf"),
             _=>{},
         }
-        self.card.page = Page::confirming;
-        self.card.selection = TextSelect::new_card;
+        self.card.page = Page::Confirming;
+        self.card.selection = TextSelect::NewCard;
         self.cards.push(self.card.clone());
     }
 
@@ -73,14 +73,14 @@ impl NewCards{
     pub fn done(&mut self, conn: &Connection){
         let cardlen = &self.cards.len();
         match &self.card.state{
-            DepState::base => {},
-            DepState::dependency => {
+            DepState::Base => {},
+            DepState::Dependency => {
                 let ency_id = self.card.id.unwrap();
                 let ent_id  = self.cards[cardlen - 2 as usize].id.unwrap();
 
                 update_both(conn, ent_id, ency_id).unwrap();
             },
-            DepState::dependent  => {
+            DepState::Dependent  => {
                 let ency_id = self.cards[cardlen - 2 as usize].id.unwrap();
                 let ent_id  = self.card.id.unwrap(); 
 
@@ -93,7 +93,7 @@ impl NewCards{
         
         if self.cards.is_empty(){
             self.card = CardEdit::new();
-            self.card.page = Page::editing;
+            self.card.page = Page::Editing;
         }
         else {
             self.card = self.cards.last().unwrap().clone();
@@ -106,20 +106,20 @@ impl NewCards{
     pub fn enterkey(&mut self, conn: &Connection){
         if self.card.istextselected(){
             match self.card.selection{
-                TextSelect::question(_) => self.card.selection = TextSelect::answer(true),
-                TextSelect::answer(_)   => self.card.selection = TextSelect::submit_finished,
+                TextSelect::Question(_) => self.card.selection = TextSelect::Answer(true),
+                TextSelect::Answer(_)   => self.card.selection = TextSelect::SubmitFinished,
             _ => {},
             }
         }
         else {
             match self.card.selection {
-                TextSelect::question(_) => self.card.selection = TextSelect::question(true),
-                TextSelect::answer(_)   => self.card.selection = TextSelect::answer(true),
-                TextSelect::submit_finished   => self.submit_card(conn),
-                TextSelect::submit_unfinished => self.submit_card(conn),
-                TextSelect::add_dependency => self.add_dependency(),
-                TextSelect::add_dependent  => self.add_dependent(),
-                TextSelect::new_card => self.done(conn),
+                TextSelect::Question(_) => self.card.selection = TextSelect::Question(true),
+                TextSelect::Answer(_)   => self.card.selection = TextSelect::Answer(true),
+                TextSelect::SubmitFinished   => self.submit_card(conn),
+                TextSelect::SubmitUnfinished => self.submit_card(conn),
+                TextSelect::AddDependency => self.add_dependency(),
+                TextSelect::AddDependent  => self.add_dependent(),
+                TextSelect::NewCard => self.done(conn),
             }
         }
 }
@@ -147,27 +147,27 @@ impl NewCards{
 
 #[derive(Clone)]
 pub enum Page{
-    editing,
-    confirming,
+    Editing,
+    Confirming,
 }
 
 
 #[derive(Clone)]
 pub enum DepState{
-    base,
-    dependency,
-    dependent,
+    Base,
+    Dependency,
+    Dependent,
 }
 
 #[derive(Clone, PartialEq)]
 pub enum TextSelect{
-    question(bool), // Bool indicates if youre in text-editing mode
-    answer(bool),
-    submit_finished,
-    submit_unfinished,
-    add_dependency,
-    add_dependent,
-    new_card,
+    Question(bool), // Bool indicates if youre in text-editing mode
+    Answer(bool),
+    SubmitFinished,
+    SubmitUnfinished,
+    AddDependency,
+    AddDependent,
+    NewCard,
 }
 
 #[derive(Clone)]
@@ -190,15 +190,15 @@ impl CardEdit{
     pub fn new()->CardEdit{
         CardEdit{
             prompt: String::from("Add card"),
-            selection: TextSelect::question(false),
+            selection: TextSelect::Question(false),
             question:  Field::new(),
             answer:    Field::new(),
             dependencies: Vec::<u32>::new(),
             dependents:   Vec::<u32>::new(),
             topic: 0 as u32,
-            page: Page::editing,
+            page: Page::Editing,
             id: None,  // the id of the card in the table is put here after its inserted, for use when adding dependencies directly
-            state: DepState::base,
+            state: DepState::Base,
         }
     }
 
@@ -231,23 +231,23 @@ impl CardEdit{
 
     pub fn addchar(&mut self, c: char){
         match self.selection{
-            TextSelect::question(_) => self.question.addchar(c),
-            TextSelect::answer(_)   => self.answer.addchar(c),
+            TextSelect::Question(_) => self.question.addchar(c),
+            TextSelect::Answer(_)   => self.answer.addchar(c),
             _ => {}
         }
     }
     pub fn backspace(&mut self){
         match self.selection {
-            TextSelect::question(_) => self.question.backspace(),
-            TextSelect::answer(_)   => self.answer.backspace(),
+            TextSelect::Question(_) => self.question.backspace(),
+            TextSelect::Answer(_)   => self.answer.backspace(),
             _ => {},
         }
     }
 
     pub fn next(&mut self) {
         match self.selection {
-            TextSelect::question(_) => self.question.next(),
-            TextSelect::answer(_)   => self.answer.next(),
+            TextSelect::Question(_) => self.question.next(),
+            TextSelect::Answer(_)   => self.answer.next(),
             _ => {},
         }
     }
@@ -255,28 +255,28 @@ impl CardEdit{
 
     pub fn prev(&mut self) {
         match self.selection {
-            TextSelect::question(_) => self.question.prev(),
-            TextSelect::answer(_)   => self.answer.prev(),
+            TextSelect::Question(_) => self.question.prev(),
+            TextSelect::Answer(_)   => self.answer.prev(),
             _ => {},
         }
     }
 
     pub fn delete(&mut self){
         match self.selection{
-            TextSelect::question(_) => self.question.delete(), 
-            TextSelect::answer(_)   => self.answer.delete(),
+            TextSelect::Question(_) => self.question.delete(), 
+            TextSelect::Answer(_)   => self.answer.delete(),
             _ => {},
         }
     }
 
     pub fn istextselected(&self)->bool{
-        (self.selection == TextSelect::question(true)) || (self.selection == TextSelect::answer(true))
+        (self.selection == TextSelect::Question(true)) || (self.selection == TextSelect::Answer(true))
     }
 
     pub fn deselect(&mut self){
         match self.selection{
-            TextSelect::answer(_) => self.selection = TextSelect::answer(false),
-            TextSelect::question(_) => self.selection = TextSelect::question(false),
+            TextSelect::Answer(_) => self.selection = TextSelect::Answer(false),
+            TextSelect::Question(_) => self.selection = TextSelect::Question(false),
             _ => {},
         }
     }
@@ -286,52 +286,52 @@ impl CardEdit{
     pub fn end(&mut self){}
     pub fn pageup(&mut self){
         match self.selection{
-            TextSelect::question(_) => self.question.cursor = 0,
-            TextSelect::answer(_) => self.answer.cursor = 0,
+            TextSelect::Question(_) => self.question.cursor = 0,
+            TextSelect::Answer(_) => self.answer.cursor = 0,
             _ => {},
         }
     }
     pub fn pagedown(&mut self){
         match self.selection{
-            TextSelect::question(_) => self.question.cursor = self.question.text.len() - 2,
-            TextSelect::answer(_)   => self.answer.cursor   = self.answer.text.len()   - 2,
+            TextSelect::Question(_) => self.question.cursor = self.question.text.len() - 2,
+            TextSelect::Answer(_)   => self.answer.cursor   = self.answer.text.len()   - 2,
             _ => {},
         }
     }
     pub fn tab(&mut self){
 
         match self.selection{
-            TextSelect::question(_) => self.selection = TextSelect::answer(false),
-            TextSelect::answer(_)   => {},
+            TextSelect::Question(_) => self.selection = TextSelect::Answer(false),
+            TextSelect::Answer(_)   => {},
             _ => {},
         }
     }
     pub fn backtab(&mut self){
         match self.selection{
-            TextSelect::question(_) => {},
-            TextSelect::answer(_)   => self.selection = TextSelect::question(false),
+            TextSelect::Question(_) => {},
+            TextSelect::Answer(_)   => self.selection = TextSelect::Question(false),
             _ => {},
         }
     }
 
     pub fn upkey(&mut self){
         match self.selection{
-            TextSelect::answer(_)         => self.selection = TextSelect::question(false),
-            TextSelect::submit_finished   => self.selection = TextSelect::answer(false),
-            TextSelect::submit_unfinished => self.selection = TextSelect::submit_finished,
-            TextSelect::add_dependency    => self.selection = TextSelect::new_card,
-            TextSelect::add_dependent     => self.selection = TextSelect::add_dependency,
+            TextSelect::Answer(_)         => self.selection = TextSelect::Question(false),
+            TextSelect::SubmitFinished   => self.selection = TextSelect::Answer(false),
+            TextSelect::SubmitUnfinished => self.selection = TextSelect::SubmitFinished,
+            TextSelect::AddDependency    => self.selection = TextSelect::NewCard,
+            TextSelect::AddDependent     => self.selection = TextSelect::AddDependency,
             _ => {},
 
             }
     }
     pub fn downkey(&mut self){
         match self.selection{
-            TextSelect::question(_)       => self.selection = TextSelect::answer(false),
-            TextSelect::answer(_)         => self.selection = TextSelect::submit_finished,
-            TextSelect::submit_finished   => self.selection = TextSelect::submit_unfinished,
-            TextSelect::new_card          => self.selection = TextSelect::add_dependency,
-            TextSelect::add_dependency    => self.selection = TextSelect::add_dependent,
+            TextSelect::Question(_)       => self.selection = TextSelect::Answer(false),
+            TextSelect::Answer(_)         => self.selection = TextSelect::SubmitFinished,
+            TextSelect::SubmitFinished   => self.selection = TextSelect::SubmitUnfinished,
+            TextSelect::NewCard          => self.selection = TextSelect::AddDependency,
+            TextSelect::AddDependency    => self.selection = TextSelect::AddDependent,
             _ => {},
         }
     }

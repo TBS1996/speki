@@ -93,12 +93,12 @@ impl<'a> App<'a> {
     }
 
     pub fn on_right(&mut self) {
-        if self.add_card.card.selection == TextSelect::question(false) || self.add_card.card.selection == TextSelect::answer(false){
+        if self.add_card.card.selection == TextSelect::Question(false) || self.add_card.card.selection == TextSelect::Answer(false){
         self.tabs.next();}
     }
 
     pub fn on_left(&mut self) {
-        if self.add_card.card.selection == TextSelect::question(false) || self.add_card.card.selection == TextSelect::answer(false){
+        if self.add_card.card.selection == TextSelect::Question(false) || self.add_card.card.selection == TextSelect::Answer(false){
         self.tabs.previous();}
     }
 

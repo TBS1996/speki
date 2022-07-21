@@ -139,26 +139,3 @@ fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, cardedit: CardEdit)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

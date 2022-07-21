@@ -123,7 +123,8 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "tui",
+ "tui 0.16.0",
+ "tui-tree-widget",
 ]
 
 [[package]]
@@ -487,6 +488,28 @@ dependencies = [
  "cassowary",
  "crossterm 0.20.0",
  "unicode-segmentation",
+ "unicode-width",
+]
+
+[[package]]
+name = "tui"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96fe69244ec2af261bced1d9046a6fee6c8c2a6b0228e59e5ba39bc8ba4ed729"
+dependencies = [
+ "bitflags",
+ "cassowary",
+ "unicode-segmentation",
+ "unicode-width",
+]
+
+[[package]]
+name = "tui-tree-widget"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0390703e72885fd3b55ab9f767c753f50793e54b88182c1bcb658e6f85b9b0eb"
+dependencies = [
+ "tui 0.18.0",
  "unicode-width",
 ]
 

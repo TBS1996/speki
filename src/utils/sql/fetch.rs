@@ -9,6 +9,16 @@ pub struct DepPair{
 
 }
 
+
+#[derive(Clone)]
+pub struct Topic{
+    pub id: u32,
+    pub name: String,
+    pub parent: u32,
+}
+
+
+
 pub fn prev_id(conn: &Connection) -> Result<u32>{
     Ok(conn.last_insert_rowid() as u32)
 
@@ -18,9 +28,7 @@ pub fn prev_id(conn: &Connection) -> Result<u32>{
 
 pub fn fetch_card(conn: &Connection, cid: u32) -> Result<Card> {
     conn.query_row(
-        "SELECT * FROM cards WHERE id=?",
-        [cid],
-        |row| row2card(conn, &row),
+        "SELECT * FROM cards WHERE id=?", [cid], |row| row2card(conn, &row),
     )
 }
 
@@ -44,6 +52,33 @@ pub fn highest_id(conn: &Connection) -> Result<u32> {
     
     Ok(maxid)
 }
+
+pub fn get_topics() -> Result<Vec<Topic>>{
+
+    let conn = Connection::open("dbflash.db").expect("Failed to connect to database.");
+
+    let mut stmt = conn.prepare("SELECT * FROM topics")?;
+    let rows = stmt.query_map([], |row| {
+        Ok(
+            Topic{
+                id: row.get(0)?,
+                name: row.get(1)?,
+                parent: row.get(2)?,
+            }
+        )
+    })?;
+    
+    let mut vecoftops = Vec::<Topic>::new();
+
+    for row in rows{
+        vecoftops.push(row.unwrap().clone());
+    }
+
+
+    Ok(vecoftops)
+}
+
+
 
 pub fn get_history(conn: &Connection, id: u32) -> Result<Vec<Review>>{
     let mut stmt = conn.prepare("SELECT * FROM revlog WHERE cid = ?")?;

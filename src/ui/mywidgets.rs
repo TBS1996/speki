@@ -1,3 +1,5 @@
+
+use crate::utils::sql::fetch::fetch_card;
 use crate::app::App;
 use tui::{
     backend::Backend,
@@ -57,7 +59,7 @@ where
     if let None = opt{
         return;
     }
-    let card = &_app.cardmap[&opt.unwrap()];
+    let card = fetch_card(&_app.conn, opt.unwrap());
     
     let rows = vec![
         Row::new(vec![Cell::from(Span::raw(format!("initiated: {:?}", card.status.initiated)))]),
@@ -82,14 +84,14 @@ pub fn view_dependencies<B>(f: &mut Frame<B>, id: u32, app: & App, area: Rect)
 where
     B: Backend,
 {
-    let thecard = &app.cardmap.get(&id).clone().unwrap();
+    let thecard = fetch_card(&app.conn, id);
     let dep_ids = &thecard.dependencies;
     
 
    
     let mut deps = Vec::<Row>::new();
     for dep_id in dep_ids{
-        let dep = &app.cardmap.get(&dep_id).clone().unwrap();
+        let dep = fetch_card(&app.conn, *dep_id);
         let foo = Row::new(vec![Cell::from(Span::raw(&dep.question))]);
         deps.push(foo);
     }
@@ -106,14 +108,14 @@ pub fn view_dependents<B>(f: &mut Frame<B>, id: u32, app: & App, area: Rect)
 where
     B: Backend,
 {
-    let thecard = &app.cardmap.get(&id).clone().unwrap();
+    let thecard = fetch_card(&app.conn, id);
     let dep_ids = &thecard.dependents;
     
 
    
     let mut deps = Vec::<Row>::new();
     for dep_id in dep_ids{
-        let dep = &app.cardmap.get(&dep_id).clone().unwrap();
+        let dep = fetch_card(&app.conn, *dep_id);
         let foo = Row::new(vec![Cell::from(Span::raw(&dep.question))]);
         deps.push(foo);
     }
@@ -134,7 +136,7 @@ where
 {
 
     let items: Vec<ListItem> = _app.browse.selected.items.iter().map(|id| {
-        let lines = vec![Spans::from(_app.cardmap[id].question.clone())];
+        let lines = vec![Spans::from(_fetch_card(id).question.clone())];
         ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
     }).collect();
     

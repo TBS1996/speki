@@ -1,3 +1,4 @@
+use crate::utils::sql::fetch::fetch_card;
 use crate::app::App;
 use crossterm::event::KeyCode;
 use crate::utils::card::RecallGrade;
@@ -6,7 +7,7 @@ pub fn review_event(app: &mut App, key: KeyCode) {
 
     let card;
     match &app.review.card{
-        Some(id) => card = Some(app.cardmap[&id].clone()),
+        Some(id) => card = Some(fetch_card(&app.conn, *id)),
         None     => card = None,
     }
 

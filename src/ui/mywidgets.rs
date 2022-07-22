@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-use tui_tree_widget::{flatten, get_identifier_without_leaf, Tree, TreeItem, TreeState};
-use crate::utils::topics::make_tree;
-=======
 
 use crate::utils::sql::fetch::fetch_card;
->>>>>>> mapremove
 use crate::app::App;
 use tui::{
     backend::Backend,
@@ -138,27 +133,6 @@ where
     f.render_widget(table, area);
 }
 
-
-pub fn view_topics<B>(f: &mut Frame<B>, area: Rect)
-where
-    B: Backend,
-{
-    let tree = make_tree();
-    let items = Tree::new(tree.items.clone())
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(format!("Tree Widget {:?}", tree.state)),
-    )
-    .highlight_style(
-        Style::default()
-            .fg(Color::Black)
-            .bg(Color::LightGreen)
-            .add_modifier(Modifier::BOLD),
-    )
-    .highlight_symbol(">> ");
-    f.render_stateful_widget(tree.items, area, &mut tree.state);
-}
 
 
 

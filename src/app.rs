@@ -52,7 +52,6 @@ impl<'a> TabsState<'a> {
 pub struct App<'a> {
     pub should_quit: bool,
     pub tabs: TabsState<'a>,
-    pub cardmap: HashMap<u32, Card>,
     pub conn: Connection,
     pub prev_key: KeyCode,
     pub review: ReviewList,
@@ -69,7 +68,6 @@ impl<'a> App<'a> {
         App {
             should_quit: false,
             tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀"]),
-            cardmap: App::load_cardmap(&conn),
             conn: conn,
             prev_key: KeyCode::Null,
             review: revlist,
@@ -78,19 +76,6 @@ impl<'a> App<'a> {
         }
     }
 
-    fn load_cardmap(conn: &Connection) -> HashMap<u32, Card>{
-        let cards = load_cards(conn).unwrap();
-        let mut map = HashMap::new();
-        let mut key: u32;
-        let mut val: Card;
-
-        for card in cards{
-            key = card.card_id;
-            val = card.clone();
-            map.insert(key, val);
-        }
-        map
-    }
 
     pub fn on_right(&mut self) {
         if self.add_card.card.selection == TextSelect::Question(false) || self.add_card.card.selection == TextSelect::Answer(false){

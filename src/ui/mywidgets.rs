@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 use tui_tree_widget::{flatten, get_identifier_without_leaf, Tree, TreeItem, TreeState};
 use crate::utils::topics::make_tree;
+=======
+
+use crate::utils::sql::fetch::fetch_card;
+>>>>>>> mapremove
 use crate::app::App;
 use tui::{
     backend::Backend,
@@ -59,7 +64,7 @@ where
     if let None = opt{
         return;
     }
-    let card = &_app.cardmap[&opt.unwrap()];
+    let card = fetch_card(&_app.conn, opt.unwrap());
     
     let rows = vec![
         Row::new(vec![Cell::from(Span::raw(format!("initiated: {:?}", card.status.initiated)))]),
@@ -84,16 +89,17 @@ pub fn view_dependencies<B>(f: &mut Frame<B>, id: u32, app: & App, area: Rect)
 where
     B: Backend,
 {
-    let thecard = &app.cardmap.get(&id).clone().unwrap();
+    let thecard = fetch_card(&app.conn, id);
     let dep_ids = &thecard.dependencies;
     
 
    
     let mut deps = Vec::<Row>::new();
     for dep_id in dep_ids{
-        let dep = &app.cardmap.get(&dep_id).clone().unwrap();
-        let foo = Row::new(vec![Cell::from(Span::raw(&dep.question))]);
-        deps.push(foo);
+        let dep = fetch_card(&app.conn, *dep_id);
+        let ques = dep.question.clone();
+        let foo = Row::new(vec![Cell::from(Span::raw(ques))]);
+        deps.push(foo.clone());
     }
     
     
@@ -108,15 +114,15 @@ pub fn view_dependents<B>(f: &mut Frame<B>, id: u32, app: & App, area: Rect)
 where
     B: Backend,
 {
-    let thecard = &app.cardmap.get(&id).clone().unwrap();
+    let thecard = fetch_card(&app.conn, id);
     let dep_ids = &thecard.dependents;
     
 
    
     let mut deps = Vec::<Row>::new();
     for dep_id in dep_ids{
-        let dep = &app.cardmap.get(&dep_id).clone().unwrap();
-        let foo = Row::new(vec![Cell::from(Span::raw(&dep.question))]);
+        let dep = fetch_card(&app.conn, *dep_id);
+        let foo = Row::new(vec![Cell::from(Span::raw(dep.question.clone()))]);
         deps.push(foo);
     }
     
@@ -164,7 +170,7 @@ where
 {
 
     let items: Vec<ListItem> = _app.browse.selected.items.iter().map(|id| {
-        let lines = vec![Spans::from(_app.cardmap[id].question.clone())];
+        let lines = vec![Spans::from(_fetch_card(id).question.clone())];
         ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
     }).collect();
     

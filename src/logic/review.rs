@@ -26,7 +26,7 @@ impl ReviewList {
 
         let mut filtered = Vec::<u32>::new();
         for card in thecards{
-            if card.strength < 0.98{
+            if card.strength < 0.99999{
                 filtered.push(card.card_id);
             }
         }

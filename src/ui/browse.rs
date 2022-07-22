@@ -1,4 +1,5 @@
 
+use crate::utils::sql::fetch::fetch_card;
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -37,7 +38,7 @@ where
 
 
     let items: Vec<ListItem> = _app.browse.filtered.items.iter().map(|id| {
-        let lines = vec![Spans::from(_app.cardmap[id].question.clone())];
+        let lines = vec![Spans::from(fetch_card(&_app.conn, *id).question.clone())];
         ListItem::new(lines).style(Style::default().fg(Color::White).bg(Color::Cyan))
     }).collect();
 
@@ -68,7 +69,7 @@ where
 {
 
     let items: Vec<ListItem> = _app.browse.selected.items.iter().map(|id| {
-        let lines = vec![Spans::from(_app.cardmap[id].question.clone())];
+        let lines = vec![Spans::from(fetch_card(&_app.conn, *id).question)];
         ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
     }).collect();
     

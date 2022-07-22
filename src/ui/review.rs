@@ -1,4 +1,4 @@
-
+use crate::utils::sql::fetch::fetch_card;
 use crate::app::App;
 use tui::{
     backend::Backend,
@@ -35,8 +35,8 @@ where
     
     match &app.review.card{
         Some(id) => {
-            question = app.cardmap[id].question.clone();
-            answer = if app.review.reveal {app.cardmap[id].answer.clone()} else {"Click to reveal".to_owned()}; 
+            question = fetch_card(&app.conn, *id).question.clone();
+            answer = if app.review.reveal {fetch_card(&app.conn, *id).answer.clone()} else {"Click to reveal".to_owned()}; 
             view_dependencies(f, *id, app, rightcolumn[1]);
             view_dependents(f, *id, app, rightcolumn[2]);
             }

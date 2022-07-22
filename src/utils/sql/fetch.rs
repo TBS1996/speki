@@ -26,10 +26,17 @@ pub fn prev_id(conn: &Connection) -> Result<u32>{
 
 
 
-pub fn fetch_card(conn: &Connection, cid: u32) -> Result<Card> {
+pub fn fetch_card(conn: &Connection, cid: u32) -> Card {
     conn.query_row(
+<<<<<<< HEAD
         "SELECT * FROM cards WHERE id=?", [cid], |row| row2card(conn, &row),
     )
+=======
+        "SELECT * FROM cards WHERE id=?",
+        [cid],
+        |row| row2card(conn, &row),
+    ).unwrap()
+>>>>>>> mapremove
 }
 
 pub fn highest_id(conn: &Connection) -> Result<u32> {

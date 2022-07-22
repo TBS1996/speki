@@ -92,8 +92,9 @@ where
     let mut deps = Vec::<Row>::new();
     for dep_id in dep_ids{
         let dep = fetch_card(&app.conn, *dep_id);
-        let foo = Row::new(vec![Cell::from(Span::raw(&dep.question))]);
-        deps.push(foo);
+        let ques = dep.question.clone();
+        let foo = Row::new(vec![Cell::from(Span::raw(ques))]);
+        deps.push(foo.clone());
     }
     
     
@@ -116,7 +117,7 @@ where
     let mut deps = Vec::<Row>::new();
     for dep_id in dep_ids{
         let dep = fetch_card(&app.conn, *dep_id);
-        let foo = Row::new(vec![Cell::from(Span::raw(&dep.question))]);
+        let foo = Row::new(vec![Cell::from(Span::raw(dep.question.clone()))]);
         deps.push(foo);
     }
     

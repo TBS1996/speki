@@ -8,6 +8,7 @@ pub fn browse_event(app: &mut App, key: KeyCode){
             match key{
                 KeyCode::Char('q') => app.should_quit = true,
                 KeyCode::Left  => app.on_left(),
+                KeyCode::Right  => app.on_right(),
                 KeyCode::Down  => app.browse.filtered.next(),
                 KeyCode::Up    => app.browse.filtered.previous(),
                 KeyCode::Enter => app.browse.select(),
@@ -19,6 +20,7 @@ pub fn browse_event(app: &mut App, key: KeyCode){
             match key{
                 KeyCode::Char('q') => app.should_quit = true,
                 KeyCode::Left  => app.on_left(),
+                KeyCode::Right  => app.on_right(),
                 KeyCode::Down  => app.browse.selected.next(),
                 KeyCode::Up    => app.browse.selected.previous(),
                 KeyCode::Enter => app.browse.deselect(),

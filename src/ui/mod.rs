@@ -2,6 +2,7 @@ pub mod review;
 pub mod add_card;
 pub mod browse;
 pub mod mywidgets;
+pub mod import;
 
 use crate::app::App;
 

@@ -11,12 +11,14 @@ use crate::utils::{
 use crate::logic::{
     review::ReviewList,
     browse::Browse,
+    import::import_cards,
     add_card::{NewCards, TextSelect},
 };
 use crate::events::{
     review::review_event,
     browse::browse_event,
     add_card::add_card_event,
+    import::main_port,
 };
 
 
@@ -67,7 +69,7 @@ impl<'a> App<'a> {
         let browse = Browse::new(&conn);
         App {
             should_quit: false,
-            tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀"]),
+            tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "import"]),
             conn: conn,
             prev_key: KeyCode::Null,
             review: revlist,
@@ -79,12 +81,14 @@ impl<'a> App<'a> {
 
     pub fn on_right(&mut self) {
         if self.add_card.card.selection == TextSelect::Question(false) || self.add_card.card.selection == TextSelect::Answer(false){
-        self.tabs.next();}
+            self.tabs.next();
+        }
     }
 
     pub fn on_left(&mut self) {
         if self.add_card.card.selection == TextSelect::Question(false) || self.add_card.card.selection == TextSelect::Answer(false){
-        self.tabs.previous();}
+            self.tabs.previous();
+        }
     }
 
 
@@ -99,6 +103,7 @@ impl<'a> App<'a> {
             0 => review_event(self, key),
             1 => add_card_event(self, key),
             2 => browse_event(self, key),
+            3 => main_port(self, key),
             _ => {},
         }
         self.prev_key = keyclone;

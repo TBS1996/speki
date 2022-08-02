@@ -34,7 +34,14 @@ pub struct Status {
 
 impl Status{
     pub fn isactive(&self)->bool{
-        if self.complete && self.resolved && !self.suspended{
+        if self.complete && self.resolved && self.initiated && !self.suspended{
+            return true
+        }
+        false
+    }
+
+    pub fn new_ready(&self)->bool{
+        if !self.initiated && self.complete && self.resolved && !self.suspended{
             return true
         }
         false

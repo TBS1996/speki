@@ -11,7 +11,9 @@ pub struct Topic{
     pub id: u32,
     pub name: String,
     pub parent: u32,
-    pub ancestors: u8,
+    pub children: Vec<u8>,
+    pub ancestors: u32,
+    pub editing: bool,
 }
 
 
@@ -21,7 +23,80 @@ pub struct StatefulList<T> {
 }
 
 
+
+
+impl StatefulList<Topic>{
+    
+pub fn add_kids(self){
+   // for topic in self.items{
+    //    topic.children.clear();}
+
+    let inner = self.items.clone();
+
+    for mut topic in self.items{
+        let id = topic.id;
+        for x in &inner{
+            if x.parent == id{
+                topic.children.push(x.id as u8);
+            }
+        }
+    }
+}
+
+
+
+pub fn get_selected_id(self) -> Option<u32>{
+    match self.state.selected(){
+        None => None,
+        Some(idx) => Some(self.items[idx as usize].id)
+    }
+}
+
+pub fn get_selected_parent(self) -> Option<u32>{
+    match self.state.selected(){
+        None => None,
+        Some(idx) => Some(self.items[idx as usize].parent)
+    }
+}
+
+
+pub fn dfs(&mut self){
+    let mut new_vec = Vec::<Topic>::new();
+    let mut parentvec = vec![0 as u32];
+    let mut theclone = self.items.clone();
+    let mut parent: u32;
+    let mut index: Option<u32>;
+    
+    while &theclone.len() > &0 {
+        parent = parentvec.last().cloned().unwrap();
+        index = None;
+        
+        for (idx, topic) in theclone.iter().enumerate(){
+            if topic.parent == parent{
+                index = Some(idx as u32);
+                break;
+            }
+        }
+        match index{
+            Some(idx) => {
+                let id = theclone[idx as usize].id.clone();
+                parentvec.push(id);
+                let mut topic = theclone.remove(idx as usize);
+                topic.ancestors = parentvec.len() as u32 - 2;
+                new_vec.push(topic);
+            },
+            None => {parentvec.pop();},
+        }
+    }
+    self.items = new_vec;
+}
+
+
+}
+
+
 impl<T> StatefulList<T> {
+
     pub fn with_items(items: Vec<T>) -> StatefulList<T> {
         StatefulList {
             state: ListState::default(),

@@ -21,10 +21,13 @@ pub struct NewCards{
 
 impl NewCards{
     pub fn new(conn: &Connection) -> NewCards{
+        let mut topics = StatefulList::with_items(get_topics(conn).unwrap()); 
+        topics.dfs();
+        
         NewCards {
             cards: Vec::<CardEdit>::new(),
             card: CardEdit::new(),
-            topics: StatefulList::with_items(get_topics(conn).unwrap()),
+            topics: topics,
         }
     }
     pub fn add_dependency(&mut self){
@@ -139,6 +142,19 @@ impl NewCards{
 }
 
 
+/*
+ 
+
+
+
+*/
+
+
+
+
+pub fn count_ancestors(self){
+
+}
 
 
 

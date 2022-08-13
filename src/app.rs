@@ -2,7 +2,6 @@ use crate::utils::sql::fetch::get_topics;
 use rusqlite::Connection;
 use crossterm::event::KeyCode;
 
-use crate::utils::structs::{StatefulList, Topic};
 use crate::logic::{
     review::ReviewList,
     browse::Browse,
@@ -63,11 +62,11 @@ pub struct App<'a> {
 
 impl<'a> App<'a> {
     pub fn new() -> App<'a> {
-        let conn = Connection::open("dbflash.db").expect("Failed to conncet to database.");
+        let conn = Connection::open("dbflash.db").expect("Failed to connect to database.");
         let revlist = ReviewList::new(&conn);
         let browse = Browse::new(&conn);
         let addcards =  NewCards::new(&conn);
-        App {
+        let app = App {
             should_quit: false,
             tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "import"]),
             conn: conn,
@@ -75,7 +74,9 @@ impl<'a> App<'a> {
             review: revlist,
             add_card: addcards,
             browse: browse,
-        }
+        };
+        //app.add_card.topics.dfs();
+        app
     }
 
 

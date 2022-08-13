@@ -29,6 +29,13 @@ pub fn revlog_new(conn: &Connection, card_id: u32, review: Review) -> Result<()>
         params![review.date, card_id, review.grade as u32, review.answertime, -1],
     )?;
     Ok(())
-    
 }
 
+
+pub fn new_topic(conn: &Connection, name: String, parent: u32) -> Result<()>{
+    conn.execute(
+        "INSERT INTO topics (name, parent) VALUES (?1, ?2)",
+        params![name, parent],
+    )?;
+    Ok(())
+}

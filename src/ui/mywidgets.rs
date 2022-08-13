@@ -177,11 +177,16 @@ where
 
 fn topic2string(topic: &Topic) -> String {
     let mut mystring: String = String::new();
-    mystring += &topic.id.to_string();
-    mystring.push_str("    ");
+    if topic.ancestors > 0{
+        for x in 0..topic.ancestors - 1{
+            mystring.push_str("  ");
+        }
+        mystring.push_str("└─")
+    }
+
+
+
     mystring.push_str(&topic.name);
-    mystring.push_str("  ⬆️ ");
-    mystring += &topic.parent.to_string();
     mystring
 }
 
@@ -205,10 +210,10 @@ where
     let  items = items
         .highlight_style(
             Style::default()
-            .bg(Color::Blue)
+            .bg(Color::DarkGray)
             .add_modifier(Modifier::BOLD),
-    )
-    .highlight_symbol(">>> ");
+    );
+//    .highlight_symbol(">>> ");
     
     
     f.render_stateful_widget(items, area, &mut _app.add_card.topics.state);

@@ -59,7 +59,9 @@ pub fn get_topics(conn: &Connection) -> Result<Vec<Topic>>{
                 id: row.get(0)?,
                 name: row.get(1)?,
                 parent: row.get(2).expect("wtfaaaaaaaaaahhhhhh"),            
+                children: Vec::<u8>::new(),
                 ancestors: 0,
+                editing: false,
             }
         )
     })?;

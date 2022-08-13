@@ -112,7 +112,16 @@ pub struct Card{
 }
 
 
+/*
 
+
+
+*/
+impl Card {
+    pub fn check_resolved(&mut self){
+        
+    }
+}
 
 
 

@@ -7,9 +7,10 @@ use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{
-        Block, Borders, Paragraph, Row, Wrap, Table, Cell},
+        Block, Borders, Paragraph, Row, Wrap, Table, Cell, ListItem, List},
     Frame,
 };
+use crate::utils::structs::Topic;
 
 
 
@@ -137,6 +138,9 @@ where
 
 
 
+
+
+
 /*
 fn filter_status<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
 where
@@ -170,3 +174,45 @@ where
 }
 
 */
+
+fn topic2string(topic: &Topic) -> String {
+    let mut mystring: String = String::new();
+    mystring += &topic.id.to_string();
+    mystring.push_str("    ");
+    mystring.push_str(&topic.name);
+    mystring.push_str("  ⬆️ ");
+    mystring += &topic.parent.to_string();
+    mystring
+}
+
+
+// TODO pass in &Topics as an argument so that this widget can be used for several
+pub fn topiclist<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
+where
+    B: Backend,
+{
+
+
+
+
+    let items: Vec<ListItem> = _app.add_card.topics.items.iter().map(|topic| {
+        let lines = vec![Spans::from(topic2string(topic))];
+        ListItem::new(lines).style(Style::default().fg(Color::Red).bg(Color::Black))
+    }).collect();
+    
+    let items = List::new(items).block(Block::default().borders(Borders::ALL).title("Topics"));
+
+    let  items = items
+        .highlight_style(
+            Style::default()
+            .bg(Color::Blue)
+            .add_modifier(Modifier::BOLD),
+    )
+    .highlight_symbol(">>> ");
+    
+    
+    f.render_stateful_widget(items, area, &mut _app.add_card.topics.state);
+
+
+
+}

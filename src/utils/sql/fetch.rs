@@ -1,6 +1,6 @@
-
 use rusqlite::{Connection,Row, Result};
 use crate::utils::card::{Card, RecallGrade, Review, Status}; //, Topic, Review}
+use crate::utils::structs::Topic;
 
 #[derive(Clone)]
 pub struct DepPair{
@@ -10,12 +10,8 @@ pub struct DepPair{
 }
 
 
-#[derive(Clone)]
-pub struct Topic{
-    pub id: u32,
-    pub name: String,
-    pub parent: u32,
-}
+
+
 
 
 
@@ -55,17 +51,15 @@ pub fn highest_id(conn: &Connection) -> Result<u32> {
     Ok(maxid)
 }
 
-pub fn get_topics() -> Result<Vec<Topic>>{
-
-    let conn = Connection::open("dbflash.db").expect("Failed to connect to database.");
-
+pub fn get_topics(conn: &Connection) -> Result<Vec<Topic>>{
     let mut stmt = conn.prepare("SELECT * FROM topics")?;
     let rows = stmt.query_map([], |row| {
         Ok(
             Topic{
                 id: row.get(0)?,
                 name: row.get(1)?,
-                parent: row.get(2)?,
+                parent: row.get(2).expect("wtfaaaaaaaaaahhhhhh"),            
+                ancestors: 0,
             }
         )
     })?;

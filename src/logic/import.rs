@@ -7,7 +7,7 @@ use crate::utils::{
 
 
 use rusqlite::Connection;
-use csv::{StringRecord};
+use csv::StringRecord;
 
 
 
@@ -51,7 +51,7 @@ pub fn import_cards(conn: &Connection){
             integrated: 1.0,
             card_id: 0u32,
         };
-        save_card(conn, card);
+        save_card(conn, card).unwrap();
         
     }
 

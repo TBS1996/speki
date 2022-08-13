@@ -8,7 +8,7 @@ use tui::{
 };
 
 
-use crate::ui::mywidgets::{cursorsplit, draw_field};
+use crate::ui::mywidgets::{cursorsplit, draw_field, topiclist};
 use crate::logic::add_card::{Page, TextSelect, CardEdit};
 
 
@@ -16,9 +16,17 @@ pub fn draw_add_card<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
 where
     B: Backend,
 {
+    let chunks = Layout::default().direction(Direction::Horizontal).constraints([Constraint::Ratio(3,4), Constraint::Ratio(1, 4)].as_ref(),).split(area);
+
+
+    let left = chunks[0];
+    let right = chunks[1];
+    
+    topiclist(f, app, right);
+
     match app.add_card.card.page{
-        Page::Editing => editing(f, app, area),
-        Page::Confirming => submit_options(f, app, area),
+        Page::Editing => editing(f, app, left),
+        Page::Confirming => submit_options(f, app, left),
     }
 }
 
@@ -29,7 +37,7 @@ fn editing<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
 where
     B: Backend,
 {
-    let chunks = Layout::default().constraints([Constraint::Percentage(10), Constraint::Percentage(37), Constraint::Percentage(37),Constraint::Min(6)].as_ref(),).split(area);
+    let chunks = Layout::default().constraints([Constraint::Percentage(37), Constraint::Percentage(37),Constraint::Min(6)].as_ref(),).split(area);
 
     let cardedit = app.add_card.card.clone();
 
@@ -55,13 +63,12 @@ where
 
 
     let quesprompt = if cardedit.selection == TextSelect::Question(false) {"QUESTION"} else {"question"};
-    let ansprompt  = if cardedit.selection == TextSelect::Answer(false) {"ANSWER"} else {"answer"};
+    let ansprompt  = if cardedit.selection == TextSelect::Answer(false)   {"ANSWER"}   else {"answer"};
 
     
-    draw_field(f, chunks[0], vec![Span::from(cardedit.prompt.as_str())], "", Alignment::Center);
-    draw_field(f, chunks[1], question, quesprompt, Alignment::Left);
-    draw_field(f, chunks[2],   answer.clone(), ansprompt, Alignment::Left);
-    draw_bottom_menu(f, chunks[3], cardedit);
+    draw_field(f, chunks[0], question, quesprompt, Alignment::Left);
+    draw_field(f, chunks[1],   answer.clone(), ansprompt, Alignment::Left);
+    draw_bottom_menu(f, chunks[2], cardedit);
     
 }
 

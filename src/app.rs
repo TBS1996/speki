@@ -1,17 +1,11 @@
-
-
+use crate::utils::sql::fetch::get_topics;
 use rusqlite::Connection;
 use crossterm::event::KeyCode;
-use std::collections::HashMap;
 
-use crate::utils::{
-    sql::fetch::load_cards,
-    card::Card,
-};
+use crate::utils::structs::{StatefulList, Topic};
 use crate::logic::{
     review::ReviewList,
     browse::Browse,
-    import::import_cards,
     add_card::{NewCards, TextSelect},
 };
 use crate::events::{
@@ -20,6 +14,10 @@ use crate::events::{
     add_card::add_card_event,
     import::main_port,
 };
+
+
+
+
 
 
 
@@ -51,6 +49,7 @@ impl<'a> TabsState<'a> {
 
 
 
+
 pub struct App<'a> {
     pub should_quit: bool,
     pub tabs: TabsState<'a>,
@@ -67,13 +66,14 @@ impl<'a> App<'a> {
         let conn = Connection::open("dbflash.db").expect("Failed to conncet to database.");
         let revlist = ReviewList::new(&conn);
         let browse = Browse::new(&conn);
+        let addcards =  NewCards::new(&conn);
         App {
             should_quit: false,
             tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "import"]),
             conn: conn,
             prev_key: KeyCode::Null,
             review: revlist,
-            add_card: NewCards::new(),
+            add_card: addcards,
             browse: browse,
         }
     }
@@ -108,4 +108,8 @@ impl<'a> App<'a> {
         }
         self.prev_key = keyclone;
     }
+
+
+
 }
+

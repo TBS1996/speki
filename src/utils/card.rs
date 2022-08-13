@@ -114,11 +114,5 @@ pub struct Card{
 
 
 
-#[derive(Clone)]
-pub struct Topic{
-    pub topic_id: u32,
-    pub name: String,
-    pub children: Vec<u32>,
-}
 
 

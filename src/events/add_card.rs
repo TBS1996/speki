@@ -40,6 +40,9 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
     }else{
         match key{
             KeyCode::Char('q') => app.should_quit = true,
+            KeyCode::Char('k') => app.add_card.topics.previous(),
+            KeyCode::Char('j') => app.add_card.topics.next(),
+            KeyCode::Esc  => app.add_card.topics.state.select(None),
             KeyCode::Left   => app.on_left(),
             KeyCode::Right  => app.on_right(),
             KeyCode::Enter  => app.add_card.enterkey(&app.conn),

@@ -1,27 +1,30 @@
-
+use crate::app::App;
 use rusqlite::Connection;
 use crate::utils::{
     sql::{
-        fetch::highest_id,
+        fetch::{highest_id, get_topics},
         insert::{update_both, save_card, revlog_new},
     },
     card::{Status, RecallGrade, Review, Card},
     textinput::Field,
+    structs::{StatefulList, Topic},
 };
 
 
 pub struct NewCards{
     pub cards: Vec<CardEdit>,
     pub card: CardEdit,
+    pub topics: StatefulList<Topic>,
 }
 
 
 
 impl NewCards{
-    pub fn new() -> NewCards{
+    pub fn new(conn: &Connection) -> NewCards{
         NewCards {
             cards: Vec::<CardEdit>::new(),
             card: CardEdit::new(),
+            topics: StatefulList::with_items(get_topics(conn).unwrap()),
         }
     }
     pub fn add_dependency(&mut self){
@@ -47,11 +50,12 @@ impl NewCards{
 
 
 
-    pub fn submit_card(&mut self, conn: &Connection) {
+    pub fn submit_card(&mut self, conn: &Connection, topic: u32) {
+
 
         match self.card.selection{
-            TextSelect::SubmitFinished   => self.card.submit_cardedit(conn, Status::new_complete(),   self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
-            TextSelect::SubmitUnfinished => self.card.submit_cardedit(conn, Status::new_incomplete(), self.card.dependencies.clone(), self.card.dependents.clone(), self.card.topic),
+            TextSelect::SubmitFinished   => self.card.submit_cardedit(conn, topic),
+            TextSelect::SubmitUnfinished => self.card.submit_cardedit(conn, topic),
             _  => panic!("wtf"),
         }
 
@@ -112,28 +116,32 @@ impl NewCards{
             }
         }
         else {
+
+            let topic: u32 = 
+                match self.topics.state.selected(){
+                    None =>  0,
+                    Some(index) =>  self.topics.items[index as usize].id,
+                };
+            
+
+
+
             match self.card.selection {
                 TextSelect::Question(_) => self.card.selection = TextSelect::Question(true),
                 TextSelect::Answer(_)   => self.card.selection = TextSelect::Answer(true),
-                TextSelect::SubmitFinished   => self.submit_card(conn),
-                TextSelect::SubmitUnfinished => self.submit_card(conn),
+                TextSelect::SubmitFinished   => self.submit_card(conn, topic),
+                TextSelect::SubmitUnfinished => self.submit_card(conn, topic),
                 TextSelect::AddDependency => self.add_dependency(),
                 TextSelect::AddDependent  => self.add_dependent(),
                 TextSelect::NewCard => self.done(conn),
             }
         }
 }
-/*
-    pub fn get_max_id(app: &App)-> u32{
-        let thecards = load_cards(&app.conn).unwrap();
-        let mut maxid = 0 as u32;
-        for card in thecards{
-            if card.card_id > maxid{
-                maxid = card.card_id;
-            }
-        }
-        maxid
-    }*/
+
+
+
+
+
 }
 
 
@@ -203,22 +211,28 @@ impl CardEdit{
     }
 
 
-    pub fn submit_cardedit(&mut self, conn: &Connection, status: Status, dependencies: Vec<u32>, dependents: Vec<u32>, topic: u32){
-        let mut question = self.question.text.clone();
+    pub fn submit_cardedit(&mut self, conn: &Connection, topic: u32){
+        let mut question = self.question.text.clone(); 
         let mut answer   = self.answer.text.clone();
         question.pop();
         answer.pop();
 
+        let status = match self.selection{
+            TextSelect::SubmitFinished => Status::new_complete(),
+            TextSelect::SubmitUnfinished => Status::new_incomplete(),
+            _  => panic!("wtf"),
+        };
+
         let newcard = Card{
-            question: question, 
-            answer:   answer,
+            question,
+            answer, 
             status: status,
             strength: 1f32,
             stability: 1f32,
-            dependencies: dependencies,
-            dependents: dependents,
+            dependencies: self.dependencies.clone(),
+            dependents: self.dependents.clone(),
             history: vec![Review::from(&RecallGrade::Decent)] ,
-            topic: topic,
+            topic,
             future: String::from("[]"),
             integrated: 1f32,
             card_id: 0u32,

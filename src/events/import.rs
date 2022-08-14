@@ -9,8 +9,8 @@ pub fn main_port(app: &mut App, key: KeyCode){
 
                 KeyCode::Char('i') => import_cards(&app.conn),
                 KeyCode::Char('q') => app.should_quit = true,
-                KeyCode::Left  => app.on_left(),
-                KeyCode::Right  => app.on_right(),
+                KeyCode::Char('z')   => app.on_left(),
+                KeyCode::Char('x')  => app.on_right(),
                 _ => {},
 
 

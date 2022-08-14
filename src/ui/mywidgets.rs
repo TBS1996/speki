@@ -1,4 +1,4 @@
-
+use crate::logic::review;
 use crate::utils::sql::fetch::fetch_card;
 use crate::app::App;
 use tui::{
@@ -14,12 +14,15 @@ use crate::utils::structs::Topic;
 
 
 
-pub fn draw_field<B>(f: &mut Frame<B>, area: Rect, text: Vec<Span>, title: &str, alignment: Alignment)
+pub fn draw_field<B>(f: &mut Frame<B>, area: Rect, text: Vec<Span>, title: &str, alignment: Alignment, selected: bool)
 where
     B: Backend,
 {
+    let bordercolor = if selected {Color::Red} else {Color::White};
+    let style = Style::default().fg(bordercolor);
+
     
-    let block = Block::default().borders(Borders::ALL).title(Span::styled(
+    let block = Block::default().borders(Borders::ALL).border_style(style).title(Span::styled(
         title,
         Style::default()
             .fg(Color::Magenta)
@@ -52,7 +55,7 @@ pub fn cursorsplit(text: &str, index: usize) -> Vec<Span> {
 
 
 
-pub fn card_status<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
+pub fn card_status<B>(f: &mut Frame<B>, _app: &mut App, area: Rect, selected: bool)
 where
     B: Backend,
 {
@@ -61,6 +64,10 @@ where
         return;
     }
     let card = fetch_card(&_app.conn, opt.unwrap());
+
+    let bordercolor = if selected {Color::Red} else {Color::White};
+    let style = Style::default().fg(bordercolor);
+
     
     let rows = vec![
         Row::new(vec![Cell::from(Span::raw(format!("initiated: {:?}", card.status.initiated)))]),
@@ -72,7 +79,7 @@ where
     ];
 
     
-    let table = Table::new(rows).block(Block::default().title("stats").borders(Borders::ALL)).widths(&[
+    let table = Table::new(rows).block(Block::default().title("stats").borders(Borders::ALL).border_style(style)).widths(&[
             Constraint::Ratio(1, 1),
         ]);
     f.render_widget(table, area);
@@ -81,13 +88,15 @@ where
 
 
 
-pub fn view_dependencies<B>(f: &mut Frame<B>, id: u32, app: & App, area: Rect)
+pub fn view_dependencies<B>(f: &mut Frame<B>, id: u32, app: & App, area: Rect, selected: bool)
 where
     B: Backend,
 {
     let thecard = fetch_card(&app.conn, id);
     let dep_ids = &thecard.dependencies;
     
+    let bordercolor = if selected {Color::Red} else {Color::White};
+    let style = Style::default().fg(bordercolor);
 
    
     let mut deps = Vec::<Row>::new();
@@ -99,14 +108,14 @@ where
     }
     
     
-    let table = Table::new(deps).block(Block::default().title("dependencies").borders(Borders::ALL)).widths(&[
+    let table = Table::new(deps).block(Block::default().title("dependencies").borders(Borders::ALL).border_style(style)).widths(&[
             Constraint::Ratio(1, 1),
         ]);
     f.render_widget(table, area);
 }
 
 
-pub fn view_dependents<B>(f: &mut Frame<B>, id: u32, app: & App, area: Rect)
+pub fn view_dependents<B>(f: &mut Frame<B>, id: u32, app: & App, area: Rect, selected: bool)
 where
     B: Backend,
 {
@@ -122,12 +131,15 @@ where
         deps.push(foo);
     }
     
+    let bordercolor = if selected {Color::Red} else {Color::White};
+    let style = Style::default().fg(bordercolor);
     
     let table = Table::new(deps)
         .block(
             Block::default()
                 .title("dependents")
-                .borders(Borders::ALL))
+                .borders(Borders::ALL)
+                .border_style(style))
         .widths(&[
             Constraint::Ratio(1, 1),
         ]);
@@ -192,12 +204,12 @@ fn topic2string(topic: &Topic) -> String {
 
 
 // TODO pass in &Topics as an argument so that this widget can be used for several
-pub fn topiclist<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
+pub fn topiclist<B>(f: &mut Frame<B>, _app: &mut App, area: Rect, selected: bool)
 where
     B: Backend,
 {
-
-
+    let bordercolor = if selected {Color::Red} else {Color::White};
+    let style = Style::default().fg(bordercolor);
 
 
     let items: Vec<ListItem> = _app.add_card.topics.items.iter().map(|topic| {
@@ -205,7 +217,7 @@ where
         ListItem::new(lines).style(Style::default().fg(Color::Red).bg(Color::Black))
     }).collect();
     
-    let items = List::new(items).block(Block::default().borders(Borders::ALL).title("Topics"));
+    let items = List::new(items).block(Block::default().borders(Borders::TOP).border_style(style).title("Topics"));
 
     let  items = items
         .highlight_style(

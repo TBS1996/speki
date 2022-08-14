@@ -22,7 +22,7 @@ where
     let left = chunks[0];
     let right = chunks[1];
     
-    topiclist(f, app, right);
+    topiclist(f, app, right, app.add_card.selection == TextSelect::Topic);
     editing(f, app, left);
 }
 
@@ -59,20 +59,18 @@ where
         }
 
 
-    let quesprompt = if cardedit.selection == TextSelect::Question(false) {"QUESTION"} else {"question"};
-    let ansprompt  = if cardedit.selection == TextSelect::Answer(false)   {"ANSWER"}   else {"answer"};
 
-    draw_field(f, chunks[0], vec![Span::from(cardedit.prompt.as_str())], "", Alignment::Center); 
-    draw_field(f, chunks[1], question, quesprompt, Alignment::Left);
-    draw_field(f, chunks[2],   answer.clone(), ansprompt, Alignment::Left);
-    draw_bottom_menu(f, chunks[3], cardedit);
+    draw_field(f, chunks[0], vec![Span::from(cardedit.prompt.as_str())], "", Alignment::Center, false); 
+    draw_field(f, chunks[1], question, "question", Alignment::Left, TextSelect::Question(false) == cardedit.selection || TextSelect::Question(true) == cardedit.selection);
+    draw_field(f, chunks[2],   answer.clone(), "answer", Alignment::Left, TextSelect::Answer(false) == cardedit.selection || TextSelect::Answer(true) == cardedit.selection);
+    draw_bottom_menu(f, chunks[3], cardedit, app);
     
 }
 
 
 
 
-fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, newcard: NewCard)
+fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, newcard: NewCard, app: &App)
     where
     B: Backend,
 {
@@ -96,8 +94,8 @@ fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, newcard: NewCard)
     
 
     let alignment = Alignment::Center;
-    draw_field(f, chunks[0], fin,"" , alignment);
-    draw_field(f, chunks[1], unf, "", alignment);
+    draw_field(f, chunks[0], fin,"" , alignment, app.add_card.selection == TextSelect::SubmitFinished);
+    draw_field(f, chunks[1], unf, "", alignment, app.add_card.selection == TextSelect::SubmitUnfinished);
 
 
 }

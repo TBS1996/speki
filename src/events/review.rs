@@ -3,6 +3,7 @@ use crate::app::App;
 use crossterm::event::KeyCode;
 use crate::utils::card::{RecallGrade, Card};
 use crate::logic::add_card::DepState;
+use crate::logic::review::ReviewList;
 
 pub fn review_event(app: &mut App, key: KeyCode) {
 
@@ -13,8 +14,8 @@ pub fn review_event(app: &mut App, key: KeyCode) {
     }
 
     match key {
-            KeyCode::Left  => app.on_left(),
-            KeyCode::Right => app.on_right(),
+            KeyCode::Char('z')   => app.on_left(),
+            KeyCode::Char('x')  => app.on_right(),
             KeyCode::Char('q') => app.should_quit = true,
             KeyCode::Char(' ') => app.review.reveal = true,
             KeyCode::Char('1') => app.review.new_review(&app.conn, card, RecallGrade::None),
@@ -36,7 +37,7 @@ pub fn review_event(app: &mut App, key: KeyCode) {
                 Card::toggle_complete(card, &app.conn);
                 }
             }
+            KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down  => app.review.navigate(key),
             _=> {},
-
     }
 }

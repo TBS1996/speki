@@ -35,7 +35,7 @@ impl Field{
         }
     }
     pub fn delete(&mut self){
-        if self.text.len() > 1{
+        if self.text.len() > 1 && self.cursor != self.text.len() - 1{
             self.text.remove(self.cursor);
         }
     }

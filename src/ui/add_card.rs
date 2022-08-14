@@ -9,7 +9,7 @@ use tui::{
 
 
 use crate::ui::mywidgets::{cursorsplit, draw_field, topiclist};
-use crate::logic::add_card::{Page, TextSelect, CardEdit};
+use crate::logic::add_card::{TextSelect, NewCard};
 
 
 pub fn draw_add_card<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
@@ -23,11 +23,7 @@ where
     let right = chunks[1];
     
     topiclist(f, app, right);
-
-    match app.add_card.card.page{
-        Page::Editing => editing(f, app, left),
-        Page::Confirming => submit_options(f, app, left),
-    }
+    editing(f, app, left);
 }
 
 
@@ -37,9 +33,10 @@ fn editing<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
 where
     B: Backend,
 {
-    let chunks = Layout::default().constraints([Constraint::Percentage(37), Constraint::Percentage(37),Constraint::Min(6)].as_ref(),).split(area);
+   // let chunks = Layout::default().constraints([Constraint::Percentage(37), Constraint::Percentage(37),Constraint::Min(6)].as_ref(),).split(area);
+    let chunks = Layout::default().constraints([Constraint::Percentage(10), Constraint::Percentage(37), Constraint::Percentage(37),Constraint::Min(6)].as_ref(),).split(area);
 
-    let cardedit = app.add_card.card.clone();
+    let cardedit = app.add_card.clone();
 
     let question: Vec<Span>;
     let answer: Vec<Span>;
@@ -65,48 +62,17 @@ where
     let quesprompt = if cardedit.selection == TextSelect::Question(false) {"QUESTION"} else {"question"};
     let ansprompt  = if cardedit.selection == TextSelect::Answer(false)   {"ANSWER"}   else {"answer"};
 
-    
-    draw_field(f, chunks[0], question, quesprompt, Alignment::Left);
-    draw_field(f, chunks[1],   answer.clone(), ansprompt, Alignment::Left);
-    draw_bottom_menu(f, chunks[2], cardedit);
+    draw_field(f, chunks[0], vec![Span::from(cardedit.prompt.as_str())], "", Alignment::Center); 
+    draw_field(f, chunks[1], question, quesprompt, Alignment::Left);
+    draw_field(f, chunks[2],   answer.clone(), ansprompt, Alignment::Left);
+    draw_bottom_menu(f, chunks[3], cardedit);
     
 }
 
 
 
 
-
-
-fn submit_options<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend, {
-    
-
-    let chunks = Layout::default().direction(Direction::Vertical)
-        .constraints([Constraint::Ratio(1, 3), Constraint::Ratio(1, 3),Constraint::Ratio(1, 3)].as_ref())
-        .split(area);
-
-    let mut new  = vec![Span::from("Add new card")];
-    let mut ency = vec![Span::from("Add dependency")];
-    let mut ent  = vec![Span::from("Add dependent")];
-
-    match app.add_card.card.selection {
-        TextSelect::NewCard   => {new  = vec![Span::styled("Add new card",   Style::default().add_modifier(Modifier::REVERSED))]},
-        TextSelect::AddDependency => {ency  = vec![Span::styled("Add dependency", Style::default().add_modifier(Modifier::REVERSED))]},
-        TextSelect::AddDependent    => {ent = vec![Span::styled("Add dependent",       Style::default().add_modifier(Modifier::REVERSED))]},
-        _ => {},
-}
-
-    let alignment = Alignment::Center;
-    draw_field(f, chunks[0], new,  "", alignment);
-    draw_field(f, chunks[1], ency, "", alignment);
-    draw_field(f, chunks[2], ent,  "", alignment);
-
-
-
-    }
-
-fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, cardedit: CardEdit)
+fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, newcard: NewCard)
     where
     B: Backend,
 {
@@ -121,7 +87,7 @@ fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, cardedit: CardEdit)
     let mut fin = vec![Span::from("Submit as finished")];
     let mut unf = vec![Span::from("Submit as unfinished")];
 
-    match cardedit.selection {
+    match newcard.selection {
         TextSelect::SubmitFinished   => {fin  = vec![Span::styled("Submit as finished",   Style::default().add_modifier(Modifier::REVERSED))]},
         TextSelect::SubmitUnfinished => {unf  = vec![Span::styled("Submit as unfinished", Style::default().add_modifier(Modifier::REVERSED))]},
         _ => {},

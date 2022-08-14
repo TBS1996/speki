@@ -17,6 +17,7 @@ pub struct Topic{
 }
 
 
+#[derive(Clone)]
 pub struct StatefulList<T> {
     pub state: ListState,
     pub items: Vec<T>,
@@ -45,14 +46,14 @@ pub fn add_kids(self){
 
 
 
-pub fn get_selected_id(self) -> Option<u32>{
+pub fn get_selected_id(&self) -> Option<u32>{
     match self.state.selected(){
         None => None,
         Some(idx) => Some(self.items[idx as usize].id)
     }
 }
 
-pub fn get_selected_parent(self) -> Option<u32>{
+pub fn get_selected_parent(&self) -> Option<u32>{
     match self.state.selected(){
         None => None,
         Some(idx) => Some(self.items[idx as usize].parent)

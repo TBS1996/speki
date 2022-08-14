@@ -1,5 +1,6 @@
 use crate::app::App;
 use rusqlite::Connection;
+use tui::text::Text;
 use crate::utils::{
     sql::{
         fetch::{highest_id, get_topics},
@@ -11,176 +12,12 @@ use crate::utils::{
 };
 
 
-pub struct NewCards{
-    pub cards: Vec<CardEdit>,
-    pub card: CardEdit,
-    pub topics: StatefulList<Topic>,
-}
-
-
-
-impl NewCards{
-    pub fn new(conn: &Connection) -> NewCards{
-        let mut topics = StatefulList::with_items(get_topics(conn).unwrap()); 
-        topics.dfs();
-        
-        NewCards {
-            cards: Vec::<CardEdit>::new(),
-            card: CardEdit::new(),
-            topics: topics,
-        }
-    }
-    pub fn add_dependency(&mut self){
-        let newcard = CardEdit::new();
-
-        self.card = newcard;
-        self.card.prompt = String::from("Adding new dependency");
-        self.card.page = Page::Editing;
-        self.card.state = DepState::Dependency;
-        //self.cards.push(self.card.clone());
-    }
-
-    pub fn add_dependent(&mut self){
-        let newcard = CardEdit::new();
-
-        self.card = newcard;
-        self.card.prompt = String::from("Adding new dependent");
-        self.card.page = Page::Editing;
-        self.card.state = DepState::Dependent;
-        //self.cards.push(self.card.clone());
-    }
-
-
-
-
-    pub fn submit_card(&mut self, conn: &Connection, topic: u32) {
-
-
-        match self.card.selection{
-            TextSelect::SubmitFinished   => self.card.submit_cardedit(conn, topic),
-            TextSelect::SubmitUnfinished => self.card.submit_cardedit(conn, topic),
-            _  => panic!("wtf"),
-        }
-
-
-        let last_id: u32 = highest_id(conn).unwrap();
-
-        self.card.id   = Some(last_id);
-//        panic!("wtf");
-        match &self.card.id{
-            None => panic!("wtf"),
-            _=>{},
-        }
-        self.card.page = Page::Confirming;
-        self.card.selection = TextSelect::NewCard;
-        self.cards.push(self.card.clone());
-    }
-
-
-    pub fn done(&mut self, conn: &Connection){
-        let cardlen = &self.cards.len();
-        match &self.card.state{
-            DepState::Base => {},
-            DepState::Dependency => {
-                let ency_id = self.card.id.unwrap();
-                let ent_id  = self.cards[cardlen - 2 as usize].id.unwrap();
-
-                update_both(conn, ent_id, ency_id).unwrap();
-            },
-            DepState::Dependent  => {
-                let ency_id = self.cards[cardlen - 2 as usize].id.unwrap();
-                let ent_id  = self.card.id.unwrap(); 
-
-                update_both(conn, ent_id, ency_id).unwrap();
-            },
-        }
-        
-        
-        self.cards.pop();
-        
-        if self.cards.is_empty(){
-            self.card = CardEdit::new();
-            self.card.page = Page::Editing;
-        }
-        else {
-            self.card = self.cards.last().unwrap().clone();
-        }
-
-    }
-
-
-
-    pub fn enterkey(&mut self, conn: &Connection){
-        if self.card.istextselected(){
-            match self.card.selection{
-                TextSelect::Question(_) => self.card.selection = TextSelect::Answer(true),
-                TextSelect::Answer(_)   => self.card.selection = TextSelect::SubmitFinished,
-            _ => {},
-            }
-        }
-        else {
-
-            let topic: u32 = 
-                match self.topics.state.selected(){
-                    None =>  0,
-                    Some(index) =>  self.topics.items[index as usize].id,
-                };
-            
-
-
-
-            match self.card.selection {
-                TextSelect::Question(_) => self.card.selection = TextSelect::Question(true),
-                TextSelect::Answer(_)   => self.card.selection = TextSelect::Answer(true),
-                TextSelect::SubmitFinished   => self.submit_card(conn, topic),
-                TextSelect::SubmitUnfinished => self.submit_card(conn, topic),
-                TextSelect::AddDependency => self.add_dependency(),
-                TextSelect::AddDependent  => self.add_dependent(),
-                TextSelect::NewCard => self.done(conn),
-            }
-        }
-}
-
-
-/*
- 
-
-
-
-*/
-
-
-
-
-pub fn count_ancestors(self){
-
-}
-
-
-
-}
-
-
-
-
-
-
-
-
-
-
-#[derive(Clone)]
-pub enum Page{
-    Editing,
-    Confirming,
-}
-
 
 #[derive(Clone)]
 pub enum DepState{
-    Base,
-    Dependency,
-    Dependent,
+    None,
+    HasDependency(u32),
+    HasDependent(u32),
 }
 
 #[derive(Clone, PartialEq)]
@@ -189,45 +26,54 @@ pub enum TextSelect{
     Answer(bool),
     SubmitFinished,
     SubmitUnfinished,
-    AddDependency,
-    AddDependent,
-    NewCard,
+    Topic,
 }
 
 #[derive(Clone)]
-pub struct CardEdit{
+pub struct NewCard{
     pub prompt: String,
-    pub selection: TextSelect,
     pub question:  Field,
     pub answer:    Field,
-    pub dependencies: Vec<u32>,
-    pub dependents: Vec<u32>,
-    pub topic: u32,
-    pub page: Page,
     pub state: DepState,
-    pub id: Option<u32>,
-
+    pub topics: StatefulList<Topic>,
+    pub selection: TextSelect,
 }
 
 
-impl CardEdit{
-    pub fn new()->CardEdit{
-        CardEdit{
-            prompt: String::from("Add card"),
-            selection: TextSelect::Question(false),
+
+impl NewCard{
+    pub fn new(conn: &Connection, state: DepState) -> NewCard{
+        let mut topics = StatefulList::with_items(get_topics(conn).unwrap()); 
+        topics.dfs();
+        
+        NewCard {
+            prompt: NewCard::make_prompt(state.clone()),
             question:  Field::new(),
             answer:    Field::new(),
-            dependencies: Vec::<u32>::new(),
-            dependents:   Vec::<u32>::new(),
-            topic: 0 as u32,
-            page: Page::Editing,
-            id: None,  // the id of the card in the table is put here after its inserted, for use when adding dependencies directly
-            state: DepState::Base,
+            state,
+            topics: topics,
+            selection: TextSelect::Question(false),
+
+
+        }
+    }
+
+    fn make_prompt(state: DepState) -> String{
+        match state{
+            DepState::None =>  String::from("Add new card"),
+            DepState::HasDependent(idx) => String::from("Add new dependency"),
+            DepState::HasDependency(idx) => String::from("Add new Dependent"), 
         }
     }
 
 
-    pub fn submit_cardedit(&mut self, conn: &Connection, topic: u32){
+    pub fn submit_card(&mut self, conn: &Connection) {
+        let mut topic: u32; 
+        match self.topics.get_selected_id(){
+            None => topic = 0,
+            Some(num) => topic = num,
+        }
+
         let mut question = self.question.text.clone(); 
         let mut answer   = self.answer.text.clone();
         question.pop();
@@ -245,8 +91,8 @@ impl CardEdit{
             status: status,
             strength: 1f32,
             stability: 1f32,
-            dependencies: self.dependencies.clone(),
-            dependents: self.dependents.clone(),
+            dependencies: Vec::<u32>::new(),
+            dependents: Vec::<u32>::new(),
             history: vec![Review::from(&RecallGrade::Decent)] ,
             topic,
             future: String::from("[]"),
@@ -257,47 +103,44 @@ impl CardEdit{
 
         save_card(conn, newcard).unwrap();
         revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent)).unwrap();
+
+        let last_id: u32 = highest_id(conn).unwrap();
+        match self.state{
+            DepState::None => {},
+            DepState::HasDependent(id) => {
+                update_both(conn, id, last_id).unwrap();
+                Card::check_resolved(id, conn);
+            },  
+            DepState::HasDependency(id) => {update_both(conn, last_id, id);},  
+        }
+
+        self.reset(DepState::None);
     }
 
-    pub fn addchar(&mut self, c: char){
+
+    pub fn reset(&mut self, state: DepState){
+        self.prompt = NewCard::make_prompt(state.clone());
+        self.question = Field::new();
+        self.answer = Field::new();
+        self.state = state;
+        self.selection = TextSelect::Question(false);
+    }
+
+
+
+
+
+    pub fn enterkey(&mut self, conn: &Connection){
         match self.selection{
-            TextSelect::Question(_) => self.question.addchar(c),
-            TextSelect::Answer(_)   => self.answer.addchar(c),
-            _ => {}
-        }
-    }
-    pub fn backspace(&mut self){
-        match self.selection {
-            TextSelect::Question(_) => self.question.backspace(),
-            TextSelect::Answer(_)   => self.answer.backspace(),
-            _ => {},
-        }
-    }
-
-    pub fn next(&mut self) {
-        match self.selection {
-            TextSelect::Question(_) => self.question.next(),
-            TextSelect::Answer(_)   => self.answer.next(),
-            _ => {},
+            TextSelect::Question(_) => self.selection = TextSelect::Question(true),
+            TextSelect::Answer(_)   => self.selection = TextSelect::Answer(true),
+            TextSelect::SubmitFinished | TextSelect::SubmitUnfinished => self.submit_card(conn),
+            _ => panic!("oops"),
         }
     }
 
 
-    pub fn prev(&mut self) {
-        match self.selection {
-            TextSelect::Question(_) => self.question.prev(),
-            TextSelect::Answer(_)   => self.answer.prev(),
-            _ => {},
-        }
-    }
 
-    pub fn delete(&mut self){
-        match self.selection{
-            TextSelect::Question(_) => self.question.delete(), 
-            TextSelect::Answer(_)   => self.answer.delete(),
-            _ => {},
-        }
-    }
 
     pub fn istextselected(&self)->bool{
         (self.selection == TextSelect::Question(true)) || (self.selection == TextSelect::Answer(true))
@@ -349,8 +192,6 @@ impl CardEdit{
             TextSelect::Answer(_)         => self.selection = TextSelect::Question(false),
             TextSelect::SubmitFinished   => self.selection = TextSelect::Answer(false),
             TextSelect::SubmitUnfinished => self.selection = TextSelect::SubmitFinished,
-            TextSelect::AddDependency    => self.selection = TextSelect::NewCard,
-            TextSelect::AddDependent     => self.selection = TextSelect::AddDependency,
             _ => {},
 
             }
@@ -360,8 +201,6 @@ impl CardEdit{
             TextSelect::Question(_)       => self.selection = TextSelect::Answer(false),
             TextSelect::Answer(_)         => self.selection = TextSelect::SubmitFinished,
             TextSelect::SubmitFinished   => self.selection = TextSelect::SubmitUnfinished,
-            TextSelect::NewCard          => self.selection = TextSelect::AddDependency,
-            TextSelect::AddDependency    => self.selection = TextSelect::AddDependent,
             _ => {},
         }
     }

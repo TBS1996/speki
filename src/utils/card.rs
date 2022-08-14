@@ -123,7 +123,8 @@ impl Card {
     ///checks if the passed card should be resolved or not based on the completeness of its
     ///dependencies. If its status changed, it will recursively check all its dependents (and so
     ///on...)
-    pub fn check_resolved(id: u32, conn: &Connection){
+    pub fn check_resolved(id: u32, conn: &Connection) -> bool {
+        let mut change_detected = false;
         let mut card = fetch_card(conn, id);
         let mut check_resolved = true;
         for dependency in &card.dependencies{
@@ -134,16 +135,28 @@ impl Card {
            };
        } 
         if card.status.resolved != check_resolved{
+            change_detected = true;
             card.status.resolved = check_resolved;
             update_status(conn, &card.clone()).unwrap();
 
             for dependent in card.dependents{
                 Card::check_resolved(dependent, conn);
             }
-
             
         }
+        change_detected
     }
+
+
+    pub fn toggle_complete(mut card: Card, conn: &Connection) {
+        //let card.status.complete = false;
+        card.status.complete = !card.status.complete;
+        update_status(conn, &card);
+        for dependent in card.dependents{
+            Card::check_resolved(dependent, conn);
+        }
+    }
+
 }
 
 

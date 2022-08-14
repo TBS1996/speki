@@ -10,7 +10,6 @@ use tui::{
 
 
 use crate::ui::mywidgets::{cursorsplit, draw_field};
-use crate::logic::add_card::{Page, TextSelect, CardEdit};
 
 
 pub fn draw_add_card<B>(f: &mut Frame<B>, app: &mut App, area: Rect)

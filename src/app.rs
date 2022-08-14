@@ -6,7 +6,7 @@ use crate::utils::card::Card;
 use crate::logic::{
     review::ReviewList,
     browse::Browse,
-    add_card::{NewCards, TextSelect},
+    add_card::{NewCard, TextSelect, DepState},
 };
 use crate::events::{
     review::review_event,
@@ -57,7 +57,7 @@ pub struct App<'a> {
     pub conn: Connection,
     pub prev_key: KeyCode,
     pub review: ReviewList,
-    pub add_card: NewCards,
+    pub add_card: NewCard,
     pub browse: Browse,
     
 }
@@ -67,7 +67,7 @@ impl<'a> App<'a> {
         let conn = Connection::open("dbflash.db").expect("Failed to connect to database.");
         let revlist = ReviewList::new(&conn);
         let browse = Browse::new(&conn);
-        let addcards =  NewCards::new(&conn);
+        let addcards =  NewCard::new(&conn, DepState::None);
 
         Card::check_resolved(7, &conn);
 
@@ -90,13 +90,13 @@ impl<'a> App<'a> {
 
 
     pub fn on_right(&mut self) {
-        if self.add_card.card.selection == TextSelect::Question(false) || self.add_card.card.selection == TextSelect::Answer(false){
+        if self.add_card.selection == TextSelect::Question(false) || self.add_card.selection == TextSelect::Answer(false){
             self.tabs.next();
         }
     }
 
     pub fn on_left(&mut self) {
-        if self.add_card.card.selection == TextSelect::Question(false) || self.add_card.card.selection == TextSelect::Answer(false){
+        if self.add_card.selection == TextSelect::Question(false) || self.add_card.selection == TextSelect::Answer(false){
             self.tabs.previous();
         }
     }

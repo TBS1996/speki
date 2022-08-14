@@ -33,7 +33,7 @@ pub fn init_db() -> Result<()>{
 
     conn.execute(
         "create table if not exists topics ( 
-        id     integer not null,
+        id     integer primary key,
         name   text not null,
         parent text not null
     )",

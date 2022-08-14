@@ -37,8 +37,8 @@ where
         Some(id) => {
             question = fetch_card(&app.conn, *id).question.clone();
             answer = if app.review.reveal {fetch_card(&app.conn, *id).answer.clone()} else {"Click to reveal".to_owned()}; 
-            view_dependencies(f, *id, app, rightcolumn[1]);
-            view_dependents(f, *id, app, rightcolumn[2]);
+            view_dependencies(f, *id, app, rightcolumn[2]);
+            view_dependents(f, *id, app, rightcolumn[1]);
             }
         None => {
             question = "No more cards!".to_owned();

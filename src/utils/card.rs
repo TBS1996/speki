@@ -1,5 +1,11 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde_derive::{Deserialize, Serialize};
+use rusqlite::Connection;
+use crate::utils::sql::{
+    fetch::fetch_card,
+    update::update_status,
+};
+
 
 #[derive(Serialize,Debug, Deserialize, Clone)]
 pub enum RecallGrade{
@@ -112,14 +118,31 @@ pub struct Card{
 }
 
 
-/*
-
-
-
-*/
 impl Card {
-    pub fn check_resolved(&mut self){
-        
+
+    ///checks if the passed card should be resolved or not based on the completeness of its
+    ///dependencies. If its status changed, it will recursively check all its dependents (and so
+    ///on...)
+    pub fn check_resolved(id: u32, conn: &Connection){
+        let mut card = fetch_card(conn, id);
+        let mut check_resolved = true;
+        for dependency in &card.dependencies{
+           let dep_card = fetch_card(conn, *dependency);
+           if !dep_card.status.complete || !dep_card.status.resolved{
+               check_resolved = false;
+               break;
+           };
+       } 
+        if card.status.resolved != check_resolved{
+            card.status.resolved = check_resolved;
+            update_status(conn, &card.clone()).unwrap();
+
+            for dependent in card.dependents{
+                Card::check_resolved(dependent, conn);
+            }
+
+            
+        }
     }
 }
 

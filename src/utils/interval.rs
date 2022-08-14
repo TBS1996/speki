@@ -30,6 +30,7 @@ pub fn calc_strength(conn: &Connection) {
 
     let mut strength;
     let mut passed;
+    return;
 
     for card in cards.iter(){
         if card.status.isactive() {

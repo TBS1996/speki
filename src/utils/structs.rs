@@ -60,6 +60,9 @@ pub fn get_selected_parent(self) -> Option<u32>{
 }
 
 
+
+/// dfs traversal of topics so that they get arranged correctly, kinda like the tree-package on
+/// linux. The formatting part is done in the ui module.
 pub fn dfs(&mut self){
     let mut new_vec = Vec::<Topic>::new();
     let mut parentvec = vec![0 as u32];

@@ -1,7 +1,5 @@
-use crate::utils::sql::fetch::get_topics;
 use rusqlite::Connection;
 use crossterm::event::KeyCode;
-use crate::utils::card::Card;
 
 use crate::logic::{
     review::ReviewList,
@@ -69,17 +67,16 @@ impl<'a> App<'a> {
         let browse = Browse::new(&conn);
         let addcards =  NewCard::new(&conn, DepState::None);
 
-        Card::check_resolved(7, &conn);
 
 
         let app = App {
             should_quit: false,
             tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "import"]),
-            conn: conn,
+            conn,
             prev_key: KeyCode::Null,
             review: revlist,
             add_card: addcards,
-            browse: browse,
+            browse,
         };
         //app.add_card.topics.dfs();
         

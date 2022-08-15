@@ -6,7 +6,7 @@ pub mod app;
 
 
 use std::env;
-use crate::{app::App};
+use crate::app::App;
 use crate::utils::sql::init_db;
 use crossterm::{
     event::{self, DisableMouseCapture, 

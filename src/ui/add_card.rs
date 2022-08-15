@@ -3,7 +3,7 @@ use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::{Span},
+    text::Span,
     Frame,
 };
 

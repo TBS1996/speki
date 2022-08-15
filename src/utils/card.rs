@@ -151,7 +151,7 @@ impl Card {
     pub fn toggle_complete(mut card: Card, conn: &Connection) {
         //let card.status.complete = false;
         card.status.complete = !card.status.complete;
-        update_status(conn, &card);
+        update_status(conn, &card).unwrap();
         for dependent in card.dependents{
             Card::check_resolved(dependent, conn);
         }

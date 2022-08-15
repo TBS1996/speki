@@ -1,6 +1,3 @@
-#![allow(non_camel_case_types)]
-
-
 use crossterm::event::KeyCode;
 use crate::utils::{
     card::{Card, Review, RecallGrade},
@@ -16,11 +13,11 @@ use rusqlite::Connection;
 
 #[derive(PartialEq)]
 pub enum ReviewSelection{
-    question,
-    answer,
-    stats,
-    dependents,
-    dependencies,
+    Question,
+    Answer,
+    Stats,
+    Dependents,
+    Dependencies,
 }
 
 pub struct ReviewList{
@@ -62,7 +59,7 @@ impl ReviewList {
             card: thecard,
             reveal: false,
             start_qty: qty,
-            selection: ReviewSelection::question,
+            selection: ReviewSelection::Question,
         }
     }
     pub fn new_review(&mut self, conn: &Connection, card: Option<Card>, grade: RecallGrade){
@@ -87,20 +84,20 @@ impl ReviewList {
 
 
     pub fn navigate(&mut self, key: KeyCode){
-        if key == KeyCode::Right && self.selection == ReviewSelection::question {self.selection = ReviewSelection::dependents}
-        else if key == KeyCode::Down  && self.selection == ReviewSelection::question {self.selection = ReviewSelection::answer}
+        if key == KeyCode::Right && self.selection == ReviewSelection::Question {self.selection = ReviewSelection::Dependents}
+        else if key == KeyCode::Down  && self.selection == ReviewSelection::Question {self.selection = ReviewSelection::Answer}
 
-        else if key == KeyCode::Right && self.selection == ReviewSelection::answer   {self.selection = ReviewSelection::stats}
-        else if key == KeyCode::Up    && self.selection == ReviewSelection::answer   {self.selection = ReviewSelection::question}
+        else if key == KeyCode::Right && self.selection == ReviewSelection::Answer   {self.selection = ReviewSelection::Stats}
+        else if key == KeyCode::Up    && self.selection == ReviewSelection::Answer   {self.selection = ReviewSelection::Question}
           
-        else if key == KeyCode::Down && self.selection == ReviewSelection::dependents {self.selection = ReviewSelection::stats}
-        else if key == KeyCode::Left && self.selection == ReviewSelection::dependents {self.selection = ReviewSelection::question}
+        else if key == KeyCode::Down && self.selection == ReviewSelection::Dependents {self.selection = ReviewSelection::Stats}
+        else if key == KeyCode::Left && self.selection == ReviewSelection::Dependents {self.selection = ReviewSelection::Question}
 
-        else if key == KeyCode::Left && self.selection == ReviewSelection::stats {self.selection = ReviewSelection::answer}
-        else if key == KeyCode::Up   && self.selection == ReviewSelection::stats {self.selection = ReviewSelection::dependents}
-        else if key == KeyCode::Down && self.selection == ReviewSelection::stats {self.selection = ReviewSelection::dependencies}
+        else if key == KeyCode::Left && self.selection == ReviewSelection::Stats {self.selection = ReviewSelection::Answer}
+        else if key == KeyCode::Up   && self.selection == ReviewSelection::Stats {self.selection = ReviewSelection::Dependents}
+        else if key == KeyCode::Down && self.selection == ReviewSelection::Stats {self.selection = ReviewSelection::Dependencies}
 
-        else if key == KeyCode::Up   && self.selection == ReviewSelection::dependencies {self.selection = ReviewSelection::stats}
-        else if key == KeyCode::Left && self.selection == ReviewSelection::dependencies {self.selection = ReviewSelection::answer}
+        else if key == KeyCode::Up   && self.selection == ReviewSelection::Dependencies {self.selection = ReviewSelection::Stats}
+        else if key == KeyCode::Left && self.selection == ReviewSelection::Dependencies {self.selection = ReviewSelection::Answer}
     }
 }

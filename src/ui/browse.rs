@@ -4,7 +4,7 @@ use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Spans},
+    text::Spans,
     widgets::{Block, Borders, ListItem, List},
     Frame,
 };

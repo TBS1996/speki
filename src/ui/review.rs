@@ -5,7 +5,7 @@ use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style},
-    text::{Span},
+    text::Span,
     widgets::{
         Block, Borders, Gauge},
     Frame,
@@ -38,8 +38,8 @@ where
         Some(id) => {
             question = fetch_card(&app.conn, *id).question.clone();
             answer = if app.review.reveal {fetch_card(&app.conn, *id).answer.clone()} else {"Click to reveal".to_owned()}; 
-            view_dependencies(f, *id, app, rightcolumn[2], app.review.selection == ReviewSelection::dependencies);
-            view_dependents(f, *id, app, rightcolumn[0], app.review.selection == ReviewSelection::dependents);
+            view_dependencies(f, *id, app, rightcolumn[2], app.review.selection == ReviewSelection::Dependencies);
+            view_dependents(f,   *id, app, rightcolumn[0], app.review.selection == ReviewSelection::Dependents);
             }
         None => {
             question = "No more cards!".to_owned();
@@ -48,10 +48,10 @@ where
         }
     
 
-    card_status(f, app, rightcolumn[1], app.review.selection == ReviewSelection::stats);
+    card_status(f, app, rightcolumn[1], app.review.selection == ReviewSelection::Stats);
     draw_progress(f, app, leftcolumn[0]);
-    draw_field(f, leftcolumn[1],   vec![Span::from(question)], "question", Alignment::Left, app.review.selection == ReviewSelection::question);
-    draw_field(f, leftcolumn[2],   vec![Span::from(answer)],   "answer",   Alignment::Left, app.review.selection == ReviewSelection::answer);
+    draw_field(f, leftcolumn[1],   vec![Span::from(question)], "question", Alignment::Left, app.review.selection == ReviewSelection::Question);
+    draw_field(f, leftcolumn[2],   vec![Span::from(answer)],   "answer",   Alignment::Left, app.review.selection == ReviewSelection::Answer);
 
 }
 

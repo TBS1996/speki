@@ -1,4 +1,3 @@
-use crate::logic::review;
 use crate::utils::sql::fetch::fetch_card;
 use crate::app::App;
 use tui::{
@@ -190,7 +189,7 @@ where
 fn topic2string(topic: &Topic) -> String {
     let mut mystring: String = String::new();
     if topic.ancestors > 0{
-        for x in 0..topic.ancestors - 1{
+        for _ in 0..topic.ancestors - 1{
             mystring.push_str("  ");
         }
         mystring.push_str("└─")

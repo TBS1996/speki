@@ -3,7 +3,6 @@ use crate::app::App;
 use crossterm::event::KeyCode;
 use crate::utils::card::{RecallGrade, Card};
 use crate::logic::add_card::DepState;
-use crate::logic::review::ReviewList;
 
 pub fn review_event(app: &mut App, key: KeyCode) {
 

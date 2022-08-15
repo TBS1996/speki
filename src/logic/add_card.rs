@@ -1,6 +1,4 @@
-use crate::app::App;
 use rusqlite::Connection;
-use tui::text::Text;
 use crate::utils::{
     sql::{
         fetch::{highest_id, get_topics},
@@ -51,7 +49,7 @@ impl NewCard{
             question:  Field::new(),
             answer:    Field::new(),
             state,
-            topics: topics,
+            topics,
             selection: TextSelect::Question(false),
 
 
@@ -61,14 +59,14 @@ impl NewCard{
     fn make_prompt(state: DepState) -> String{
         match state{
             DepState::None =>  String::from("Add new card"),
-            DepState::HasDependent(idx) => String::from("Add new dependency"),
-            DepState::HasDependency(idx) => String::from("Add new Dependent"), 
+            DepState::HasDependent(_idx) => String::from("Add new dependency"),
+            DepState::HasDependency(_idx) => String::from("Add new Dependent"), 
         }
     }
 
 
     pub fn submit_card(&mut self, conn: &Connection) {
-        let mut topic: u32; 
+        let topic: u32; 
         match self.topics.get_selected_id(){
             None => topic = 0,
             Some(num) => topic = num,
@@ -88,7 +86,7 @@ impl NewCard{
         let newcard = Card{
             question,
             answer, 
-            status: status,
+            status,
             strength: 1f32,
             stability: 1f32,
             dependencies: Vec::<u32>::new(),
@@ -111,7 +109,7 @@ impl NewCard{
                 update_both(conn, id, last_id).unwrap();
                 Card::check_resolved(id, conn);
             },  
-            DepState::HasDependency(id) => {update_both(conn, last_id, id);},  
+            DepState::HasDependency(id) => {update_both(conn, last_id, id).unwrap();},  
         }
 
         self.reset(DepState::None);

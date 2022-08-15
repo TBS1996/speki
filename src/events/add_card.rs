@@ -2,7 +2,6 @@ use crate::app::App;
 use crossterm::event::KeyCode;
 use crate::logic::add_card::{TextSelect, DepState} ;
 use crate::utils::sql::fetch::highest_id;
-use crate::utils::card::Card;
 
 pub fn add_card_event(app: &mut App, key: KeyCode){
     if app.add_card.istextselected(){

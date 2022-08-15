@@ -67,9 +67,7 @@ impl<'a> App<'a> {
         let browse = Browse::new(&conn);
         let addcards =  NewCard::new(&conn, DepState::None);
 
-
-
-        let app = App {
+        App {
             should_quit: false,
             tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "import"]),
             conn,
@@ -77,12 +75,7 @@ impl<'a> App<'a> {
             review: revlist,
             add_card: addcards,
             browse,
-        };
-        //app.add_card.topics.dfs();
-        
-        app
-        
-
+        }
     }
 
 

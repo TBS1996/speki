@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 use crate::utils::{
     sql::{
-        fetch::{highest_id, get_topics},
+        fetch::{highest_id, get_topics, fetch_card},
         insert::{update_both, save_card, revlog_new},
     },
     card::{Status, RecallGrade, Review, Card},
@@ -45,7 +45,7 @@ impl NewCard{
         topics.dfs();
         
         NewCard {
-            prompt: NewCard::make_prompt(state.clone()),
+            prompt: NewCard::make_prompt(state.clone(),conn),
             question:  Field::new(),
             answer:    Field::new(),
             state,
@@ -56,11 +56,26 @@ impl NewCard{
         }
     }
 
-    fn make_prompt(state: DepState) -> String{
+    fn make_prompt(state: DepState, conn: &Connection) -> String{
+        let mut prompt = String::new();
         match state{
-            DepState::None =>  String::from("Add new card"),
-            DepState::HasDependent(_idx) => String::from("Add new dependency"),
-            DepState::HasDependency(_idx) => String::from("Add new Dependent"), 
+            DepState::None =>  {
+                prompt.push_str("Add new card");
+                prompt
+            },
+            DepState::HasDependent(idx) => {
+                prompt.push_str("Add new dependency for ");
+                let card = fetch_card(conn, idx);
+                prompt.push_str(&card.question);
+                prompt
+
+            },
+            DepState::HasDependency(idx) => {
+                prompt.push_str("Add new dependent of: ");
+                let card = fetch_card(conn, idx);
+                prompt.push_str(&card.question);
+                prompt
+            }
         }
     }
 
@@ -112,12 +127,12 @@ impl NewCard{
             DepState::HasDependency(id) => {update_both(conn, last_id, id).unwrap();},  
         }
 
-        self.reset(DepState::None);
+        self.reset(DepState::None, conn);
     }
 
 
-    pub fn reset(&mut self, state: DepState){
-        self.prompt = NewCard::make_prompt(state.clone());
+    pub fn reset(&mut self, state: DepState, conn: &Connection){
+        self.prompt = NewCard::make_prompt(state.clone(), conn);
         self.question = Field::new();
         self.answer = Field::new();
         self.state = state;

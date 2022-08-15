@@ -69,12 +69,12 @@ where
 
     
     let rows = vec![
-        Row::new(vec![Cell::from(Span::raw(format!("initiated: {:?}", card.status.initiated)))]),
-        Row::new(vec![Cell::from(Span::raw(format!("complete:  {:?}",  card.status.complete)))]),
-        Row::new(vec![Cell::from(Span::raw(format!("resolved:  {:?}",  card.status.resolved)))]),
-        Row::new(vec![Cell::from(Span::raw(format!("suspended: {:?}", card.status.suspended)))]),
-        Row::new(vec![Cell::from(Span::raw(format!("strength:  {}",    card.strength)))]),
-        Row::new(vec![Cell::from(Span::raw(format!("stability: {}",   card.stability)))]),
+        Row::new(vec![Cell::from(Span::raw(format!("strength: {}, stability: {}, initiated: {:?}, complete: {:?}, resolved: {:?}, suspended: {:?}", card.strength, card.stability, card.status.complete, card.status.resolved, card.status.suspended, card.status.initiated)))]),
+    //    Row::new(vec![Cell::from(Span::raw(format!("complete:  {:?}",  card.status.complete)))]),
+    //   Row::new(vec![Cell::from(Span::raw(format!("resolved:  {:?}",  card.status.resolved)))]),
+    //    Row::new(vec![Cell::from(Span::raw(format!("suspended: {:?}", card.status.suspended)))]),
+    //    Row::new(vec![Cell::from(Span::raw(format!("strength:  {}",    card.strength)))]),
+    //    Row::new(vec![Cell::from(Span::raw(format!("stability: {}",   card.stability)))]),
     ];
 
     
@@ -150,42 +150,6 @@ where
 
 
 
-
-
-/*
-fn filter_status<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
-where
-    B: Backend,
-{
-
-    let items: Vec<ListItem> = _app.browse.selected.items.iter().map(|id| {
-        let lines = vec![Spans::from(_fetch_card(id).question.clone())];
-        ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
-    }).collect();
-    
-
-
-    
-    let mut items = List::new(items).block(Block::default().borders(Borders::ALL).title("Selected"));
-
-
-    if let BrowseCursor::Selected = _app.browse.cursor{
-        items = items
-        .highlight_style(
-            Style::default()
-                .bg(Color::LightGreen)
-                .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">>> ");
-        
-    }
-
-    f.render_stateful_widget(items, area, &mut _app.browse.selected.state);
-
-}
-
-*/
-
 fn topic2string(topic: &Topic) -> String {
     let mut mystring: String = String::new();
     if topic.ancestors > 0{
@@ -216,7 +180,7 @@ where
         ListItem::new(lines).style(Style::default().fg(Color::Red).bg(Color::Black))
     }).collect();
     
-    let items = List::new(items).block(Block::default().borders(Borders::TOP).border_style(style).title("Topics"));
+    let items = List::new(items).block(Block::default().borders(Borders::ALL).border_style(style).title("Topics"));
 
     let  items = items
         .highlight_style(

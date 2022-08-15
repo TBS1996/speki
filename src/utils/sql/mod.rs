@@ -35,7 +35,7 @@ pub fn init_db() -> Result<()>{
         "create table if not exists topics ( 
         id     integer primary key,
         name   text not null,
-        parent text not null
+        parent integer not null
     )",
         [],
         )?;

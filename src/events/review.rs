@@ -23,12 +23,12 @@ pub fn review_event(app: &mut App, key: KeyCode) {
             KeyCode::Char('4') => app.review.new_review(&app.conn, card, RecallGrade::Easy),
             KeyCode::Char('y') => {
                 if let None = card {return};
-                app.add_card.reset(DepState::HasDependent(card.unwrap().card_id));
+                app.add_card.reset(DepState::HasDependent(card.unwrap().card_id), &app.conn);
                 app.tabs.index = 1;
             }
             KeyCode::Char('t') => {
                 if let None = card {return};
-                app.add_card.reset(DepState::HasDependency(card.unwrap().card_id));
+                app.add_card.reset(DepState::HasDependency(card.unwrap().card_id), &app.conn);
                 app.tabs.index = 1;
             }
             KeyCode::Char('c') => {

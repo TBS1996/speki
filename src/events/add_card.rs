@@ -52,12 +52,12 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
             KeyCode::Up     => app.add_card.upkey(),
             KeyCode::Char('y') => {
                 let id = highest_id(&app.conn).unwrap();
-                app.add_card.reset(DepState::HasDependent(id));
+                app.add_card.reset(DepState::HasDependent(id), &app.conn);
 
             },
             KeyCode::Char('t') => {
                 let id = highest_id(&app.conn).unwrap();
-                app.add_card.reset(DepState::HasDependency(id));
+                app.add_card.reset(DepState::HasDependency(id), &app.conn);
             },
             _=> {},
         }

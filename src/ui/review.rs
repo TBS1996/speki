@@ -19,17 +19,19 @@ pub fn draw_review<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
 where
     B: Backend,
 {
-    let leftright = Layout::default().direction(Direction::Horizontal).constraints([Constraint::Ratio(2, 3),Constraint::Ratio(1, 3),].as_ref(),).split(area);
+
+    let foobar = Layout::default().direction(Direction::Vertical).constraints([Constraint::Ratio(2, 14),Constraint::Ratio(9, 12),Constraint::Ratio(1, 12)].as_ref(),).split(area);
+    let leftright = Layout::default().direction(Direction::Horizontal).constraints([Constraint::Ratio(2, 3),Constraint::Ratio(1, 3),].as_ref(),).split(foobar[1]);
 
 
     let left = leftright[0];
     let right = leftright[1];
 
 
-    let rightcolumn = Layout::default().direction(Direction::Vertical).constraints([Constraint::Ratio(1, 5),Constraint::Ratio(2, 5),Constraint::Ratio(2, 5)].as_ref(),).split(right);
+    let rightcolumn = Layout::default().direction(Direction::Vertical).constraints([Constraint::Ratio(1, 2),Constraint::Ratio(1, 2)].as_ref(),).split(right);
 
 
-    let leftcolumn = Layout::default().constraints([Constraint::Max(3), Constraint::Max(7), Constraint::Max(7),Constraint::Percentage(50),].as_ref(),).split(left);
+    let leftcolumn = Layout::default().constraints([Constraint::Ratio(1, 2),Constraint::Ratio(1, 2)].as_ref(),).split(left);
 
     let question;
     let answer;
@@ -38,7 +40,7 @@ where
         Some(id) => {
             question = fetch_card(&app.conn, *id).question.clone();
             answer = if app.review.reveal {fetch_card(&app.conn, *id).answer.clone()} else {"Click to reveal".to_owned()}; 
-            view_dependencies(f, *id, app, rightcolumn[2], app.review.selection == ReviewSelection::Dependencies);
+            view_dependencies(f, *id, app, rightcolumn[1], app.review.selection == ReviewSelection::Dependencies);
             view_dependents(f,   *id, app, rightcolumn[0], app.review.selection == ReviewSelection::Dependents);
             }
         None => {
@@ -48,10 +50,10 @@ where
         }
     
 
-    card_status(f, app, rightcolumn[1], app.review.selection == ReviewSelection::Stats);
-    draw_progress(f, app, leftcolumn[0]);
-    draw_field(f, leftcolumn[1],   vec![Span::from(question)], "question", Alignment::Left, app.review.selection == ReviewSelection::Question);
-    draw_field(f, leftcolumn[2],   vec![Span::from(answer)],   "answer",   Alignment::Left, app.review.selection == ReviewSelection::Answer);
+    card_status(f, app, foobar[2], app.review.selection == ReviewSelection::Stats);
+    draw_progress(f, app, foobar[0]);
+    draw_field(f, leftcolumn[0],   vec![Span::from(question)], "question", Alignment::Left, app.review.selection == ReviewSelection::Question);
+    draw_field(f, leftcolumn[1],   vec![Span::from(answer)],   "answer",   Alignment::Left, app.review.selection == ReviewSelection::Answer);
 
 }
 

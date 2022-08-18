@@ -85,9 +85,6 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
                 KeyCode::Char('J') => {
                     let index = app.add_card.topics.state.selected().unwrap() as u32;
                     let topic = app.add_card.topics.items[index as usize].clone();
-
-                    if app.add_card.topics.is_last_sibling(topic.id) {return}
-
                     app.add_card.topics.shift_down(&app.conn, index as u32);
                     app.add_card.reload_topics(&app.conn);
                     let new_index = app.add_card.topics.index_from_id(topic.id);
@@ -95,16 +92,19 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
                 }
                 KeyCode::Char('K') => {
                     let index = app.add_card.topics.state.selected().unwrap();
-                    //let distance = app.add_card.topics.distance_sibling_above(index as u32);
-                    if index > 1 {
-                    let index_above = app.add_card.topics.index_sibling_above(index as u32);
+                    let topic = app.add_card.topics.items[index as usize].clone();
                     app.add_card.topics.shift_up(&app.conn, index as u32);
                     app.add_card.reload_topics(&app.conn);
-                    app.add_card.topics.state.select(Some(index_above as usize));
-                    }
+                    let new_index = app.add_card.topics.index_from_id(topic.id);
+                    app.add_card.topics.state.select(Some(new_index as usize));
 
                     
                 },
+                KeyCode::Char('e') => {
+                    let index = app.add_card.topics.state.selected().unwrap() as u32;
+                    let topic = app.add_card.topics.items[index as usize].clone();
+                    app.add_card.selection = TextSelect::Topic(Some(NewTopic::new(topic.id)));
+                }
                 KeyCode::Char('j') | KeyCode::Down => app.add_card.topics.next(),
                 KeyCode::Char('a') => {
                     let parent = app.add_card.topics.get_selected_id().unwrap();

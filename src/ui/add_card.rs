@@ -8,7 +8,7 @@ use tui::{
 };
 
 
-use crate::ui::mywidgets::{cursorsplit, draw_field, topiclist};
+use crate::utils::mywidgets::{cursorsplit, draw_field, topiclist};
 use crate::logic::add_card::{TextSelect, NewCard};
 
 
@@ -33,7 +33,6 @@ where
     topiclist(f, app, right, topic_selected);
     editing(f, app, left);
 }
-
 
 
 

@@ -22,6 +22,7 @@ impl StatefulList<Topic>{
 
 
 pub fn is_last_sibling(&self, id: u32)-> bool {
+    if id == 1 {return true} // edge case when selected index is root
     let relpos = self.topic_from_id(id).relpos;
     let sibling_qty = self.siblings_from_id(id).len() as u32;
     
@@ -29,8 +30,6 @@ pub fn is_last_sibling(&self, id: u32)-> bool {
 }
     
 pub fn add_kids(&mut self){
-   // for topic in self.items{
-    //    topic.children.clear();}
 
     let item_clone = self.items.clone();
     let mut parentidx_childid = Vec::<(usize, u32)>::new();
@@ -101,6 +100,12 @@ pub fn grandparent_from_id(&self, id: u32)-> Topic{
     self.parent_from_id(parent.id)
 }
 
+pub fn children_from_id(&self, id: u32) -> Vec<u32> {
+    let topic = self.topic_from_id(id);
+    let mut kids = topic.children.clone();
+    kids.sort_unstable_by_key(|topid| self.items[self.index_from_id(*topid) as usize].relpos);
+    kids
+}
 pub fn uncles_from_id(&self, id: u32) -> Vec<u32> {
     let grandparent = self.grandparent_from_id(id);
     let mut uncles = grandparent.children.clone();
@@ -177,7 +182,6 @@ pub fn shift_left(&mut self, conn: &Connection, index: u32){
 
 }
 
-// TODO fix the relpos bugs
 pub fn delete_topic(&mut self, conn: &Connection, index: u32){
     let topic = self.topic_from_index(index);
 
@@ -222,6 +226,7 @@ pub fn shift_right(&mut self, conn: &Connection, index: u32){
 
 pub fn shift_down(&mut self, conn: &Connection, index: u32){
     let topic = self.topic_from_index(index);
+    if self.is_last_sibling(topic.id){return}
     let siblings = self.siblings_from_id(topic.id);
     let below_sibling = self.sibling_below(topic.id);
     let sibling_qty = siblings.len() as u32;
@@ -236,88 +241,25 @@ pub fn shift_down(&mut self, conn: &Connection, index: u32){
 }
 
 pub fn shift_up(&mut self, conn: &Connection, index: u32){
-    let topic = self.items[index as usize].clone();
-    let topic_id = self.get_selected_id().unwrap();
-    let relpos = topic.relpos;
-    let parent_id = topic.parent;
-    if parent_id == 1 && relpos == 0{return};
-
-    
-
-    if relpos == 0{
-        let parent = self.items[self.index_from_id(parent_id) as usize].clone();
-        let parent_relpos = parent.relpos;
-        let grandparent = self.items[self.index_from_id(parent.parent) as usize].clone();
-        let mut uncles = grandparent.children.clone();
-        let uncle_qty = uncles.len() as u32;
-        uncles.sort_unstable_by_key(|topid | self.items[self.index_from_id(*topid) as usize].relpos);
-
-        let mut siblings = parent.children.clone();
-        siblings.sort_unstable_by_key(|topid | self.items[self.index_from_id(*topid) as usize].relpos);
-        let sibling_qty = siblings.len() as u32;
-
-
-
-        // set topic's parent equal to parent's parent 
-        update_topic_parent(conn, topic_id, grandparent.id).unwrap();
-        // set topic's relpos equal to parent's relpos 
-        update_topic_relpos(conn, topic_id, parent_relpos).unwrap();
-        // move topic's parent's relpos up one and shift all the relpos of its siblings beneaht it 
-
-        let mut relpos = parent.relpos;
-        for i in parent_relpos..uncle_qty{
-            relpos += 1;
-           update_topic_relpos(conn, uncles[i as usize], relpos).unwrap();
-        }
-
-        // move siblings relpos one up 
-        
-        for i in 1..sibling_qty {
-           update_topic_relpos(conn, siblings[i as usize], i - 1).unwrap();
-        }
-    }else{
-        // update id with 
-        update_topic_relpos(conn, topic_id, relpos - 1).unwrap();
-        let above_index = self.index_sibling_above(index);
-        let sibling_above_id = self.items[above_index as usize].id;
-        update_topic_relpos(conn, sibling_above_id, relpos).unwrap();
-
-        
-    }
+    let topic = self.topic_from_index(index);
+    if topic.relpos == 0{ return} 
+    let sibling_above = self.sibling_above(topic.id);
+    update_topic_relpos(conn, topic.id, topic.relpos - 1).unwrap();
+    update_topic_relpos(conn, sibling_above.id, topic.relpos).unwrap();
 }
 
 
 
-/// finds distance to sibling above selected topic
-pub fn index_sibling_above(&self, index: u32) -> u32{
-    let topic = self.items[index as usize].clone();
-    if topic.relpos == 0 {return index - 1}
-    let topic_id = topic.id;
-    let parent = topic.parent;
-    let mut siblings = self.items[self.index_from_id(parent) as usize].children.clone();
-    siblings.sort_unstable_by_key(|topid | self.items[self.index_from_id(*topid) as usize].relpos);
-    let mut sibling_index: usize = 0;
-    for (index, sibling) in siblings.iter().enumerate(){
-        if *sibling == topic_id{
-            sibling_index = index - 1;
-            break;
-        }
-    }
-    let id_above = siblings[sibling_index];
-    let index_above = self.index_from_id(id_above);
-    index_above
-}
 
 fn dfs(&mut self, id: u32, indices: &mut Vec<u32>){
-
+    let topic = self.topic_from_id(id);
     let topic_index = self.index_from_id(id);
-    let topic = self.items[topic_index as usize].clone();
     if topic.parent != 0 {
-    self.items[topic_index as usize].ancestors =  self.items[self.index_from_id(topic.parent) as usize].ancestors + 1;
-}
+        let parent_index = self.index_from_id(topic.parent) as usize;
+        self.items[topic_index as usize].ancestors =  self.items[parent_index].ancestors + 1;
+    }
 
-    let mut kids = topic.children;
-    kids.sort_unstable_by_key(|topid | self.items[self.index_from_id(*topid) as usize].relpos);
+    let kids = self.children_from_id(topic.id);
 
     for child in kids{
         indices.push(child);

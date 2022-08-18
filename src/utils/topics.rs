@@ -232,20 +232,7 @@ pub fn shift_down(&mut self, conn: &Connection, index: u32){
         update_topic_relpos(conn, topic.id, topic.relpos + 1).unwrap();
         update_topic_relpos(conn, below_sibling.id, topic.relpos).unwrap();
         return
-    } else {
-        /*
-        update_topic_parent(conn, topic.id, below_sibling.id).unwrap();
-        update_topic_relpos(conn, topic.id, 0).unwrap();
-        for child in below_sibling.children{
-            let child_topic = self.items[self.index_from_id(child) as usize].clone();
-            let child_id = child_topic.id;
-            let child_relpos = child_topic.relpos;
-            update_topic_relpos(conn, child_id, child_relpos + 1).unwrap();
-        }
-        
-        */
-    }
-
+    } 
 }
 
 pub fn shift_up(&mut self, conn: &Connection, index: u32){

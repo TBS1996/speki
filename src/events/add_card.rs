@@ -162,7 +162,10 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
         else {
             match key{
                 KeyCode::Char('q') => app.should_quit = true,
-                KeyCode::Esc  => app.add_card.topics.state.select(None),
+                KeyCode::Esc  => {
+                    if let DepState::None = app.add_card.state{return}
+                    app.add_card.reset(DepState::None, &app.conn);
+                },
                 KeyCode::Char('z')   => app.on_left(),
                 KeyCode::Char('x')  => app.on_right(),
                 KeyCode::Enter  => app.add_card.enterkey(&app.conn),

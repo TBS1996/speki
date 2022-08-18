@@ -9,7 +9,8 @@ use tui::{
         Block, Borders, Paragraph, Row, Wrap, Table, Cell, ListItem, List},
     Frame,
 };
-use crate::utils::structs::Topic;
+use crate::utils::topics::Topic;
+use crate::utils::structs::StatefulList;
 
 
 
@@ -70,11 +71,6 @@ where
     
     let rows = vec![
         Row::new(vec![Cell::from(Span::raw(format!("strength: {}, stability: {}, initiated: {:?}, complete: {:?}, resolved: {:?}, suspended: {:?}", card.strength, card.stability, card.status.complete, card.status.resolved, card.status.suspended, card.status.initiated)))]),
-    //    Row::new(vec![Cell::from(Span::raw(format!("complete:  {:?}",  card.status.complete)))]),
-    //   Row::new(vec![Cell::from(Span::raw(format!("resolved:  {:?}",  card.status.resolved)))]),
-    //    Row::new(vec![Cell::from(Span::raw(format!("suspended: {:?}", card.status.suspended)))]),
-    //    Row::new(vec![Cell::from(Span::raw(format!("strength:  {}",    card.strength)))]),
-    //    Row::new(vec![Cell::from(Span::raw(format!("stability: {}",   card.stability)))]),
     ];
 
     
@@ -146,17 +142,23 @@ where
 }
 
 
-
-
-
-
-fn topic2string(topic: &Topic) -> String {
+fn topic2string(topic: &Topic, app: &App) -> String {
     let mut mystring: String = String::new();
     if topic.ancestors > 0{
-        for _ in 0..topic.ancestors - 1{
-            mystring.push_str("  ");
+        for ancestor in 0..topic.ancestors - 1{
+            let foo = app.add_card.topics.ancestor_from_id(topic.id, ancestor + 1);
+            if app.add_card.topics.is_last_sibling(foo.id){
+                mystring.insert_str(0, "  ");
+            } else {
+                mystring.insert_str(0, "│ ");
+
+            }
         }
-        mystring.push_str("└─")
+        if app.add_card.topics.is_last_sibling(topic.id){
+            mystring.push_str("└─")
+        } else {
+            mystring.push_str("├─")
+        }
     }
 
 
@@ -176,7 +178,7 @@ where
 
 
     let items: Vec<ListItem> = _app.add_card.topics.items.iter().map(|topic| {
-        let lines = vec![Spans::from(topic2string(topic))];
+        let lines = vec![Spans::from(topic2string(topic, _app))];
         ListItem::new(lines).style(Style::default().fg(Color::Red).bg(Color::Black))
     }).collect();
     

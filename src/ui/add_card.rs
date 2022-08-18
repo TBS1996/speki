@@ -1,4 +1,4 @@
-use crate::app::App;
+use crate::{app::App, logic::add_card::NewTopic};
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -21,8 +21,16 @@ where
 
     let left = chunks[0];
     let right = chunks[1];
+
+    let topic_selected = {
+        match &app.add_card.selection{
+            TextSelect::Topic(None) => true,
+            TextSelect::Topic(Some(_)) => true,
+            _ => false,
+        }
+    };
     
-    topiclist(f, app, right, app.add_card.selection == TextSelect::Topic);
+    topiclist(f, app, right, topic_selected);
     editing(f, app, left);
 }
 

@@ -1,14 +1,30 @@
 pub mod fetch;
 pub mod insert;
 pub mod update;
+pub mod delete;
 
 
 
 
 use rusqlite::{Connection, Result};
+use crate::utils::sql::insert::new_topic;
+
+
+
+
+
 
 
 pub fn init_db() -> Result<()>{
+
+    let mut new_db = false;
+
+    match std::fs::metadata("dbflash.db"){
+        Err(_) => {new_db = true},
+        _ => {},
+    }
+
+
     let conn = Connection::open("dbflash.db")?;
 
     conn.execute(
@@ -34,8 +50,9 @@ pub fn init_db() -> Result<()>{
     conn.execute(
         "create table if not exists topics ( 
         id     integer primary key,
-        name   text not null,
-        parent integer not null
+        name   text,
+        parent integer not null,
+        relpos integer not null
     )",
         [],
         )?;
@@ -64,7 +81,65 @@ pub fn init_db() -> Result<()>{
         )?;
 
 
+    
+    if new_db {new_topic(&conn, String::from("root"), 0, 0)?;}
+     
+    
+
+
+
     Ok(())
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

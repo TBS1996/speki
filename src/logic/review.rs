@@ -87,17 +87,19 @@ impl ReviewList {
         if key == KeyCode::Right && self.selection == ReviewSelection::Question {self.selection = ReviewSelection::Dependents}
         else if key == KeyCode::Down  && self.selection == ReviewSelection::Question {self.selection = ReviewSelection::Answer}
 
-        else if key == KeyCode::Right && self.selection == ReviewSelection::Answer   {self.selection = ReviewSelection::Stats}
+        else if key == KeyCode::Right && self.selection == ReviewSelection::Answer   {self.selection = ReviewSelection::Dependencies}
         else if key == KeyCode::Up    && self.selection == ReviewSelection::Answer   {self.selection = ReviewSelection::Question}
+        else if key == KeyCode::Down  && self.selection == ReviewSelection::Answer   {self.selection = ReviewSelection::Stats}
           
-        else if key == KeyCode::Down && self.selection == ReviewSelection::Dependents {self.selection = ReviewSelection::Stats}
+        else if key == KeyCode::Down && self.selection == ReviewSelection::Dependents {self.selection = ReviewSelection::Dependencies}
         else if key == KeyCode::Left && self.selection == ReviewSelection::Dependents {self.selection = ReviewSelection::Question}
 
         else if key == KeyCode::Left && self.selection == ReviewSelection::Stats {self.selection = ReviewSelection::Answer}
         else if key == KeyCode::Up   && self.selection == ReviewSelection::Stats {self.selection = ReviewSelection::Dependents}
         else if key == KeyCode::Down && self.selection == ReviewSelection::Stats {self.selection = ReviewSelection::Dependencies}
 
-        else if key == KeyCode::Up   && self.selection == ReviewSelection::Dependencies {self.selection = ReviewSelection::Stats}
-        else if key == KeyCode::Left && self.selection == ReviewSelection::Dependencies {self.selection = ReviewSelection::Answer}
+        else if key == KeyCode::Up   && self.selection == ReviewSelection::Dependencies  {self.selection = ReviewSelection::Dependents}
+        else if key == KeyCode::Left && self.selection == ReviewSelection::Dependencies  {self.selection = ReviewSelection::Answer}
+        else if key == KeyCode::Down  && self.selection == ReviewSelection::Dependencies {self.selection = ReviewSelection::Stats}
     }
 }

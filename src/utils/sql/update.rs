@@ -29,4 +29,27 @@ pub fn update_status(conn: &Connection, card: &Card) -> Result<()>{
 }
 
 
+pub fn update_topic_name(conn: &Connection, id: u32, name: String) -> Result<()>{
+    let mut stmt = conn.prepare("UPDATE topics SET name = ? WHERE id = ?")?;
+    stmt.execute(params![name, id])?;
+    Ok(())
+}
 
+
+pub fn update_topic_relpos(conn: &Connection, id: u32, relpos: u32) -> Result<()>{
+    let mut stmt = conn.prepare("UPDATE topics SET relpos = ? WHERE id = ?")?;
+    stmt.execute(params![relpos, id])?;
+    Ok(())
+}
+
+pub fn update_card_topic(conn: &Connection, old_topic: u32, new_topic: u32) -> Result<()>{
+    let mut stmt = conn.prepare("UPDATE cards SET topic = ? WHERE topic = ?")?;
+    stmt.execute(params![old_topic, new_topic])?;
+    Ok(())
+}
+
+pub fn update_topic_parent(conn: &Connection, id: u32, parent: u32) -> Result<()>{
+    let mut stmt = conn.prepare("UPDATE topics SET parent = ? WHERE id = ?")?;
+    stmt.execute(params![parent, id])?;
+    Ok(())
+}

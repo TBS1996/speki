@@ -1,6 +1,6 @@
 use rusqlite::{Connection,Row, Result};
 use crate::utils::card::{Card, RecallGrade, Review, Status}; //, Topic, Review}
-use crate::utils::structs::Topic;
+use crate::utils::topics::Topic;
 
 #[derive(Clone)]
 pub struct DepPair{
@@ -8,10 +8,6 @@ pub struct DepPair{
     dependency: u32,
 
 }
-
-
-
-
 
 
 
@@ -58,10 +54,10 @@ pub fn get_topics(conn: &Connection) -> Result<Vec<Topic>>{
             Topic{
                 id: row.get(0)?,
                 name: row.get(1)?,
-                parent: row.get(2).expect("wtfaaaaaaaaaahhhhhh"),            
-                children: Vec::<u8>::new(),
+                parent: row.get(2)?,
+                children: Vec::<u32>::new(),
                 ancestors: 0,
-                editing: false,
+                relpos: row.get(3)? 
             }
         )
     })?;

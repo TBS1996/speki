@@ -31,10 +31,15 @@ pub fn revlog_new(conn: &Connection, card_id: u32, review: Review) -> Result<()>
 }
 
 
-pub fn new_topic(conn: &Connection, name: String, parent: u32) -> Result<()>{
+pub fn new_topic(conn: &Connection, name: String, parent: u32, pos: u32) -> Result<()>{
     conn.execute(
-        "INSERT INTO topics (name, parent) VALUES (?1, ?2)",
-        params![name, parent],
+        "INSERT INTO topics (name, parent, relpos) VALUES (?1, ?2, ?3)",
+        params![name, parent, pos],
     )?;
     Ok(())
 }
+
+
+
+
+

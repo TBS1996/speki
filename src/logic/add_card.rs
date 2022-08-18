@@ -1,4 +1,5 @@
 use rusqlite::Connection;
+use crossterm::event::KeyCode;
 use crate::utils::{
     sql::{
         fetch::{highest_id, get_topics, fetch_card},
@@ -6,7 +7,8 @@ use crate::utils::{
     },
     card::{Status, RecallGrade, Review, Card},
     textinput::Field,
-    structs::{StatefulList, Topic},
+    structs::StatefulList,
+    topics::Topic,
 };
 
 
@@ -24,8 +26,27 @@ pub enum TextSelect{
     Answer(bool),
     SubmitFinished,
     SubmitUnfinished,
-    Topic,
+    Topic(Option<NewTopic>),
 }
+
+
+#[derive(Clone, PartialEq)]
+pub struct NewTopic{
+    pub name: Field,
+    pub id: u32,
+}
+
+impl NewTopic{
+    pub fn new(id: u32) -> NewTopic{
+        NewTopic{
+            name: Field::new(None),
+            id,
+        }
+    }
+}
+
+
+
 
 #[derive(Clone)]
 pub struct NewCard{
@@ -42,18 +63,44 @@ pub struct NewCard{
 impl NewCard{
     pub fn new(conn: &Connection, state: DepState) -> NewCard{
         let mut topics = StatefulList::with_items(get_topics(conn).unwrap()); 
-        topics.dfs();
+        topics.add_kids();
+        topics.sort_topics();
         
         NewCard {
             prompt: NewCard::make_prompt(state.clone(),conn),
-            question:  Field::new(),
-            answer:    Field::new(),
+            question:  Field::new(Some('^')),
+            answer:    Field::new(Some('^')),
             state,
             topics,
             selection: TextSelect::Question(false),
 
 
         }
+    }
+
+    pub fn delete_topic(&mut self){
+
+    }
+
+    pub fn up_topic(&mut self){
+        
+    }
+
+    pub fn navigate(&mut self, key: KeyCode){
+
+        match (&self.selection, key){
+            (TextSelect::Topic(None), KeyCode::Left) => self.selection = TextSelect::Question(false),
+            _ => {},
+        }
+    }
+
+
+    pub fn reload_topics(&mut self, conn: &Connection) {
+        self.topics = StatefulList::with_items(get_topics(conn).unwrap());
+        self.topics.add_kids();
+        self.topics.sort_topics();
+
+
     }
 
     fn make_prompt(state: DepState, conn: &Connection) -> String{
@@ -133,8 +180,8 @@ impl NewCard{
 
     pub fn reset(&mut self, state: DepState, conn: &Connection){
         self.prompt = NewCard::make_prompt(state.clone(), conn);
-        self.question = Field::new();
-        self.answer = Field::new();
+        self.question = Field::new(Some('^'));
+        self.answer = Field::new(Some('^'));
         self.state = state;
         self.selection = TextSelect::Question(false);
     }
@@ -148,7 +195,7 @@ impl NewCard{
             TextSelect::Question(_) => self.selection = TextSelect::Question(true),
             TextSelect::Answer(_)   => self.selection = TextSelect::Answer(true),
             TextSelect::SubmitFinished | TextSelect::SubmitUnfinished => self.submit_card(conn),
-            _ => panic!("oops"),
+            _ => {}, 
         }
     }
 
@@ -198,6 +245,14 @@ impl NewCard{
             TextSelect::Answer(_)   => self.selection = TextSelect::Question(false),
             _ => {},
         }
+    }
+
+    pub fn rightkey(&mut self){
+        self.selection = TextSelect::Topic(None);
+    }
+
+    pub fn leftkey(&mut self){
+        self.selection = TextSelect::Question(false);
     }
 
     pub fn upkey(&mut self){

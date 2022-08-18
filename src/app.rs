@@ -49,6 +49,8 @@ impl<'a> TabsState<'a> {
 
 
 
+
+
 pub struct App<'a> {
     pub should_quit: bool,
     pub tabs: TabsState<'a>,
@@ -65,7 +67,9 @@ impl<'a> App<'a> {
         let conn = Connection::open("dbflash.db").expect("Failed to connect to database.");
         let revlist = ReviewList::new(&conn);
         let browse = Browse::new(&conn);
-        let addcards =  NewCard::new(&conn, DepState::None);
+        let mut addcards =  NewCard::new(&conn, DepState::None);
+        addcards.topics.next();
+
 
         App {
             should_quit: false,

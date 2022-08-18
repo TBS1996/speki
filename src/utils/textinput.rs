@@ -1,6 +1,6 @@
 
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Field {
     pub text: String,
     pub cursor: usize,
@@ -10,9 +10,9 @@ pub struct Field {
 
 
 impl Field{
-    pub fn new() -> Self{
+    pub fn new(cursor: Option<char>) -> Self{
         Field{
-            text: String::from("^"),
+            text: String::from(cursor.unwrap_or(' ')),
             cursor: 0 as usize,
             rowlen: 0 as usize, 
             maxlen: None,

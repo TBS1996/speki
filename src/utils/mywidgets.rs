@@ -59,11 +59,10 @@ pub fn card_status<B>(f: &mut Frame<B>, _app: &mut App, area: Rect, selected: bo
 where
     B: Backend,
 {
-    let opt =  _app.review.card;
-    if let None = opt{
-        return;
-    }
-    let card = fetch_card(&_app.conn, opt.unwrap());
+
+    if _app.review.cards.is_empty(){return}
+    let card_id = _app.review.cards[0];
+    let card = fetch_card(&_app.conn, card_id);
 
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);

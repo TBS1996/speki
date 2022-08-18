@@ -6,11 +6,13 @@ use crate::logic::add_card::DepState;
 
 pub fn review_event(app: &mut App, key: KeyCode) {
 
-    let card;
-    match &app.review.card{
-        Some(id) => card = Some(fetch_card(&app.conn, *id)),
-        None     => card = None,
+    let card: Option<Card>;
+    match &app.review.cards.is_empty(){
+        false => card = Some(fetch_card(&app.conn, app.review.cards[0])),
+        true     => card = None,
     }
+
+    
 
     match key {
             KeyCode::Char('z')   => app.on_left(),

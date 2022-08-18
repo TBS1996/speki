@@ -168,7 +168,7 @@ pub fn shift_left(&mut self, conn: &Connection, index: u32){
 
     for i in parent.relpos..uncle_qty{
         let uncle_id = uncles[i as usize];
-        let uncle = self.items[self.index_from_id(uncle_id) as usize].clone();
+        let uncle = self.topic_from_id(uncle_id);
         update_topic_relpos(conn, uncle_id, uncle.relpos + 1).unwrap();
     }
     let siblings = self.siblings_from_id(topic.id);
@@ -179,8 +179,12 @@ pub fn shift_left(&mut self, conn: &Connection, index: u32){
         update_topic_relpos(conn, siblings[i as usize], sibling.relpos - 1).unwrap();
 
     }
-
 }
+
+
+
+
+
 
 pub fn delete_topic(&mut self, conn: &Connection, index: u32){
     let topic = self.topic_from_index(index);

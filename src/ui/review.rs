@@ -35,15 +35,17 @@ where
 
     let question;
     let answer;
+
     
-    match &app.review.card{
-        Some(id) => {
-            question = fetch_card(&app.conn, *id).question.clone();
-            answer = if app.review.reveal {fetch_card(&app.conn, *id).answer.clone()} else {"Click to reveal".to_owned()}; 
-            view_dependencies(f, *id, app, rightcolumn[1], app.review.selection == ReviewSelection::Dependencies);
-            view_dependents(f,   *id, app, rightcolumn[0], app.review.selection == ReviewSelection::Dependents);
+    match &app.review.cards.is_empty(){
+        false => {
+            let card_id = app.review.cards[0];
+            question = fetch_card(&app.conn, card_id).question.clone();
+            answer = if app.review.reveal {fetch_card(&app.conn, card_id).answer.clone()} else {"Click to reveal".to_owned()}; 
+            view_dependencies(f, card_id, app, rightcolumn[1], app.review.selection == ReviewSelection::Dependencies);
+            view_dependents(f,   card_id, app, rightcolumn[0], app.review.selection == ReviewSelection::Dependents);
             }
-        None => {
+        true => {
             question = "No more cards!".to_owned();
             answer = "".to_owned();
             }

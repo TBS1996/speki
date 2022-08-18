@@ -30,7 +30,7 @@ impl RecallGrade{
 
 
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Status {
     pub initiated: bool,
     pub complete:  bool,
@@ -101,7 +101,7 @@ impl Review{
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Card{
     pub question: String,
     pub answer: String,

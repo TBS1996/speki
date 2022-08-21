@@ -1,6 +1,6 @@
 use rusqlite::{Connection,Row, Result};
 use crate::utils::card::{Card, RecallGrade, Review, Status}; //, Topic, Review}
-use crate::utils::topics::Topic;
+use crate::utils::widgets::topics::Topic;
 
 #[derive(Clone)]
 pub struct DepPair{

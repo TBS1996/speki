@@ -6,9 +6,9 @@ use crate::utils::{
         insert::{update_both, save_card, revlog_new},
     },
     card::{Status, RecallGrade, Review, Card},
-    textinput::Field,
-    structs::StatefulList,
-    topics::Topic,
+    widgets::textinput::Field,
+    statelist::StatefulList,
+    widgets::topics::Topic,
 };
 
 
@@ -67,7 +67,7 @@ impl NewCard{
         topics.sort_topics();
         
         NewCard {
-            prompt: NewCard::make_prompt(state.clone(),conn),
+            prompt: NewCard::make_prompt(&state,conn),
             question:  Field::new(Some('^')),
             answer:    Field::new(Some('^')),
             state,
@@ -103,7 +103,7 @@ impl NewCard{
 
     }
 
-    fn make_prompt(state: DepState, conn: &Connection) -> String{
+    fn make_prompt(state: &DepState, conn: &Connection) -> String{
         let mut prompt = String::new();
         match state{
             DepState::None =>  {
@@ -112,14 +112,14 @@ impl NewCard{
             },
             DepState::HasDependent(idx) => {
                 prompt.push_str("Add new dependency for ");
-                let card = fetch_card(conn, idx);
+                let card = fetch_card(conn, *idx);
                 prompt.push_str(&card.question);
                 prompt
 
             },
             DepState::HasDependency(idx) => {
                 prompt.push_str("Add new dependent of: ");
-                let card = fetch_card(conn, idx);
+                let card = fetch_card(conn, *idx);
                 prompt.push_str(&card.question);
                 prompt
             }
@@ -179,7 +179,7 @@ impl NewCard{
 
 
     pub fn reset(&mut self, state: DepState, conn: &Connection){
-        self.prompt = NewCard::make_prompt(state.clone(), conn);
+        self.prompt = NewCard::make_prompt(&state, conn);
         self.question = Field::new(Some('^'));
         self.answer = Field::new(Some('^'));
         self.state = state;

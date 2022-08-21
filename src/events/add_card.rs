@@ -5,6 +5,9 @@ use crate::logic::add_card::{TextSelect, DepState, NewTopic} ;
 use crate::utils::sql::fetch::highest_id;
 use crate::utils::sql::insert::{new_topic};
 
+
+
+//TODO move create functions in /logic and move the logic to there from here
 pub fn add_card_event(app: &mut App, key: KeyCode){
     if app.add_card.istextselected(){
         if let TextSelect::Question(_) = app.add_card.selection{
@@ -46,7 +49,7 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
         if let TextSelect::Topic(None) = app.add_card.selection{
             match key{
                 KeyCode::Left => app.add_card.navigate(key),
-                KeyCode::Char('k') | KeyCode::Up => app.add_card.topics.previous(),
+                KeyCode::Char('k') => app.add_card.topics.previous(),
                 KeyCode::Char('d') => {
                     let mut index = app.add_card.topics.state.selected().unwrap() as u32;
                     if index == 0 {return}
@@ -105,17 +108,13 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
                     let topic = app.add_card.topics.items[index as usize].clone();
                     app.add_card.selection = TextSelect::Topic(Some(NewTopic::new(topic.id)));
                 }
-                KeyCode::Char('j') | KeyCode::Down => app.add_card.topics.next(),
+                KeyCode::Char('j') => app.add_card.topics.next(),
                 KeyCode::Char('a') => {
                     let parent = app.add_card.topics.get_selected_id().unwrap();
                     let parent_index = app.add_card.topics.state.selected().unwrap();
-
                     let name = String::new();
-
                     let children = app.add_card.topics.items[parent_index].children.clone();
                     let sibling_qty = (&children).len();
-                    
-                  //  panic!("sibling index is {} and qty is {} and the children are {:?}", parent_index, sibling_qty, children);
                     new_topic(&app.conn, name, parent, sibling_qty as u32).unwrap();
                     let id = *(&app.conn.last_insert_rowid()) as u32;
                     app.add_card.selection = TextSelect::Topic(Some(NewTopic::new(id)));
@@ -172,7 +171,7 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
                 KeyCode::Down   => app.add_card.downkey(),
                 KeyCode::Up     => app.add_card.upkey(),
                 KeyCode::Right => app.add_card.rightkey(),
-                KeyCode::Left => app.add_card.leftkey(),
+                KeyCode::Left  => app.add_card.leftkey(),
                 KeyCode::Char('y') => {
                     let id = highest_id(&app.conn).unwrap();
                     app.add_card.reset(DepState::HasDependent(id), &app.conn);

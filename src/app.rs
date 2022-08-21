@@ -45,12 +45,6 @@ impl<'a> TabsState<'a> {
 
 
 
-
-
-
-
-
-
 pub struct App<'a> {
     pub should_quit: bool,
     pub tabs: TabsState<'a>,
@@ -59,14 +53,15 @@ pub struct App<'a> {
     pub review: ReviewList,
     pub add_card: NewCard,
     pub browse: Browse,
-    
 }
+
+
 
 impl<'a> App<'a> {
     pub fn new() -> App<'a> {
-        let conn = Connection::open("dbflash.db").expect("Failed to connect to database.");
+        let conn    = Connection::open("dbflash.db").expect("Failed to connect to database.");
         let revlist = ReviewList::new(&conn);
-        let browse = Browse::new(&conn);
+        let browse  = Browse::new(&conn);
         let mut addcards =  NewCard::new(&conn, DepState::None);
         addcards.topics.next();
 
@@ -95,12 +90,8 @@ impl<'a> App<'a> {
         }
     }
 
-
-
-
     pub fn on_tick(&mut self) {}
 
-    
     pub fn handle_key(&mut self, key: KeyCode) {
         let keyclone = key.clone();
         match self.tabs.index {
@@ -112,8 +103,5 @@ impl<'a> App<'a> {
         }
         self.prev_key = keyclone;
     }
-
-
-
 }
 

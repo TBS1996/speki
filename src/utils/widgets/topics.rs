@@ -1,7 +1,16 @@
-use crate::utils::structs::StatefulList;
 use rusqlite::Connection;
 use crate::utils::sql::update::{update_topic_relpos, update_topic_parent, update_card_topic};
-use crate::utils::sql::delete::{delete_topic};
+use crate::utils::sql::delete::delete_topic;
+use crate::utils::statelist::StatefulList;
+use crate::app::App;
+use tui::{
+    backend::Backend,
+    layout::Rect,
+    style::{Modifier, Style, Color},
+    text::Spans,
+    widgets::{Borders, Block, ListItem, List},
+    Frame,
+};
 
 #[derive(Clone)]
 pub struct Topic{
@@ -293,3 +302,71 @@ pub fn sort_topics(&mut self){
 }
 
 
+
+
+
+
+
+//---------------  UI  ------------------------//
+
+
+
+
+
+
+fn topic2string(topic: &Topic, app: &App) -> String {
+    let mut mystring: String = String::new();
+    if topic.ancestors > 0{
+        for ancestor in 0..topic.ancestors - 1{
+            let foo = app.add_card.topics.ancestor_from_id(topic.id, ancestor + 1);
+            if app.add_card.topics.is_last_sibling(foo.id){
+                mystring.insert_str(0, "  ");
+            } else {
+                mystring.insert_str(0, "│ ");
+
+            }
+        }
+        if app.add_card.topics.is_last_sibling(topic.id){
+            mystring.push_str("└─")
+        } else {
+            mystring.push_str("├─")
+        }
+    }
+
+
+
+    mystring.push_str(&topic.name);
+    mystring
+}
+
+
+// TODO pass in &Topics as an argument so that this widget can be used for several
+pub fn topiclist<B>(f: &mut Frame<B>, _app: &mut App, area: Rect, selected: bool)
+where
+    B: Backend,
+{
+    let bordercolor = if selected {Color::Red} else {Color::White};
+    let style = Style::default().fg(bordercolor);
+
+
+    let items: Vec<ListItem> = _app.add_card.topics.items.iter().map(|topic| {
+        let lines = vec![Spans::from(topic2string(topic, _app))];
+        ListItem::new(lines).style(Style::default().fg(Color::Red).bg(Color::Black))
+    }).collect();
+    
+    let items = List::new(items).block(Block::default().borders(Borders::ALL).border_style(style).title("Topics"));
+
+    let  items = items
+        .highlight_style(
+            Style::default()
+            .bg(Color::DarkGray)
+            .add_modifier(Modifier::BOLD),
+    );
+//    .highlight_symbol(">>> ");
+    
+    
+    f.render_stateful_widget(items, area, &mut _app.add_card.topics.state);
+
+
+
+}

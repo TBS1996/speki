@@ -10,7 +10,12 @@ use tui::{
         Block, Borders, Gauge},
     Frame,
 };
-use crate::utils::mywidgets::{card_status, draw_field, view_dependencies, view_dependents};
+use crate::utils::widgets::{
+    textinput::draw_field,
+    card_status::card_status,
+    view_dependents::view_dependents,
+    view_dependencies::view_dependencies,
+};
 
 
 

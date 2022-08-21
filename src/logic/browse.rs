@@ -1,5 +1,5 @@
 use crate::utils::{
-    structs::StatefulList,    //   StatefulList,
+    statelist::StatefulList,    //   StatefulList,
 };
 use rusqlite::Connection;
 

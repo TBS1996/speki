@@ -67,7 +67,6 @@ impl ReviewList {
 
 
     pub fn navigate(&mut self, key: KeyCode){
-
         match (key, &self.selection){
             (KeyCode::Right, ReviewSelection::Question)     => {self.selection = ReviewSelection::Dependents},
             (KeyCode::Down,  ReviewSelection::Question)     => {self.selection = ReviewSelection::Answer},

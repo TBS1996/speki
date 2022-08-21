@@ -1,4 +1,4 @@
-use crate::{app::App, logic::add_card::NewTopic};
+use crate::app::App;
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -8,7 +8,8 @@ use tui::{
 };
 
 
-use crate::utils::mywidgets::{cursorsplit, draw_field, topiclist};
+use crate::utils::widgets::textinput::{cursorsplit, draw_field};
+use crate::utils::widgets::topics::topiclist;
 use crate::logic::add_card::{TextSelect, NewCard};
 
 

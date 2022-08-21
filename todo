@@ -1,0 +1,6 @@
+make import-page UI
+proper filter + actions in browse page
+add "finish cards" mode on review tab
+add "learn new cards" mode on review tab
+widget that lists most recent cards added
+add ML-model for reviewing

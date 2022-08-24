@@ -1,11 +1,11 @@
 use rusqlite::Connection;
 use crossterm::event::KeyCode;
 
-use crate::logic::{
+use crate::{logic::{
     review::ReviewList,
     browse::Browse,
     add_card::{NewCard, TextSelect, DepState},
-};
+}, utils::widgets::find_card::FindCardWidget};
 use crate::events::{
     review::review_event,
     browse::browse_event,
@@ -53,6 +53,7 @@ pub struct App<'a> {
     pub review: ReviewList,
     pub add_card: NewCard,
     pub browse: Browse,
+    pub cardfinder: FindCardWidget,
 }
 
 
@@ -62,6 +63,7 @@ impl<'a> App<'a> {
         let conn    = Connection::open("dbflash.db").expect("Failed to connect to database.");
         let revlist = ReviewList::new(&conn);
         let browse  = Browse::new(&conn);
+        let cardfinder = FindCardWidget::new(&conn, "find a card!!".to_string());
         let mut addcards =  NewCard::new(&conn, DepState::None);
         addcards.topics.next();
 
@@ -74,20 +76,17 @@ impl<'a> App<'a> {
             review: revlist,
             add_card: addcards,
             browse,
+            cardfinder,
         }
     }
 
 
     pub fn on_right(&mut self) {
-        if self.add_card.selection == TextSelect::Question(false) || self.add_card.selection == TextSelect::Answer(false){
-            self.tabs.next();
-        }
+        self.tabs.next();
     }
 
     pub fn on_left(&mut self) {
-        if self.add_card.selection == TextSelect::Question(false) || self.add_card.selection == TextSelect::Answer(false){
-            self.tabs.previous();
-        }
+        self.tabs.previous();
     }
 
     pub fn on_tick(&mut self) {}

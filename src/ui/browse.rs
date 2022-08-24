@@ -33,18 +33,10 @@ fn filtered_cards<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
 where
     B: Backend,
 {
-
-
-
-
     let items: Vec<ListItem> = _app.browse.filtered.items.iter().map(|id| {
         let lines = vec![Spans::from(fetch_card(&_app.conn, *id).question.clone())];
         ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Cyan))
     }).collect();
-
-
-
-    
     
     let mut items = List::new(items).block(Block::default().borders(Borders::ALL).title("Filtered"));
 

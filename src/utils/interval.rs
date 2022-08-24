@@ -57,36 +57,19 @@ pub fn calc_stability(conn: &Connection, mut card: &mut Card){
     let grade          =  &card.history[hislen - 1 as usize].grade;
     let time_passed    = time_passed_since_review(&card.history[(hislen - 2) as usize]);
 
-    let tp2;
     
-    if hislen > 2{
-        tp2 = time_passed_since_review(&card.history[hislen - 3]);
-    }
-    else {
-        tp2 = time_passed;
-    }
+    let tp2 = if hislen > 2 {time_passed_since_review(&card.history[hislen - 3])} else {time_passed};
+    let gradefactor = match grade {
+         RecallGrade::None   => 0.25,
+         RecallGrade::Failed => 0.5,
+         RecallGrade::Decent => 2.,
+         RecallGrade::Easy   => 4.,
+    };
+
     
-    let gradefactor;
+    let new_stability = if time_passed < tp2 {prev_stability * (gradefactor * time_passed / tp2)} else {gradefactor * time_passed};
+    new_stability.min(0.0001);
 
-    match grade {
-         RecallGrade::None   => gradefactor = 0.25,
-         RecallGrade::Failed => gradefactor = 0.5,
-         RecallGrade::Decent => gradefactor = 2.,
-         RecallGrade::Easy   => gradefactor = 4.,
-    }
-
-    let mut new_stability;
-
-    if time_passed < tp2 {
-        new_stability = prev_stability * (gradefactor * time_passed / tp2);
-    }
-    else {
-        new_stability = gradefactor * time_passed;
-    } 
-    
-    if new_stability < 0.001{
-        new_stability = 0.001;
-    }
     card.stability = new_stability;
 
     update_stability(conn, card.clone()).unwrap();

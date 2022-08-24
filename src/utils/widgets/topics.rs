@@ -314,19 +314,19 @@ pub fn sort_topics(&mut self){
 
 
 
-fn topic2string(topic: &Topic, app: &App) -> String {
+fn topic2string(topic: &Topic, app: &StatefulList<Topic>) -> String {
     let mut mystring: String = String::new();
     if topic.ancestors > 0{
         for ancestor in 0..topic.ancestors - 1{
-            let foo = app.add_card.topics.ancestor_from_id(topic.id, ancestor + 1);
-            if app.add_card.topics.is_last_sibling(foo.id){
+            let foo = app.ancestor_from_id(topic.id, ancestor + 1);
+            if app.is_last_sibling(foo.id){
                 mystring.insert_str(0, "  ");
             } else {
                 mystring.insert_str(0, "│ ");
 
             }
         }
-        if app.add_card.topics.is_last_sibling(topic.id){
+        if app.is_last_sibling(topic.id){
             mystring.push_str("└─")
         } else {
             mystring.push_str("├─")
@@ -340,17 +340,21 @@ fn topic2string(topic: &Topic, app: &App) -> String {
 }
 
 
-// TODO pass in &Topics as an argument so that this widget can be used for several
-pub fn topiclist<B>(f: &mut Frame<B>, _app: &mut App, area: Rect, selected: bool)
-where
-    B: Backend,
-{
+use super::list::StraitList;
+use tui::widgets::ListState;
+
+impl<T> StraitList<T> for StatefulList<Topic>{
+
+    fn state(&self) -> ListState {
+        self.state.clone()
+    }
+
+    fn generate_list_items(&self, selected: bool) -> List{
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);
 
-
-    let items: Vec<ListItem> = _app.add_card.topics.items.iter().map(|topic| {
-        let lines = vec![Spans::from(topic2string(topic, _app))];
+    let items: Vec<ListItem> = self.items.iter().map(|topic| {
+        let lines = vec![Spans::from(topic2string(topic, self))];
         ListItem::new(lines).style(Style::default().fg(Color::Red).bg(Color::Black))
     }).collect();
     
@@ -362,11 +366,6 @@ where
             .bg(Color::DarkGray)
             .add_modifier(Modifier::BOLD),
     );
-//    .highlight_symbol(">>> ");
-    
-    
-    f.render_stateful_widget(items, area, &mut _app.add_card.topics.state);
-
-
-
+    items
+    }
 }

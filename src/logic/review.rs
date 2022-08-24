@@ -5,10 +5,31 @@ use crate::utils::{
         fetch::load_cards,
         insert::revlog_new,
     },
-    interval,
+    interval, widgets::find_card::FindCardWidget,
 };
 
 use rusqlite::Connection;
+
+#[derive(PartialEq)]
+pub enum CardPurpose{
+    Dependency,
+    Dependent,
+}
+
+#[derive(PartialEq)]
+pub struct SelectCard{
+    pub cardfinder: FindCardWidget,
+    pub purpose: CardPurpose,
+}
+
+impl SelectCard{
+    pub fn new(conn: &Connection, prompt: String, purpose: CardPurpose) -> Self{
+       SelectCard{
+           cardfinder: FindCardWidget::new(conn, prompt),
+           purpose,
+       } 
+    }
+}
 
 
 #[derive(PartialEq)]
@@ -18,6 +39,7 @@ pub enum ReviewSelection{
     Stats,
     Dependents,
     Dependencies,
+    SelectCard(SelectCard),
 }
 
 pub struct ReviewList{
@@ -65,6 +87,10 @@ impl ReviewList {
         self.reveal = false;
     }
 
+    pub fn select_card(&mut self, conn: &Connection, prompt: String, purpose: CardPurpose) {
+        self.selection = ReviewSelection::SelectCard(SelectCard::new(conn, prompt, purpose));
+    }
+
 
     pub fn navigate(&mut self, key: KeyCode){
         match (key, &self.selection){
@@ -76,7 +102,7 @@ impl ReviewList {
             (KeyCode::Down,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
             (KeyCode::Left,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question},
             (KeyCode::Left,  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer},
-            (KeyCode::Up,    ReviewSelection::Stats)        => {self.selection = ReviewSelection::Dependents},
+            (KeyCode::Up,    ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer},
             (KeyCode::Down,  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Dependencies},
             (KeyCode::Up,    ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
             (KeyCode::Left,  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer},

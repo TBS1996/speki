@@ -1,3 +1,5 @@
+use crossterm::event::KeyCode;
+//use std::thread::__OsLocalKeyInner;
 
 use tui::{
     backend::Backend,
@@ -60,9 +62,24 @@ impl Field{
             self.cursor -= 1;
         }
     }
+
+
+    pub fn keyhandler(&mut self, key: KeyCode){
+        match key {
+            KeyCode::Backspace => self.backspace(),
+            KeyCode::Delete => self.delete(),
+            KeyCode::Right => self.next(),
+            KeyCode::Left => self.prev(),
+            KeyCode::Char(c) => self.addchar(c),
+            _ => {},
+            
+        }
+    }
+
 }
 
 
+ 
 
 
 

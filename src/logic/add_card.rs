@@ -8,7 +8,7 @@ use crate::utils::{
     card::{Status, RecallGrade, Review, Card},
     widgets::textinput::Field,
     statelist::StatefulList,
-    widgets::topics::Topic,
+    widgets::{topics::Topic, find_card::FindCardWidget},
 };
 
 
@@ -20,13 +20,14 @@ pub enum DepState{
     HasDependent(u32),
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub enum TextSelect{
     Question(bool), // Bool indicates if youre in text-editing mode
     Answer(bool),
     SubmitFinished,
     SubmitUnfinished,
     Topic(Option<NewTopic>),
+    ChooseCard(FindCardWidget),
 }
 
 
@@ -68,7 +69,7 @@ impl NewCard{
         
         NewCard {
             prompt: NewCard::make_prompt(&state,conn),
-            question:  Field::new(Some('^')),
+            question:  Field::new(Some('_')),
             answer:    Field::new(Some('^')),
             state,
             topics,
@@ -203,7 +204,14 @@ impl NewCard{
 
 
     pub fn istextselected(&self)->bool{
-        (self.selection == TextSelect::Question(true)) || (self.selection == TextSelect::Answer(true))
+//        (self.selection == TextSelect::Question(true)) || (self.selection == TextSelect::Answer(true))
+
+
+            match self.selection{
+                TextSelect::Question(true) => true,
+                TextSelect::Answer(true) => true,
+                _ => false,
+            }
     }
 
     pub fn deselect(&mut self){

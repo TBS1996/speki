@@ -22,6 +22,13 @@ impl<T> StatefulList<T> {
             items,
         }
     }
+    pub fn new() -> StatefulList<T> {
+        let items = Vec::<T>::new();
+        StatefulList {
+            state: ListState::default(),
+            items,
+        }
+    }
     
     pub fn load_cards(conn: &Connection) -> StatefulList<u32> {
         let cardvec = load_cards(conn).unwrap();
@@ -60,7 +67,6 @@ impl<T> StatefulList<T> {
         self.state.select(Some(i));
     }
 
-
     pub fn previous(&mut self) {
         if self.items.len() == 0 {return};
 
@@ -80,3 +86,11 @@ impl<T> StatefulList<T> {
 
 
 
+// dummy implementation, only here because I want to use partialEQ on an enum which contains this
+// struct
+impl<T: PartialEq> PartialEq for StatefulList<T> {
+    fn eq(&self, _other: &Self) -> bool{
+        panic!("no comparison plz");
+        false
+    }
+}

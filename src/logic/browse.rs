@@ -4,8 +4,6 @@ use crate::utils::{
 use rusqlite::Connection;
 
 
-
-
 pub enum BrowseCursor{
     Filtered,
     Selected,

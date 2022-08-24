@@ -9,9 +9,9 @@ use tui::{
 
 
 use crate::utils::widgets::textinput::{cursorsplit, draw_field};
-use crate::utils::widgets::topics::topiclist;
 use crate::logic::add_card::{TextSelect, NewCard};
-
+use crate::utils::widgets::list::list_widget;
+//use crate::utils::widgets::topics::topiclist;
 
 pub fn draw_add_card<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
 where
@@ -31,7 +31,7 @@ where
         }
     };
     
-    topiclist(f, app, right, topic_selected);
+    list_widget(f, &app.add_card.topics, right, topic_selected);
     editing(f, app, left);
 }
 
@@ -67,10 +67,25 @@ where
         }
 
 
+    let isqselected = {
+        if let TextSelect::Question(_) = cardedit.selection{
+            true
+        }else{
+            false
+        }
+    };
+    let is_ans_selected = {
+        if let TextSelect::Answer(_) = cardedit.selection{
+            true
+        }else{
+            false
+        }
+    };
+
 
     draw_field(f, chunks[0], vec![Span::from(cardedit.prompt.as_str())], "", Alignment::Center, false); 
-    draw_field(f, chunks[1], question, "question", Alignment::Left, TextSelect::Question(false) == cardedit.selection || TextSelect::Question(true) == cardedit.selection);
-    draw_field(f, chunks[2],   answer.clone(), "answer", Alignment::Left, TextSelect::Answer(false) == cardedit.selection || TextSelect::Answer(true) == cardedit.selection);
+    draw_field(f, chunks[1], question,       "question", Alignment::Left, isqselected);
+    draw_field(f, chunks[2], answer.clone(), "answer",   Alignment::Left, is_ans_selected);
     draw_bottom_menu(f, chunks[3], cardedit, app);
     
 }
@@ -99,11 +114,26 @@ fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, newcard: NewCard, app: &App
         _ => {},
 
     }
-    
+
+    let isfinselected = {
+        if let TextSelect::SubmitFinished = app.add_card.selection{
+            true
+        }else{
+            false
+        }
+    };
+    let isunfinselected = {
+        if let TextSelect::SubmitUnfinished = app.add_card.selection{
+            true
+        }else{
+            false
+        }
+    };
+
 
     let alignment = Alignment::Center;
-    draw_field(f, chunks[0], fin,"" , alignment, app.add_card.selection == TextSelect::SubmitFinished);
-    draw_field(f, chunks[1], unf, "", alignment, app.add_card.selection == TextSelect::SubmitUnfinished);
+    draw_field(f, chunks[0], fin,"" , alignment, isfinselected);
+    draw_field(f, chunks[1], unf, "", alignment, isunfinselected);
 
 
 }

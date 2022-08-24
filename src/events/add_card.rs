@@ -133,8 +133,6 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
                             let name = foo.as_ref().unwrap().name.text.clone();
                             update_topic_name(&app.conn, id, name).unwrap();
                             app.add_card.reload_topics(&app.conn);
-
-
                         },
                         _ => panic!("ohno"),
                     }

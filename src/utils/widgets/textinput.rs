@@ -23,9 +23,9 @@ pub struct Field {
 
 
 impl Field{
-    pub fn new(cursor: Option<char>) -> Self{
+    pub fn new() -> Self{
         Field{
-            text: String::from(cursor.unwrap_or(' ')),
+            text: String::new(),
             cursor: 0 as usize,
             rowlen: 0 as usize, 
             maxlen: None,
@@ -53,7 +53,7 @@ impl Field{
         }
     }
     pub fn next(&mut self) {
-        if self.cursor < self.text.len() - 1{
+        if self.cursor < self.text.len() - 0{
             self.cursor += 1;
         }
     }
@@ -63,6 +63,11 @@ impl Field{
         }
     }
 
+    pub fn replace_text(&mut self, newtext: String){
+        let textlen = newtext.len();
+        self.text = newtext;
+        self.cursor = textlen;
+    }
 
     pub fn keyhandler(&mut self, key: KeyCode){
         match key {
@@ -76,10 +81,37 @@ impl Field{
         }
     }
 
+
+    pub fn cursorsplit(&self, selected: bool) -> Vec<Span> {
+        
+        let mut text = self.text.clone();
+        let cursor = self.cursor.clone();
+
+        if !selected{
+            return vec![Span::from(text)];
+        }
+        
+        let textlen = text.len();
+        if cursor == textlen{
+            text.push('_');
+        }
+
+        let (beforecursor, cursor) = text.split_at(cursor);
+        let (cursor, aftercursor) = cursor.split_at(1);
+
+
+        let beforecursor = String::from(beforecursor);
+        let cursor       = String::from(cursor);
+        let aftercursor  = String::from(aftercursor);
+
+        vec![
+            Span::from(beforecursor),
+            Span::styled(cursor, Style::default().add_modifier(Modifier::REVERSED)),
+            Span::from(aftercursor)]
+    }
+
 }
 
-
- 
 
 
 
@@ -104,24 +136,5 @@ where
     ));
     let paragraph = Paragraph::new(Spans::from(text)).block(block).alignment(alignment).wrap(Wrap { trim: true });
     f.render_widget(paragraph, area);
-}
-
-pub fn cursorsplit(text: &str, index: usize) -> Vec<Span> {
-        
-    if text.len() == 0{
-    return vec![Span::from(text)];
-    }
-
-
-
-
-    let (beforecursor, cursor) = text.split_at(index);
-    let (cursor, aftercursor) = cursor.split_at(1);
-
-    vec![
-        Span::from(beforecursor),
-        Span::styled(cursor, Style::default().add_modifier(Modifier::REVERSED)),
-        Span::from(aftercursor)]
-
 }
 

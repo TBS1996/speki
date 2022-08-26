@@ -92,6 +92,8 @@ impl<'a> App<'a> {
     pub fn on_tick(&mut self) {}
 
     pub fn handle_key(&mut self, key: KeyCode) {
+        if KeyCode::Tab == key {self.on_right()};
+        if KeyCode::BackTab == key {self.on_left()};
         let keyclone = key.clone();
         match self.tabs.index {
             0 => review_event(self, key),

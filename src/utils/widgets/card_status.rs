@@ -14,13 +14,13 @@ use tui::{
 
 
 
-pub fn card_status<B>(f: &mut Frame<B>, _app: &mut App, area: Rect, selected: bool)
+pub fn card_status<B>(f: &mut Frame<B>, _app: & App, area: Rect, selected: bool)
 where
     B: Backend,
 {
 
-    if _app.review.cards.is_empty(){return}
-    let card_id = _app.review.cards[0];
+    if _app.review.review_cards.is_empty(){return}
+    let card_id = _app.review.review_cards[0];
     let card = fetch_card(&_app.conn, card_id);
 
     let bordercolor = if selected {Color::Red} else {Color::White};

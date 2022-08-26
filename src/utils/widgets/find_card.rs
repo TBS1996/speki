@@ -34,7 +34,7 @@ pub struct FindCardWidget{
 impl FindCardWidget{
     pub fn new(conn: &Connection, prompt: String) -> Self{
         let mut list = StatefulList::<CardMatch>::new();
-        let searchterm = Field::new(None);
+        let searchterm = Field::new();
         list.reset_filter(conn, searchterm.text.clone());
         let chosen_card = None;
         let exit = false;

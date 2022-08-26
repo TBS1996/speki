@@ -8,7 +8,7 @@ use tui::{
 };
 
 
-use crate::utils::widgets::textinput::{cursorsplit, draw_field};
+use crate::utils::widgets::textinput::draw_field;
 use crate::logic::add_card::{TextSelect, NewCard};
 use crate::utils::widgets::list::list_widget;
 //use crate::utils::widgets::topics::topiclist;
@@ -23,13 +23,10 @@ where
     let left = chunks[0];
     let right = chunks[1];
 
-    let topic_selected = {
-        match &app.add_card.selection{
-            TextSelect::Topic(None) => true,
-            TextSelect::Topic(Some(_)) => true,
-            _ => false,
-        }
-    };
+
+    let topic_selected = if let TextSelect::Topic = &app.add_card.selection {true} else {false};
+
+    
     
     list_widget(f, &app.add_card.topics, right, topic_selected);
     editing(f, app, left);
@@ -52,12 +49,12 @@ where
     if cardedit.istextselected(){
         match cardedit.selection{
             TextSelect::Question(_) => {
-                question = cursorsplit(cardedit.question.text.as_str(), cardedit.question.cursor);
+                question = cardedit.question.cursorsplit(true);
                 answer   = vec![Span::from(cardedit.answer.text.as_str())];
                 },
             _ => {
                 question = vec![Span::from(cardedit.question.text.as_str())];
-                answer = cursorsplit(cardedit.answer.text.as_str(), cardedit.answer.cursor);
+                answer = cardedit.answer.cursorsplit(true);
                 },
             }
         }

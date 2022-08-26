@@ -3,12 +3,13 @@ use crate::utils::{
     card::{Card, Review, RecallGrade},
     sql::{
         fetch::load_cards,
-        insert::revlog_new,
+        insert::revlog_new, update::update_status,
     },
     interval, widgets::find_card::FindCardWidget,
 };
 
 use rusqlite::Connection;
+use crate::utils::widgets::textinput::Field;
 
 #[derive(PartialEq)]
 pub enum CardPurpose{
@@ -31,24 +32,43 @@ impl SelectCard{
     }
 }
 
+#[derive(PartialEq, Debug)]
+pub enum ReviewMode{
+    Review(bool),
+    Unfinished,
+    Pending(bool),
+    Done,
+}
+
 
 #[derive(PartialEq)]
 pub enum ReviewSelection{
-    Question,
-    Answer,
+    Question(bool),
+    Answer(bool),
     Stats,
     Dependents,
     Dependencies,
     SelectCard(SelectCard),
+    Skip,
+    Finish,
 }
 
 pub struct ReviewList{
     pub title: String,
-    pub cards: Vec<u32>,
-    pub reveal: bool,
+    pub question: Field,
+    pub answer: Field,
+    pub review_cards: Vec<u32>,
+    pub unfinished_cards: Vec<u32>,
+    pub pending_cards: Vec<u32>,
+    pub mode: ReviewMode,
     pub start_qty: u16,
+    pub unf_qty: u16,
+    pub pending_qty: u16,
     pub selection: ReviewSelection,
 }
+
+
+use crate::utils::sql::fetch::fetch_card;
 
 
 impl ReviewList {
@@ -56,35 +76,102 @@ impl ReviewList {
         interval::calc_strength(conn);
         let thecards = load_cards(conn).unwrap();
 
-        let mut filtered = Vec::<u32>::new();
+        let mut review_cards     = Vec::<u32>::new();
+        let mut unfinished_cards = Vec::<u32>::new();
+        let mut pending_cards    = Vec::<u32>::new();
+
         for card in thecards{
-            if card.strength < 0.99999{
-                filtered.push(card.card_id);
+            if card.status.isactive(){
+                if card.strength < 0.99999{
+                    review_cards.push(card.card_id);
+                }
+            } else if !card.status.initiated{
+                pending_cards.push(card.card_id);
+            } else if !card.status.complete{
+                unfinished_cards.push(card.card_id);
             }
         }
 
-        let qty = *(&filtered.len()) as u16;
+        let qty = *(&review_cards.len()) as u16;
+        let unf_qty = *(&unfinished_cards.len()) as u16;
+        let pending_qty = *(&pending_cards.len()) as u16;
 
+        let mut mode = ReviewMode::Done;
 
-        ReviewList{
-            title: String::from("reviewww"),
-            cards: filtered,
-            reveal: false,
-            start_qty: qty,
-            selection: ReviewSelection::Question,
+        if review_cards.len() > 0{
+            mode = ReviewMode::Review(false);
+        } else if unfinished_cards.len() > 0 {
+            mode = ReviewMode::Unfinished;
+        } else if pending_cards.len() > 0 {
+            mode = ReviewMode::Pending(false);
         }
-    }
-    pub fn new_review(&mut self, conn: &Connection, card: Option<Card>, grade: RecallGrade){
-        if self.cards.is_empty() {return}
+        let mut myself = ReviewList{
+            title: String::from("reviewww"),
+            question: Field::new(),
+            answer:   Field::new(),
+            review_cards,
+            unfinished_cards,
+            pending_cards,
+            mode,
+            start_qty: qty,
+            unf_qty,
+            pending_qty,
+            selection: ReviewSelection::Question(false),
+        };
 
-        let mut card = card.unwrap();
+        myself.fill_fields(conn);
+        myself
+
+
+        }
+
+    pub fn new_review(&mut self, conn: &Connection, grade: RecallGrade){
+        let mut card = fetch_card(conn, self.get_id().unwrap());
         let review = Review::from(&grade);
         card.history.push(review.clone());
         revlog_new(conn, card.card_id, review).unwrap();
         interval::calc_stability(conn, &mut card);
-        self.cards.remove(0 as usize);
+        card.status.initiated = true;
+        update_status(conn, &card).unwrap();
+        self.remove_card();
+        self.next_mode();
+        self.fill_fields(conn);
+    }
 
-        self.reveal = false;
+
+    pub fn skip_unf(&mut self, conn: &Connection){
+        self.unfinished_cards.remove(0);
+        self.next_mode();
+        self.fill_fields(conn);
+        self.next_mode();
+        if !(self.mode == ReviewMode::Done){
+            self.fill_fields(conn);
+        }
+    }
+
+    pub fn complete_card(&mut self, conn: &Connection){
+        let card = self.get_current_card(conn).unwrap();
+        Card::toggle_complete(card, conn);
+        self.unfinished_cards.remove(0);
+        self.next_mode();
+        if !(self.mode == ReviewMode::Done){
+            self.fill_fields(conn);
+        }
+    }
+
+    pub fn get_current_card(&mut self, conn: &Connection) -> Option<Card>{
+        let id = self.get_id();
+        if let None = id{return None};
+        let card = fetch_card(conn, id.unwrap());
+        Some(card)
+    }
+
+    pub fn fill_fields(&mut self, conn: &Connection){
+        if let ReviewMode::Done = self.mode{return}
+        let id = self.get_id();
+        let card = fetch_card(conn, id.unwrap());
+        self.question.replace_text(card.question);
+        self.answer.replace_text(card.answer);
     }
 
     pub fn select_card(&mut self, conn: &Connection, prompt: String, purpose: CardPurpose) {
@@ -92,22 +179,90 @@ impl ReviewList {
     }
 
 
+    pub fn remove_card(&mut self){
+        match self.mode{
+            ReviewMode::Review(_)  => self.review_cards.remove(0 as usize),
+            ReviewMode::Unfinished => self.unfinished_cards.remove(0 as usize),
+            ReviewMode::Pending(_)    => self.pending_cards.remove(0 as usize),
+            _ => panic!("remove_card shouldnt be called in mode Done"),
+        };
+    }
+
+
+    pub fn next_mode(&mut self){
+        if let ReviewMode::Review(_) = self.mode{
+            self.mode = ReviewMode::Review(false);
+            if self.review_cards.len() == 0{
+                self.mode = ReviewMode::Unfinished;
+            }
+        }
+        if let ReviewMode::Unfinished = self.mode{
+            if self.unfinished_cards.len() == 0{
+                self.mode = ReviewMode::Pending(false);
+            }
+        }
+        if let ReviewMode::Pending(_) = self.mode{
+            if self.pending_cards.len() == 0{
+                self.mode = ReviewMode::Done;
+            }
+        }
+    }
+
+
+    // requires mode not to be set to empty vec to not panic
+    pub fn get_id(&self)-> Option<u32>{
+        match self.mode{
+            ReviewMode::Review(_)  => Some(self.review_cards[0]),
+            ReviewMode::Unfinished => Some(self.unfinished_cards[0]),
+            ReviewMode::Pending(_)    => Some(self.pending_cards[0]),
+            ReviewMode::Done       => None,
+        }
+    }
+
+pub fn navigate_unfinished(&mut self, key: KeyCode){
+    match (key, &self.selection){
+        (KeyCode::Down,  ReviewSelection::Answer(false))  => {self.selection = ReviewSelection::Skip},
+        (KeyCode::Left,  ReviewSelection::Finish)  => {self.selection = ReviewSelection::Skip},
+        (KeyCode::Right, ReviewSelection::Skip)  => {self.selection = ReviewSelection::Finish},
+        (KeyCode::Up,    ReviewSelection::Skip)  => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Up,    ReviewSelection::Finish)  => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Right, ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Dependents},
+        (KeyCode::Down,  ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Right, ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Dependencies},
+        (KeyCode::Up,    ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Question(false)},
+        (KeyCode::Down,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
+        (KeyCode::Left,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question(false)},
+        (KeyCode::Left,  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Up,    ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Up,    ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
+        (KeyCode::Left,  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer(false)},
+        _ => {},
+    _ => {},
+
+}
+}
+
+
+
     pub fn navigate(&mut self, key: KeyCode){
-        match (key, &self.selection){
-            (KeyCode::Right, ReviewSelection::Question)     => {self.selection = ReviewSelection::Dependents},
-            (KeyCode::Down,  ReviewSelection::Question)     => {self.selection = ReviewSelection::Answer},
-            (KeyCode::Right, ReviewSelection::Answer)       => {self.selection = ReviewSelection::Dependencies},
-            (KeyCode::Up,    ReviewSelection::Answer)       => {self.selection = ReviewSelection::Question},
-            (KeyCode::Down,  ReviewSelection::Answer)       => {self.selection = ReviewSelection::Stats},
-            (KeyCode::Down,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
-            (KeyCode::Left,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question},
-            (KeyCode::Left,  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer},
-            (KeyCode::Up,    ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer},
-            (KeyCode::Down,  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Dependencies},
-            (KeyCode::Up,    ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
-            (KeyCode::Left,  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer},
-            (KeyCode::Down,  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Stats},
-            _ => {},
+        if self.mode == ReviewMode::Unfinished{
+            self.navigate_unfinished(key);
+        } else {
+            match (key, &self.selection){
+                (KeyCode::Right, ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Dependents},
+                (KeyCode::Down,  ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Answer(false)},
+                (KeyCode::Right, ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Dependencies},
+                (KeyCode::Up,    ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Question(false)},
+                (KeyCode::Down,  ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Stats},
+                (KeyCode::Down,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
+                (KeyCode::Left,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question(false)},
+                (KeyCode::Left,  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
+                (KeyCode::Up,    ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
+                (KeyCode::Up,    ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
+                (KeyCode::Left,  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer(false)},
+                (KeyCode::Down,  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Stats},
+                _ => {},
+        }
         }
     }
 }

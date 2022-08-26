@@ -1,4 +1,5 @@
 use rusqlite::Connection;
+use crate::utils::sql::fetch::get_topics;
 use crate::utils::sql::update::{update_topic_relpos, update_topic_parent, update_card_topic};
 use crate::utils::sql::delete::delete_topic;
 use crate::utils::statelist::StatefulList;
@@ -12,6 +13,25 @@ use tui::{
     Frame,
 };
 
+
+use super::textinput::Field;
+
+
+#[derive(Clone, PartialEq)]
+pub struct NewTopic{
+    pub name: Field,
+    pub id: u32,
+}
+
+impl NewTopic{
+    pub fn new(id: u32) -> NewTopic{
+        NewTopic{
+            name: Field::new(),
+            id,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Topic{
     pub id: u32,
@@ -23,12 +43,27 @@ pub struct Topic{
 }
 
 
+#[derive(Clone)]
+pub struct TopicList {
+    pub state: ListState,
+    pub items: Vec<Topic>,
+    pub writing: Option<NewTopic>
+}
 
 
+impl TopicList{
 
 
-impl StatefulList<Topic>{
-
+pub fn new(conn: &Connection) -> TopicList {
+    let mut foo = TopicList {
+        state: ListState::default(),
+        items: get_topics(conn).unwrap(),
+        writing: None,
+    };
+    foo.add_kids();
+    foo.sort_topics();
+    foo
+}
 
 pub fn is_last_sibling(&self, id: u32)-> bool {
     if id == 1 {return true} // edge case when selected index is root
@@ -276,7 +311,7 @@ fn dfs(&mut self, id: u32, indices: &mut Vec<u32>){
 
     for child in kids{
         indices.push(child);
-        StatefulList::dfs(self, child, indices);
+        TopicList::dfs(self, child, indices);
     }
 }
 
@@ -286,7 +321,7 @@ pub fn sort_topics(&mut self){
 
     self.items[0].ancestors = 0;
 
-    StatefulList::dfs(self, 1, &mut ids);
+    TopicList::dfs(self, 1, &mut ids);
 
     let mut sorted_topics = Vec::<Topic>::new();
 
@@ -299,12 +334,158 @@ pub fn sort_topics(&mut self){
     self.items = sorted_topics;
 
     }
+
+
+
+pub fn reload_topics(&mut self, conn: &Connection) {
+    self.items = get_topics(conn).unwrap();
+    self.add_kids();
+    self.sort_topics();
+}
+
+pub fn next(&mut self) {
+    if self.items.len() == 0 {return};
+
+    let i = match self.state.selected() {
+        Some(i) => {
+            if i >= self.items.len() - 1 {
+               self.items.len() - 1 
+            } else {
+                i + 1
+            }
+        }
+        None => 0,
+    };
+    self.state.select(Some(i));
+}
+
+pub fn previous(&mut self) {
+    if self.items.len() == 0 {return};
+
+    let i = match self.state.selected() {
+        Some(i) => {
+            if i == 0 {
+                0
+            } else {
+                i - 1
+                }
+        }
+        None => 0,
+    };
+    self.state.select(Some(i));
+    }
+
+
+
+
+
+
+pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
+    match &mut self.writing{
+        Some(inner) => {
+            match key{
+                KeyCode::Char(c) => {
+                    inner.name.addchar(c);
+                    let id = inner.id;
+                    let name = inner.name.text.clone();
+                    update_topic_name(conn, id, name).unwrap();
+                    self.reload_topics(conn);
+                },
+                KeyCode::Backspace => {
+                    inner.name.backspace();
+                    let id = inner.id;
+                    let name = inner.name.text.clone();
+                    update_topic_name(conn, id, name).unwrap();
+                    self.reload_topics(conn);
+                },
+                KeyCode::Enter => {
+                    let id = inner.id;
+                    let index = self.index_from_id(id);
+                    let parent_id = self.items[index as usize].parent;
+                    let parent_index = self.index_from_id(parent_id);
+                    self.state.select(Some(parent_index as usize));
+                    self.writing = None;
+
+                }
+                _ => {},
+            }
+        },
+        None => {
+            match key{
+                KeyCode::Char('k') => self.previous(),
+                KeyCode::Char('d') => {
+                    let mut index = self.state.selected().unwrap() as u32;
+                    if index == 0 {return}
+                    self.delete_topic(conn, index);
+                    if index == self.items.len() as u32 - 1{ index -= 1}
+                    self.reload_topics(conn);
+                    self.state.select(Some((index) as usize));
+                }
+                KeyCode::Char('h') => {
+                    let index = self.state.selected().unwrap() as u32;
+                    let topic = self.items[index as usize].clone();
+                    if topic.parent == 1 {return}
+                    if index == 0 {return}
+                    let parent_index = self.index_from_id(topic.parent);
+                    self.shift_left(conn, index);
+                    self.reload_topics(conn);
+                    self.state.select(Some((parent_index) as usize));
+                }
+                KeyCode::Char('l') => {
+                    let index = self.state.selected().unwrap() as u32;
+                    if index == (self.items.len() as u32) - 1 {return}
+                    if index == 0 {return}
+                    let topic = self.topic_from_index(index);
+                    if self.is_last_sibling(topic.id) {return}
+                    if self.items[index as usize].children.len() > 0 {return}
+                    self.shift_right(conn, index as u32);
+                    self.reload_topics(conn);
+                    self.state.select(Some((index + 1) as usize));
+                }
+                KeyCode::Char('J') => {
+                    let index = self.state.selected().unwrap() as u32;
+                    let topic = self.items[index as usize].clone();
+                    self.shift_down(conn, index as u32);
+                    self.reload_topics(conn);
+                    let new_index = self.index_from_id(topic.id);
+                    self.state.select(Some((new_index) as usize));
+                }
+                KeyCode::Char('K') => {
+                    let index = self.state.selected().unwrap();
+                    let topic = self.items[index as usize].clone();
+                    self.shift_up(conn, index as u32);
+                    self.reload_topics(conn);
+                    let new_index = self.index_from_id(topic.id);
+                    self.state.select(Some(new_index as usize));
+                },
+                KeyCode::Char('e') => {
+                    let index = self.state.selected().unwrap() as u32;
+                    let topic = self.items[index as usize].clone();
+                    self.writing = Some(NewTopic::new(topic.id));
+                }
+                KeyCode::Char('j') => self.next(),
+                KeyCode::Char('a') => {
+                    let parent = self.get_selected_id().unwrap();
+                    let parent_index = self.state.selected().unwrap();
+                    let name = String::new();
+                    let children = self.items[parent_index].children.clone();
+                    let sibling_qty = (&children).len();
+                    new_topic(conn, name, parent, sibling_qty as u32).unwrap();
+                    let id = (conn.last_insert_rowid()) as u32;
+                    self.writing = Some(NewTopic::new(id));
+                    self.reload_topics(conn);
+                },
+                _ => {},
+            }
+        }
+    }
+}
 }
 
 
-
-
-
+use crate::utils::sql::insert::new_topic;
+use crate::utils::sql::update::update_topic_name;
+use crossterm::event::KeyCode;
 
 
 //---------------  UI  ------------------------//
@@ -314,7 +495,7 @@ pub fn sort_topics(&mut self){
 
 
 
-fn topic2string(topic: &Topic, app: &StatefulList<Topic>) -> String {
+fn topic2string(topic: &Topic, app: &TopicList) -> String {
     let mut mystring: String = String::new();
     if topic.ancestors > 0{
         for ancestor in 0..topic.ancestors - 1{
@@ -343,7 +524,7 @@ fn topic2string(topic: &Topic, app: &StatefulList<Topic>) -> String {
 use super::list::StraitList;
 use tui::widgets::ListState;
 
-impl<T> StraitList<T> for StatefulList<Topic>{
+impl<T> StraitList<T> for TopicList{
 
     fn state(&self) -> ListState {
         self.state.clone()

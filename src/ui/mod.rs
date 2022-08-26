@@ -7,7 +7,7 @@ use crate::app::App;
 
 
 use crate::ui::{
-    review::draw_review,
+    review::main_review,
     add_card::draw_add_card,
     browse::draw_browse,
     import::draw_import,
@@ -40,7 +40,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .select(app.tabs.index);
     f.render_widget(tabs, chunks[0]);
     match app.tabs.index {
-        0 => draw_review(f, app, chunks[1]),
+        0 => main_review(f, app, chunks[1]),
         1 => draw_add_card(f, app, chunks[1]),
         2 => draw_browse(f, app, chunks[1]),
         3 => draw_import(f, app, chunks[1]),

@@ -6,6 +6,7 @@ pub mod card_status;
 pub mod find_card;
 pub mod message_box;
 pub mod list;
+pub mod button;
 
 
 pub struct Foo;

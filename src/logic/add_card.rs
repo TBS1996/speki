@@ -26,27 +26,11 @@ pub enum TextSelect{
     Answer(bool),
     SubmitFinished,
     SubmitUnfinished,
-    Topic(Option<NewTopic>),
+    Topic,
     ChooseCard(FindCardWidget),
 }
 
-
-#[derive(Clone, PartialEq)]
-pub struct NewTopic{
-    pub name: Field,
-    pub id: u32,
-}
-
-impl NewTopic{
-    pub fn new(id: u32) -> NewTopic{
-        NewTopic{
-            name: Field::new(None),
-            id,
-        }
-    }
-}
-
-
+use crate::utils::widgets::topics::TopicList;
 
 
 #[derive(Clone)]
@@ -55,7 +39,7 @@ pub struct NewCard{
     pub question:  Field,
     pub answer:    Field,
     pub state: DepState,
-    pub topics: StatefulList<Topic>,
+    pub topics: TopicList,
     pub selection: TextSelect,
 }
 
@@ -63,14 +47,12 @@ pub struct NewCard{
 
 impl NewCard{
     pub fn new(conn: &Connection, state: DepState) -> NewCard{
-        let mut topics = StatefulList::with_items(get_topics(conn).unwrap()); 
-        topics.add_kids();
-        topics.sort_topics();
+        let topics = TopicList::new(conn);
         
         NewCard {
             prompt: NewCard::make_prompt(&state,conn),
-            question:  Field::new(Some('_')),
-            answer:    Field::new(Some('^')),
+            question:  Field::new(),
+            answer:    Field::new(),
             state,
             topics,
             selection: TextSelect::Question(false),
@@ -79,30 +61,16 @@ impl NewCard{
         }
     }
 
-    pub fn delete_topic(&mut self){
-
-    }
-
-    pub fn up_topic(&mut self){
-        
-    }
 
     pub fn navigate(&mut self, key: KeyCode){
 
         match (&self.selection, key){
-            (TextSelect::Topic(None), KeyCode::Left) => self.selection = TextSelect::Question(false),
+            (TextSelect::Topic, KeyCode::Left) => self.selection = TextSelect::Question(false),
             _ => {},
         }
     }
 
 
-    pub fn reload_topics(&mut self, conn: &Connection) {
-        self.topics = StatefulList::with_items(get_topics(conn).unwrap());
-        self.topics.add_kids();
-        self.topics.sort_topics();
-
-
-    }
 
     fn make_prompt(state: &DepState, conn: &Connection) -> String{
         let mut prompt = String::new();
@@ -181,8 +149,8 @@ impl NewCard{
 
     pub fn reset(&mut self, state: DepState, conn: &Connection){
         self.prompt = NewCard::make_prompt(&state, conn);
-        self.question = Field::new(Some('^'));
-        self.answer = Field::new(Some('^'));
+        self.question = Field::new();
+        self.answer = Field::new();
         self.state = state;
         self.selection = TextSelect::Question(false);
     }
@@ -256,7 +224,7 @@ impl NewCard{
     }
 
     pub fn rightkey(&mut self){
-        self.selection = TextSelect::Topic(None);
+        self.selection = TextSelect::Topic;
     }
 
     pub fn leftkey(&mut self){

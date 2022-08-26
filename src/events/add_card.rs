@@ -1,9 +1,8 @@
 use crate::app::App;
 use crate::utils::sql::update::update_topic_name;
 use crossterm::event::KeyCode;
-use crate::logic::add_card::{TextSelect, DepState, NewTopic} ;
+use crate::logic::add_card::{TextSelect, DepState} ;
 use crate::utils::sql::fetch::highest_id;
-use crate::utils::sql::insert::{new_topic};
 
 
 
@@ -46,117 +45,13 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
         }
         
     }else{
-        if let TextSelect::Topic(None) = app.add_card.selection{
-            match key{
-                KeyCode::Left => app.add_card.navigate(key),
-                KeyCode::Char('k') => app.add_card.topics.previous(),
-                KeyCode::Char('d') => {
-                    let mut index = app.add_card.topics.state.selected().unwrap() as u32;
-                    if index == 0 {return}
-                    app.add_card.topics.delete_topic(&app.conn, index);
-                    if index == app.add_card.topics.items.len() as u32 - 1{ index -= 1}
-                    app.add_card.reload_topics(&app.conn);
-                    app.add_card.topics.state.select(Some((index) as usize));
-
-                }
-                KeyCode::Char('h') => {
-                    let index = app.add_card.topics.state.selected().unwrap() as u32;
-                    let topic = app.add_card.topics.items[index as usize].clone();
-                    if topic.parent == 1 {return}
-                    if index == 0 {return}
-                    let parent_index = app.add_card.topics.index_from_id(topic.parent);
-                    app.add_card.topics.shift_left(&app.conn, index);
-                    app.add_card.reload_topics(&app.conn);
-                    app.add_card.topics.state.select(Some((parent_index) as usize));
-
-                    
-
-                }
-                KeyCode::Char('l') => {
-                    let index = app.add_card.topics.state.selected().unwrap() as u32;
-                    if index == (app.add_card.topics.items.len() as u32) - 1 {return}
-                    if index == 0 {return}
-                    let topic = app.add_card.topics.topic_from_index(index);
-                    if app.add_card.topics.is_last_sibling(topic.id) {return}
-                    if app.add_card.topics.items[index as usize].children.len() > 0 {return}
-
-                    app.add_card.topics.shift_right(&app.conn, index as u32);
-                    app.add_card.reload_topics(&app.conn);
-                    app.add_card.topics.state.select(Some((index + 1) as usize));
-                
-                }
-                KeyCode::Char('J') => {
-                    let index = app.add_card.topics.state.selected().unwrap() as u32;
-                    let topic = app.add_card.topics.items[index as usize].clone();
-                    app.add_card.topics.shift_down(&app.conn, index as u32);
-                    app.add_card.reload_topics(&app.conn);
-                    let new_index = app.add_card.topics.index_from_id(topic.id);
-                    app.add_card.topics.state.select(Some((new_index) as usize));
-                }
-                KeyCode::Char('K') => {
-                    let index = app.add_card.topics.state.selected().unwrap();
-                    let topic = app.add_card.topics.items[index as usize].clone();
-                    app.add_card.topics.shift_up(&app.conn, index as u32);
-                    app.add_card.reload_topics(&app.conn);
-                    let new_index = app.add_card.topics.index_from_id(topic.id);
-                    app.add_card.topics.state.select(Some(new_index as usize));
-
-                    
-                },
-                KeyCode::Char('e') => {
-                    let index = app.add_card.topics.state.selected().unwrap() as u32;
-                    let topic = app.add_card.topics.items[index as usize].clone();
-                    app.add_card.selection = TextSelect::Topic(Some(NewTopic::new(topic.id)));
-                }
-                KeyCode::Char('j') => app.add_card.topics.next(),
-                KeyCode::Char('a') => {
-                    let parent = app.add_card.topics.get_selected_id().unwrap();
-                    let parent_index = app.add_card.topics.state.selected().unwrap();
-                    let name = String::new();
-                    let children = app.add_card.topics.items[parent_index].children.clone();
-                    let sibling_qty = (&children).len();
-                    new_topic(&app.conn, name, parent, sibling_qty as u32).unwrap();
-                    let id = *(&app.conn.last_insert_rowid()) as u32;
-                    app.add_card.selection = TextSelect::Topic(Some(NewTopic::new(id)));
-                    app.add_card.reload_topics(&app.conn);
-                    
-                },
-                _ => {},
-        }}
-        else if let TextSelect::Topic(Some(inner)) = &mut app.add_card.selection{
-            match key{
-                KeyCode::Char(c) => {
-                    match &mut app.add_card.selection{
-                        TextSelect::Topic(foo) => {
-                            foo.as_mut().unwrap().name.addchar(c);
-                            let id = foo.as_ref().unwrap().id;
-                            let name = foo.as_ref().unwrap().name.text.clone();
-                            update_topic_name(&app.conn, id, name).unwrap();
-                            app.add_card.reload_topics(&app.conn);
-                        },
-                        _ => panic!("ohno"),
-                    }
-                },
-                KeyCode::Backspace => {
-                    inner.name.backspace();
-                    let id = inner.id;
-                    let name = inner.name.text.clone();
-                    update_topic_name(&app.conn, id, name).unwrap();
-                    app.add_card.reload_topics(&app.conn);
-                },
-                KeyCode::Enter => {
-                    let id = inner.id;
-                    let index = app.add_card.topics.index_from_id(id);
-                    let parent_id = app.add_card.topics.items[index as usize].parent;
-                    let parent_index = app.add_card.topics.index_from_id(parent_id);
-                    app.add_card.topics.state.select(Some(parent_index as usize));
-                    app.add_card.selection = TextSelect::Topic(None);
-
-                }
-                _ => {},
+        if let TextSelect::Topic = app.add_card.selection{
+            if let KeyCode::Left = key{
+                app.add_card.selection = TextSelect::Question(false);
+            } else {
+                app.add_card.topics.keyhandler(key, &app.conn);
             }
-        }
-        else {
+        }else {
             match key{
                 KeyCode::Char('q') => app.should_quit = true,
                 KeyCode::Esc  => {

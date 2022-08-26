@@ -119,7 +119,6 @@ pub struct Card{
 
 
 impl Card {
-
     ///checks if the passed card should be resolved or not based on the completeness of its
     ///dependencies. If its status changed, it will recursively check all its dependents (and so
     ///on...)

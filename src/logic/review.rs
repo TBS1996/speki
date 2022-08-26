@@ -82,7 +82,7 @@ impl ReviewList {
 
         for card in thecards{
             if card.status.isactive(){
-                if card.strength < 0.99999{
+                if card.strength < 0.9{
                     review_cards.push(card.card_id);
                 }
             } else if !card.status.initiated{
@@ -141,7 +141,6 @@ impl ReviewList {
 
     pub fn skip_unf(&mut self, conn: &Connection){
         self.unfinished_cards.remove(0);
-        self.next_mode();
         self.fill_fields(conn);
         self.next_mode();
         if !(self.mode == ReviewMode::Done){
@@ -221,24 +220,22 @@ impl ReviewList {
 
 pub fn navigate_unfinished(&mut self, key: KeyCode){
     match (key, &self.selection){
-        (KeyCode::Down,  ReviewSelection::Answer(false))  => {self.selection = ReviewSelection::Skip},
-        (KeyCode::Left,  ReviewSelection::Finish)  => {self.selection = ReviewSelection::Skip},
-        (KeyCode::Right, ReviewSelection::Skip)  => {self.selection = ReviewSelection::Finish},
-        (KeyCode::Up,    ReviewSelection::Skip)  => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Up,    ReviewSelection::Finish)  => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Right, ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Dependents},
-        (KeyCode::Down,  ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Right, ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Dependencies},
-        (KeyCode::Up,    ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Question(false)},
-        (KeyCode::Down,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
-        (KeyCode::Left,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question(false)},
-        (KeyCode::Left,  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Up,    ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Up,    ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
-        (KeyCode::Left,  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Char('s'), ReviewSelection::Answer(false))  => {self.selection = ReviewSelection::Skip},
+        (KeyCode::Char('a'), ReviewSelection::Finish)  => {self.selection = ReviewSelection::Skip},
+        (KeyCode::Char('d'), ReviewSelection::Skip)  => {self.selection = ReviewSelection::Finish},
+        (KeyCode::Char('w'), ReviewSelection::Skip)  => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Char('w'), ReviewSelection::Finish)  => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Char('d'), ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Dependents},
+        (KeyCode::Char('s'), ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Char('d'), ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Dependencies},
+        (KeyCode::Char('w'), ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Question(false)},
+        (KeyCode::Char('s'), ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
+        (KeyCode::Char('a'), ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question(false)},
+        (KeyCode::Char('a'), ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Char('w'), ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
+        (KeyCode::Char('w'), ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
+        (KeyCode::Char('a'), ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer(false)},
         _ => {},
-    _ => {},
-
 }
 }
 
@@ -249,18 +246,18 @@ pub fn navigate_unfinished(&mut self, key: KeyCode){
             self.navigate_unfinished(key);
         } else {
             match (key, &self.selection){
-                (KeyCode::Right, ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Dependents},
-                (KeyCode::Down,  ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Answer(false)},
-                (KeyCode::Right, ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Dependencies},
-                (KeyCode::Up,    ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Question(false)},
-                (KeyCode::Down,  ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Stats},
-                (KeyCode::Down,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
-                (KeyCode::Left,  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question(false)},
-                (KeyCode::Left,  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
-                (KeyCode::Up,    ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
-                (KeyCode::Up,    ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
-                (KeyCode::Left,  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer(false)},
-                (KeyCode::Down,  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Stats},
+                (KeyCode::Char('d'), ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Dependents},
+                (KeyCode::Char('s'),  ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Answer(false)},
+                (KeyCode::Char('d'), ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Dependencies},
+                (KeyCode::Char('w'),    ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Question(false)},
+                (KeyCode::Char('s'),  ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Stats},
+                (KeyCode::Char('s'),  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
+                (KeyCode::Char('a'),  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question(false)},
+                (KeyCode::Char('a'),  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
+                (KeyCode::Char('w'),    ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
+                (KeyCode::Char('w'),    ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
+                (KeyCode::Char('a'),  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer(false)},
+                (KeyCode::Char('s'),  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Stats},
                 _ => {},
         }
         }

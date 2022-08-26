@@ -22,6 +22,7 @@ use crate::logic::review::ReviewMode;
 use crate::utils::widgets::find_card::draw_find_card;
 use crate::utils::widgets::button::draw_button;
 use crate::utils::widgets::message_box::draw_message;
+use crate::utils::widgets::progress_bar::progress_bar;
 
 
 
@@ -40,11 +41,10 @@ where
     let bottom = Layout::default().direction(Horizontal).constraints([Constraint::Ratio(1, 3), Constraint::Ratio(1, 3), Constraint::Ratio(1, 3),].as_ref(),).split(foobar[2]);
     let (skip, finish) = (bottom[0], bottom[1]);
 
-
     let mut qsel = false;
     let mut asel = false;
     let mut is_question_selected = false;
-    let mut is_answer_selected = false;
+    let mut is_answer_selected   = false;
 
     if let ReviewSelection::Question(selected) = app.review.selection{
         qsel = selected;
@@ -57,13 +57,11 @@ where
 
     let question = app.review.question.cursorsplit(qsel);
     let answer   = app.review.answer.cursorsplit(asel);
-
     let card_id = app.review.get_id().unwrap();
-
 
     view_dependencies(f, card_id, &app.conn, rightcolumn[1], app.review.selection == ReviewSelection::Dependencies);
     view_dependents(f,   card_id, &app.conn, rightcolumn[0], app.review.selection == ReviewSelection::Dependents);
-    unf_bar(f, app, foobar[0]);
+    progress_bar(f, app.review.unfinished_cards.len() as u32, app.review.unf_qty as u32, Color::Red, foobar[0]);
     draw_field(f, leftcolumn[0], question, "question", Alignment::Left, is_question_selected);
     draw_field(f, leftcolumn[1], answer,   "answer",   Alignment::Left, is_answer_selected);
     draw_button(f, skip,   "skip",   ReviewSelection::Skip   == app.review.selection);
@@ -121,10 +119,10 @@ where
     let mut asel = false;
     let mut reveal = false;
     if let ReviewMode::Review(foo) = app.review.mode{
-        draw_progress(f, app, foobar[0]);
+        progress_bar(f, app.review.review_cards.len() as u32, app.review.start_qty as u32, Color::Red, foobar[0]);
         reveal = foo;
     } if let ReviewMode::Pending(foo) = app.review.mode{
-        pen_bar(f, app, foobar[0]);
+        progress_bar(f, app.review.pending_cards.len() as u32, app.review.pending_qty as u32, Color::Red, foobar[0]);
         reveal = foo;
     }
 
@@ -154,7 +152,7 @@ where
         is_answer_selected = false;
     }
 
-    card_status  (f, app, foobar[2], app.review.selection == ReviewSelection::Stats);
+    card_status(f, app, foobar[2], app.review.selection == ReviewSelection::Stats);
     draw_field(f, leftcolumn[0], question, "question", Alignment::Left, is_question_selected);
     draw_field(f, leftcolumn[1], answer,   "answer",   Alignment::Left, is_answer_selected);
     view_dependencies(f, card_id, &app.conn, rightcolumn[1], app.review.selection == ReviewSelection::Dependencies);
@@ -164,58 +162,3 @@ where
 
 
 
-fn draw_progress<B>(f: &mut Frame<B>, app: & App, area: Rect)
-where
-    B: Backend,
-
-{
-    let progress = app.review.start_qty - app.review.review_cards.len() as u16;
-    let percent = (progress as f32 / app.review.start_qty as f32) * 100 as f32;
-    
-
-    let label = format!("{}/{}", progress, app.review.start_qty);
-    let gauge = Gauge::default()
-        .block(Block::default().title("Progress").borders(Borders::ALL))
-        .gauge_style(Style::default().fg(Color::Red).bg(Color::Black))
-        .percent(percent as u16)
-        .label(label);
-    f.render_widget(gauge, area); 
-}
-
-
-fn unf_bar<B>(f: &mut Frame<B>, app: & App, area: Rect)
-where
-    B: Backend,
-
-{
-    let progress = app.review.unf_qty - app.review.unfinished_cards.len() as u16;
-    let percent = (progress as f32 / app.review.unf_qty as f32) * 100 as f32;
-    
-
-    let label = format!("{}/{}", progress, app.review.unf_qty);
-    let gauge = Gauge::default()
-        .block(Block::default().title("Progress").borders(Borders::ALL))
-        .gauge_style(Style::default().fg(Color::Yellow).bg(Color::Black))
-        .percent(percent as u16)
-        .label(label);
-    f.render_widget(gauge, area); 
-}
-
-
-fn pen_bar<B>(f: &mut Frame<B>, app: & App, area: Rect)
-where
-    B: Backend,
-
-{
-    let progress = app.review.pending_qty - app.review.pending_cards.len() as u16;
-    let percent = (progress as f32 / app.review.pending_qty as f32) * 100 as f32;
-    
-
-    let label = format!("{}/{}", progress, app.review.pending_qty);
-    let gauge = Gauge::default()
-        .block(Block::default().title("Progress").borders(Borders::ALL))
-        .gauge_style(Style::default().fg(Color::Cyan).bg(Color::Black))
-        .percent(percent as u16)
-        .label(label);
-    f.render_widget(gauge, area); 
-}

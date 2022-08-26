@@ -165,7 +165,7 @@ pub fn mode_review(app: &mut App, key: KeyCode) {
                     Card::toggle_complete(card, &app.conn);
                     }
                 }
-                KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down  => app.review.navigate(key),
+                KeyCode::Char('a') |  KeyCode::Char('s') | KeyCode::Char('d') | KeyCode::Char('w') => app.review.navigate(key),
                 _=> {},
     }
 }

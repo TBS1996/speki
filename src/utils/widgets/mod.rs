@@ -7,6 +7,7 @@ pub mod find_card;
 pub mod message_box;
 pub mod list;
 pub mod button;
+pub mod progress_bar;
 
 
 pub struct Foo;

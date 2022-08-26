@@ -67,8 +67,8 @@ pub fn calc_stability(conn: &Connection, mut card: &mut Card){
     };
 
     
-    let new_stability = if time_passed < tp2 {prev_stability * (gradefactor * time_passed / tp2)} else {gradefactor * time_passed};
-    new_stability.min(0.0001);
+    let mut new_stability = if time_passed < tp2 {prev_stability * (gradefactor * time_passed / tp2)} else {gradefactor * time_passed};
+    new_stability = new_stability.min(0.0001);
 
     card.stability = new_stability;
 

@@ -46,7 +46,7 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
         
     }else{
         if let TextSelect::Topic = app.add_card.selection{
-            if let KeyCode::Left = key{
+            if let KeyCode::Char('a') = key{
                 app.add_card.selection = TextSelect::Question(false);
             } else {
                 app.add_card.topics.keyhandler(key, &app.conn);
@@ -58,13 +58,11 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
                     if let DepState::None = app.add_card.state{return}
                     app.add_card.reset(DepState::None, &app.conn);
                 },
-                KeyCode::Char('z')   => app.on_left(),
-                KeyCode::Char('x')  => app.on_right(),
                 KeyCode::Enter  => app.add_card.enterkey(&app.conn),
-                KeyCode::Down   => app.add_card.downkey(),
-                KeyCode::Up     => app.add_card.upkey(),
-                KeyCode::Right => app.add_card.rightkey(),
-                KeyCode::Left  => app.add_card.leftkey(),
+                KeyCode::Char('s')   => app.add_card.downkey(),
+                KeyCode::Char('w')     => app.add_card.upkey(),
+                KeyCode::Char('d') => app.add_card.rightkey(),
+                KeyCode::Char('a')  => app.add_card.leftkey(),
                 KeyCode::Char('y') => {
                     let id = highest_id(&app.conn).unwrap();
                     app.add_card.reset(DepState::HasDependent(id), &app.conn);

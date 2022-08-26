@@ -413,7 +413,7 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
         None => {
             match key{
                 KeyCode::Char('k') => self.previous(),
-                KeyCode::Char('d') => {
+                KeyCode::Delete => {
                     let mut index = self.state.selected().unwrap() as u32;
                     if index == 0 {return}
                     self.delete_topic(conn, index);
@@ -464,7 +464,7 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
                     self.writing = Some(NewTopic::new(topic.id));
                 }
                 KeyCode::Char('j') => self.next(),
-                KeyCode::Char('a') => {
+                KeyCode::Char('n') => {
                     let parent = self.get_selected_id().unwrap();
                     let parent_index = self.state.selected().unwrap();
                     let name = String::new();

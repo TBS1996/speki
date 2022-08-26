@@ -103,10 +103,8 @@ impl NewCard{
             Some(num) => topic = num,
         }
 
-        let mut question = self.question.text.clone(); 
-        let mut answer   = self.answer.text.clone();
-        question.pop();
-        answer.pop();
+        let question = self.question.text.clone(); 
+        let answer   = self.answer.text.clone();
 
         let status = match self.selection{
             TextSelect::SubmitFinished => Status::new_complete(),

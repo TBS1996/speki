@@ -50,6 +50,7 @@ pub fn import_cards(conn: &Connection){
             future: String::new(),
             integrated: 1.0,
             card_id: 0u32,
+            source: 0,
         };
         save_card(conn, card).unwrap();
         

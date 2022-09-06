@@ -3,8 +3,14 @@ use serde_derive::{Deserialize, Serialize};
 use rusqlite::Connection;
 use crate::utils::sql::{
     fetch::fetch_card,
-    update::update_status,
+    update::{activate_card, update_status},
 };
+
+
+
+
+
+
 
 
 #[derive(Serialize,Debug, Deserialize, Clone)]
@@ -108,13 +114,14 @@ pub struct Card{
     pub status: Status,
     pub strength: f32,
     pub stability: f32,
-    pub dependencies: Vec<u32>,
-    pub dependents: Vec<u32>,
+    pub dependencies: Vec<IncID>,
+    pub dependents: Vec<IncID>,
     pub history: Vec<Review>,
-    pub topic: u32,
+    pub topic: TopicID,
     pub future: String,
     pub integrated: f32,
-    pub card_id: u32,
+    pub card_id: CardID,
+    pub source: IncID,
 }
 
 
@@ -147,8 +154,16 @@ impl Card {
     }
 
 
-    pub fn toggle_complete(mut card: Card, conn: &Connection) {
+    pub fn new_review(conn: &Connection, id: CardID, review: RecallGrade){
+        revlog_new(conn, id, Review::from(&review)).unwrap();
+        super::interval::calc_stability(conn, id);
+        activate_card(conn, id).unwrap();
+    }
+
+
+    pub fn toggle_complete(id: CardID, conn: &Connection) {
         //let card.status.complete = false;
+        let mut card = fetch_card(conn, id);
         card.status.complete = !card.status.complete;
         update_status(conn, &card).unwrap();
         for dependent in card.dependents{
@@ -156,7 +171,36 @@ impl Card {
         }
     }
 
+
+    pub fn save_new_card(conn: &Connection, question: String, answer: String, topic: TopicID, source: IncID)-> CardID{
+        let card = Card {
+
+            question,
+            answer,
+            status: Status::new_complete(),
+            strength: 1.,
+            stability: 1.,
+            dependencies: Vec::<u32>::new(),
+            dependents: Vec::<u32>::new(),
+            history: Vec::<Review>::new(),
+            topic,
+            future: String::new(),
+            integrated: 1.,
+            card_id: 1,
+            source,
+        };
+
+
+        save_card(conn, card).unwrap();
+        let card_id = conn.last_insert_rowid() as CardID;
+        revlog_new(conn, card_id , Review::from(&RecallGrade::Decent)).unwrap();
+        card_id
+    }
+
 }
 
 
+use crate::utils::aliases::*;
 
+use super::sql::insert::save_card;
+use super::sql::insert::revlog_new;

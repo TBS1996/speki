@@ -1,15 +1,16 @@
-use crossterm::event::KeyCode;
+
 use crate::utils::{
-    card::{Card, Review, RecallGrade},
-    sql::{
-        fetch::load_cards,
-        insert::revlog_new, update::update_status,
-    },
+    card::{Card, RecallGrade},
+    sql::fetch::load_cards,
     interval, widgets::find_card::FindCardWidget,
 };
 
 use rusqlite::Connection;
+use crate::utils::aliases::*;
 use crate::utils::widgets::textinput::Field;
+use crate::utils::incread::IncRead;
+use rand::prelude::*;
+use crate::utils::sql::update::update_inc_active;
 
 #[derive(PartialEq)]
 pub enum CardPurpose{
@@ -17,7 +18,7 @@ pub enum CardPurpose{
     Dependent,
 }
 
-#[derive(PartialEq)]
+//#[derive(PartialEq)]
 pub struct SelectCard{
     pub cardfinder: FindCardWidget,
     pub purpose: CardPurpose,
@@ -32,53 +33,84 @@ impl SelectCard{
     }
 }
 
-#[derive(PartialEq, Debug)]
-pub enum ReviewMode{
-    Review(bool),
-    Unfinished,
-    Pending(bool),
-    Done,
-}
-
-
-#[derive(PartialEq)]
 pub enum ReviewSelection{
     Question(bool),
     Answer(bool),
-    Stats,
-    Dependents,
-    Dependencies,
-    SelectCard(SelectCard),
-    Skip,
-    Finish,
+    Dependencies(bool),
+    Dependents(bool),
 }
 
-pub struct ReviewList{
-    pub title: String,
+
+pub struct CardReview{
+    pub id: CardID,
     pub question: Field,
     pub answer: Field,
-    pub review_cards: Vec<u32>,
-    pub unfinished_cards: Vec<u32>,
-    pub pending_cards: Vec<u32>,
-    pub mode: ReviewMode,
-    pub start_qty: u16,
-    pub unf_qty: u16,
-    pub pending_qty: u16,
+    pub reveal: bool,
     pub selection: ReviewSelection,
 }
 
 
-use crate::utils::sql::fetch::fetch_card;
+pub struct UnfCard{
+    pub id: CardID,
+    pub question: Field,
+    pub answer: Field,
+    pub selection: UnfSelection,
+}
+
+pub enum UnfSelection{
+    Question(bool),
+    Answer(bool),
+    Dependencies(bool),
+    Dependents(bool),
+    Skip,
+    Complete,
+}
 
 
-impl ReviewList {
-    pub fn new(conn: &Connection)->ReviewList{
-        interval::calc_strength(conn);
+pub struct IncMode{
+    pub id: IncID,
+    pub source: IncRead,
+    pub selection: IncSelection,
+    
+}
+
+pub enum IncSelection{
+    Source(bool),
+    Clozes(bool),
+    Extracts(bool),
+    Skip,
+    Complete,
+}
+
+
+
+
+
+pub enum ReviewMode{
+    Review(CardReview),
+    Pending(CardReview),
+    Unfinished(UnfCard),
+    IncRead(IncMode),
+    Done,
+}
+
+
+pub struct ForReview{
+    pub review_cards: Vec<CardID>,
+    pub unfinished_cards: Vec<CardID>,
+    pub pending_cards: Vec<CardID>,
+    pub active_increads: Vec<IncID>,
+}
+
+
+impl ForReview{
+    pub fn new(conn: &Connection)-> Self{
         let thecards = load_cards(conn).unwrap();
+        let mut review_cards     = Vec::<CardID>::new();
+        let mut unfinished_cards = Vec::<CardID>::new();
+        let mut pending_cards    = Vec::<CardID>::new();
 
-        let mut review_cards     = Vec::<u32>::new();
-        let mut unfinished_cards = Vec::<u32>::new();
-        let mut pending_cards    = Vec::<u32>::new();
+        let active_increads  = load_active_inc(conn).unwrap();
 
         for card in thecards{
             if card.status.isactive(){
@@ -92,174 +124,194 @@ impl ReviewList {
             }
         }
 
-        let qty = *(&review_cards.len()) as u16;
-        let unf_qty = *(&unfinished_cards.len()) as u16;
-        let pending_qty = *(&pending_cards.len()) as u16;
+        unfinished_cards.shuffle(&mut thread_rng());
 
-        let mut mode = ReviewMode::Done;
-
-        if review_cards.len() > 0{
-            mode = ReviewMode::Review(false);
-        } else if unfinished_cards.len() > 0 {
-            mode = ReviewMode::Unfinished;
-        } else if pending_cards.len() > 0 {
-            mode = ReviewMode::Pending(false);
-        }
-        let mut myself = ReviewList{
-            title: String::from("reviewww"),
-            question: Field::new(),
-            answer:   Field::new(),
+        ForReview{
             review_cards,
             unfinished_cards,
             pending_cards,
-            mode,
-            start_qty: qty,
+            active_increads,
+        }
+    }
+}
+
+
+pub struct StartQty{
+    pub fin_qty: u16,
+    pub unf_qty: u16,
+    pub pending_qty: u16,
+    pub inc_qty: u16,
+}
+
+impl StartQty{
+    pub fn new(for_review: &ForReview) -> Self{
+        let fin_qty = for_review.review_cards.len() as u16;
+        let unf_qty = for_review.unfinished_cards.len() as u16;
+        let pending_qty = for_review.pending_cards.len() as u16;
+        let inc_qty = for_review.active_increads.len() as u16;
+
+        StartQty{
+            fin_qty,
             unf_qty,
             pending_qty,
-            selection: ReviewSelection::Question(false),
-        };
+            inc_qty
+        }
+    }
+}
 
-        myself.fill_fields(conn);
+
+
+pub struct ReviewList{
+    pub title: String,
+    pub mode: ReviewMode,
+    pub for_review: ForReview,
+    pub start_qty: StartQty,
+    pub automode: bool,
+}
+
+use crate::utils::sql::fetch::{fetch_card, load_active_inc};
+
+
+impl ReviewList {
+
+
+    pub fn new(conn: &Connection)->ReviewList{
+        interval::calc_strength(conn);
+
+        let mode = ReviewMode::Done;
+        let for_review = ForReview::new(conn);
+        let start_qty = StartQty::new(&for_review);
+
+        let mut myself = ReviewList{
+            title: String::from("review!"),
+            mode,
+            for_review,
+            start_qty,
+            automode: true,
+        };
+        myself.random_mode(conn);
         myself
-
-
         }
 
-    pub fn new_review(&mut self, conn: &Connection, grade: RecallGrade){
-        let mut card = fetch_card(conn, self.get_id().unwrap());
-        let review = Review::from(&grade);
-        card.history.push(review.clone());
-        revlog_new(conn, card.card_id, review).unwrap();
-        interval::calc_stability(conn, &mut card);
-        card.status.initiated = true;
-        update_status(conn, &card).unwrap();
-        self.remove_card();
-        self.next_mode();
-        self.fill_fields(conn);
-    }
 
 
-    pub fn skip_unf(&mut self, conn: &Connection){
-        self.unfinished_cards.remove(0);
-        self.fill_fields(conn);
-        self.next_mode();
-        if !(self.mode == ReviewMode::Done){
-            self.fill_fields(conn);
-        }
-    }
-
-    pub fn complete_card(&mut self, conn: &Connection){
-        let card = self.get_current_card(conn).unwrap();
-        Card::toggle_complete(card, conn);
-        self.unfinished_cards.remove(0);
-        self.next_mode();
-        if !(self.mode == ReviewMode::Done){
-            self.fill_fields(conn);
-        }
-    }
-
-    pub fn get_current_card(&mut self, conn: &Connection) -> Option<Card>{
-        let id = self.get_id();
-        if let None = id{return None};
-        let card = fetch_card(conn, id.unwrap());
-        Some(card)
-    }
-
-    pub fn fill_fields(&mut self, conn: &Connection){
-        if let ReviewMode::Done = self.mode{return}
-        let id = self.get_id();
-        let card = fetch_card(conn, id.unwrap());
-        self.question.replace_text(card.question);
-        self.answer.replace_text(card.answer);
-    }
-
-    pub fn select_card(&mut self, conn: &Connection, prompt: String, purpose: CardPurpose) {
-        self.selection = ReviewSelection::SelectCard(SelectCard::new(conn, prompt, purpose));
-    }
 
 
-    pub fn remove_card(&mut self){
-        match self.mode{
-            ReviewMode::Review(_)  => self.review_cards.remove(0 as usize),
-            ReviewMode::Unfinished => self.unfinished_cards.remove(0 as usize),
-            ReviewMode::Pending(_)    => self.pending_cards.remove(0 as usize),
-            _ => panic!("remove_card shouldnt be called in mode Done"),
+
+
+
+
+    pub fn random_mode(&mut self, conn: &Connection){
+
+        let  act: u32 = self.for_review.review_cards.len() as u32;
+        let  unf: u32 = self.for_review.unfinished_cards.len() as u32 + act;
+        let  inc: u32 = self.for_review.active_increads.len() as u32 + unf;
+        let  pen: u32 = self.for_review.pending_cards.len() as u32 + inc;
+
+        let mut rng = rand::thread_rng();
+        let rand = rng.gen_range(0..pen);
+
+        if rand < act {
+            self.new_review_mode(conn);
+        } else if rand < unf {
+            self.new_unfinished_mode(conn);
+        } else if rand < inc {
+            self.new_inc_mode(conn);
+        } else if rand < pen {
+            self.new_pending_mode(conn);
+        } else {
+            self.mode = ReviewMode::Done;
         };
     }
 
 
-    pub fn next_mode(&mut self){
-        if let ReviewMode::Review(_) = self.mode{
-            self.mode = ReviewMode::Review(false);
-            if self.review_cards.len() == 0{
-                self.mode = ReviewMode::Unfinished;
-            }
-        }
-        if let ReviewMode::Unfinished = self.mode{
-            if self.unfinished_cards.len() == 0{
-                self.mode = ReviewMode::Pending(false);
-            }
-        }
-        if let ReviewMode::Pending(_) = self.mode{
-            if self.pending_cards.len() == 0{
-                self.mode = ReviewMode::Done;
-            }
-        }
+
+    pub fn new_inc_mode(&mut self, conn: &Connection){
+        let id = self.for_review.active_increads.remove(0);
+        let selection = IncSelection::Source(false);
+        let source = IncRead::new(conn, id);
+        let inc = IncMode{
+            id,
+            source,
+            selection,
+        };
+
+        self.mode = ReviewMode::IncRead(inc);
+    }
+    pub fn new_unfinished_mode(&mut self, conn: &Connection){
+        let id = self.for_review.unfinished_cards.remove(0);
+        let selection = UnfSelection::Question(false);
+        let mut question = Field::new();
+        let mut answer = Field::new();
+        let card = fetch_card(conn, id);
+        question.replace_text(card.question);
+        answer.replace_text(card.answer);
+        let unfcard = UnfCard{
+            id,
+            question,
+            answer,
+            selection,
+        };
+
+        self.mode = ReviewMode::Unfinished(unfcard);
+    }
+
+    pub fn new_pending_mode(&mut self, conn: &Connection){
+        let id = self.for_review.pending_cards.remove(0);
+        let reveal = false;
+        let selection = ReviewSelection::Question(false);
+        let mut question = Field::new();
+        let mut answer = Field::new();
+        let card = fetch_card(conn, id);
+        question.replace_text(card.question);
+        answer.replace_text(card.answer);
+        let cardreview = CardReview{
+            id,
+            question,
+            answer,
+            reveal,
+            selection,
+        };
+
+        self.mode = ReviewMode::Review(cardreview);
+    }
+    pub fn new_review_mode(&mut self, conn: &Connection){
+        let id = self.for_review.review_cards.remove(0);
+        let reveal = false;
+        let selection = ReviewSelection::Question(false);
+        let mut question = Field::new();
+        let mut answer = Field::new();
+        let card = fetch_card(conn, id);
+        question.replace_text(card.question);
+        answer.replace_text(card.answer);
+        let cardreview = CardReview{
+            id,
+            question,
+            answer,
+            reveal,
+            selection,
+        };
+
+        self.mode = ReviewMode::Review(cardreview);
     }
 
 
-    // requires mode not to be set to empty vec to not panic
-    pub fn get_id(&self)-> Option<u32>{
-        match self.mode{
-            ReviewMode::Review(_)  => Some(self.review_cards[0]),
-            ReviewMode::Unfinished => Some(self.unfinished_cards[0]),
-            ReviewMode::Pending(_)    => Some(self.pending_cards[0]),
-            ReviewMode::Done       => None,
-        }
+    pub fn inc_next(&mut self, conn: &Connection){
+        self.random_mode(conn);
+    }
+    pub fn inc_done(&mut self, id: IncID, conn: &Connection){
+        let active = false;
+        update_inc_active(conn, id, active).unwrap();
+        self.inc_next(conn);
+
     }
 
-pub fn navigate_unfinished(&mut self, key: KeyCode){
-    match (key, &self.selection){
-        (KeyCode::Char('s'), ReviewSelection::Answer(false))  => {self.selection = ReviewSelection::Skip},
-        (KeyCode::Char('a'), ReviewSelection::Finish)  => {self.selection = ReviewSelection::Skip},
-        (KeyCode::Char('d'), ReviewSelection::Skip)  => {self.selection = ReviewSelection::Finish},
-        (KeyCode::Char('w'), ReviewSelection::Skip)  => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Char('w'), ReviewSelection::Finish)  => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Char('d'), ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Dependents},
-        (KeyCode::Char('s'), ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Char('d'), ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Dependencies},
-        (KeyCode::Char('w'), ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Question(false)},
-        (KeyCode::Char('s'), ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
-        (KeyCode::Char('a'), ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question(false)},
-        (KeyCode::Char('a'), ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Char('w'), ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
-        (KeyCode::Char('w'), ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
-        (KeyCode::Char('a'), ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer(false)},
-        _ => {},
-}
-}
 
 
-
-    pub fn navigate(&mut self, key: KeyCode){
-        if self.mode == ReviewMode::Unfinished{
-            self.navigate_unfinished(key);
-        } else {
-            match (key, &self.selection){
-                (KeyCode::Char('d'), ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Dependents},
-                (KeyCode::Char('s'),  ReviewSelection::Question(false))     => {self.selection = ReviewSelection::Answer(false)},
-                (KeyCode::Char('d'), ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Dependencies},
-                (KeyCode::Char('w'),    ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Question(false)},
-                (KeyCode::Char('s'),  ReviewSelection::Answer(false))       => {self.selection = ReviewSelection::Stats},
-                (KeyCode::Char('s'),  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Dependencies},
-                (KeyCode::Char('a'),  ReviewSelection::Dependents)   => {self.selection = ReviewSelection::Question(false)},
-                (KeyCode::Char('a'),  ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
-                (KeyCode::Char('w'),    ReviewSelection::Stats)        => {self.selection = ReviewSelection::Answer(false)},
-                (KeyCode::Char('w'),    ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Dependents},
-                (KeyCode::Char('a'),  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Answer(false)},
-                (KeyCode::Char('s'),  ReviewSelection::Dependencies) => {self.selection = ReviewSelection::Stats},
-                _ => {},
-        }
-        }
+    pub fn new_review(&mut self, conn: &Connection, id: CardID, recallgrade: RecallGrade){
+        Card::new_review(conn, id, recallgrade);
+        self.random_mode(conn);
     }
+
+
 }

@@ -1,17 +1,12 @@
 
 
-use crate::utils::sql::fetch::fetch_card;
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::Spans,
-    widgets::{Block, Borders, ListItem, List},
+    layout::Rect,
     Frame,
 };
 
 use crate::app::App;
-use crate::logic::browse::BrowseCursor;
 
 
 

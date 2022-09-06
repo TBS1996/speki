@@ -1,18 +1,19 @@
+use crate::utils::aliases::*;
 use rusqlite::Connection;
 use crate::utils::sql::fetch::get_topics;
 use crate::utils::sql::update::{update_topic_relpos, update_topic_parent, update_card_topic};
 use crate::utils::sql::delete::delete_topic;
-use crate::utils::statelist::StatefulList;
-use crate::app::App;
 use tui::{
-    backend::Backend,
-    layout::Rect,
     style::{Modifier, Style, Color},
     text::Spans,
     widgets::{Borders, Block, ListItem, List},
-    Frame,
 };
 
+use super::list::StraitList;
+use tui::widgets::ListState;
+use crate::utils::sql::insert::new_topic;
+use crate::utils::sql::update::update_topic_name;
+use crossterm::event::KeyCode;
 
 use super::textinput::Field;
 
@@ -34,7 +35,7 @@ impl NewTopic{
 
 #[derive(Clone)]
 pub struct Topic{
-    pub id: u32,
+    pub id: TopicID,
     pub name: String,
     pub parent: u32,
     pub children: Vec<u32>,
@@ -483,9 +484,6 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
 }
 
 
-use crate::utils::sql::insert::new_topic;
-use crate::utils::sql::update::update_topic_name;
-use crossterm::event::KeyCode;
 
 
 //---------------  UI  ------------------------//
@@ -521,8 +519,6 @@ fn topic2string(topic: &Topic, app: &TopicList) -> String {
 }
 
 
-use super::list::StraitList;
-use tui::widgets::ListState;
 
 impl<T> StraitList<T> for TopicList{
 

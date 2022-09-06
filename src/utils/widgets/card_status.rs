@@ -19,8 +19,8 @@ where
     B: Backend,
 {
 
-    if _app.review.review_cards.is_empty(){return}
-    let card_id = _app.review.review_cards[0];
+    if _app.review.for_review.review_cards.is_empty(){return}
+    let card_id = _app.review.for_review.review_cards[0];
     let card = fetch_card(&_app.conn, card_id);
 
     let bordercolor = if selected {Color::Red} else {Color::White};
@@ -28,7 +28,13 @@ where
 
     
     let rows = vec![
-        Row::new(vec![Cell::from(Span::raw(format!("strength: {}, stability: {}, initiated: {:?}, complete: {:?}, resolved: {:?}, suspended: {:?}", card.strength, card.stability, card.status.complete, card.status.resolved, card.status.suspended, card.status.initiated)))]),
+        Row::new(vec![Cell::from(Span::raw(format!("strength: {}, stability: {}, complete: {:?}, resolved: {:?}, suspended: {:?}, initiated: {:?}", 
+                                                   card.strength, 
+                                                   card.stability, 
+                                                   card.status.complete, 
+                                                   card.status.resolved, 
+                                                   card.status.suspended, 
+                                                   card.status.initiated)))]),
     ];
 
     

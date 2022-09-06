@@ -2,6 +2,7 @@ pub mod review;
 pub mod add_card;
 pub mod browse;
 pub mod import;
+pub mod incread;
 
 use crate::app::App;
 
@@ -11,6 +12,7 @@ use crate::ui::{
     add_card::draw_add_card,
     browse::draw_browse,
     import::draw_import,
+    incread::draw_incread,
 };
 
 
@@ -44,6 +46,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         1 => draw_add_card(f, app, chunks[1]),
         2 => draw_browse(f, app, chunks[1]),
         3 => draw_import(f, app, chunks[1]),
+        4 => draw_incread(f, app, chunks[1]),
         _ => {}
     };
 

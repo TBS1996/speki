@@ -1,6 +1,27 @@
-make import-page UI
-proper filter + actions in browse page
+// done
 add "finish cards" mode on review tab
 add "learn new cards" mode on review tab
+
+
+// todo
+make import-page UI
+proper filter + actions in browse page
 widget that lists most recent cards added
 add ML-model for reviewing
+add incremental reading mode
+mode to find show cards without a parent (can be toggled on a card basis)
+same as above but cards without dependents 
+stats page
+add date of new dependency pair
+store how a card was added in the DB 
+make search for card fuzzier, like checking each word separately
+add related cards feature
+add table for when you peeked at a card's answer without doing recall, for ML model later
+achievements?
+find a way to graph the dependencies
+vim mode in textinput
+add a menu tab where you can select which tab to open
+maybe make dependencies of an extract before you start making items out of it?
+auto-suggest dependencies
+flashform?
+hashmap for mode colors

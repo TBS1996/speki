@@ -1,13 +1,7 @@
-
-use crate::utils::{sql::fetch::fetch_card, card::Review};
-use crate::logic::review::ReviewSelection;
-use crate::app::App;
-use Direction::{Vertical, Horizontal};
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Style},
-    text::Span,
     widgets::{
         Block, Borders, Gauge},
     Frame,

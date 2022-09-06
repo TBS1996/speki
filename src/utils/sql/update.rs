@@ -1,5 +1,6 @@
 use rusqlite::{params, Connection, Result};
 use crate::utils::card::Card;
+use crate::utils::aliases::*;
 
 
 pub fn update_card_question(conn: &Connection, id: u32, name: String) -> Result<()>{
@@ -27,6 +28,11 @@ pub fn update_stability(conn: &Connection, card: Card) -> Result<()> {
     Ok(())
 }
 
+pub fn activate_card(conn: &Connection, id: CardID) -> Result<()> {
+    let mut stmt = conn.prepare("UPDATE cards SET initiated = 1 WHERE id = ?")?;
+    stmt.execute(params![id])?;
+    Ok(())
+}
 pub fn update_status(conn: &Connection, card: &Card) -> Result<()>{
     let initiated = card.status.initiated;
     let complete = card.status.complete;
@@ -65,5 +71,14 @@ pub fn update_topic_parent(conn: &Connection, id: u32, parent: u32) -> Result<()
     Ok(())
 }
 
+pub fn update_inc_text(conn: &Connection, source: String, id: IncID) -> Result<()>{
+    let mut stmt = conn.prepare("UPDATE incread SET source = ? WHERE id = ?")?;
+    stmt.execute(params![source, id])?;
+    Ok(())
+}
 
-
+pub fn update_inc_active(conn: &Connection, id: IncID, active: bool) -> Result<()>{
+    let mut stmt = conn.prepare("UPDATE incread SET active = ? WHERE id = ?")?;
+    stmt.execute(params![active, id])?;
+    Ok(())
+}

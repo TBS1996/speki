@@ -1,5 +1,4 @@
 use crate::app::App;
-use crate::utils::sql::update::update_topic_name;
 use crossterm::event::KeyCode;
 use crate::logic::add_card::{TextSelect, DepState} ;
 use crate::utils::sql::fetch::highest_id;

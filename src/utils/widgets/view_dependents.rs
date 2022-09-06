@@ -1,13 +1,11 @@
 
 use crate::utils::sql::fetch::fetch_card;
-use crate::app::App;
 use tui::{
     backend::Backend,
-    layout::{Constraint, Rect},
+    layout::Rect,
     style::{Color, Style},
-    text::Span,
     widgets::{
-        Block, Borders, Row, Table, Cell},
+        Block, Borders},
     Frame,
 };
 
@@ -69,7 +67,7 @@ impl<T> StraitList<T> for StatefulList<Dependent>{
         ListItem::new(lines).style(Style::default())
     }).collect();
     
-    let items = List::new(items).block(Block::default().borders(Borders::ALL).border_style(style).title("Dependencies"));
+    let items = List::new(items).block(Block::default().borders(Borders::ALL).border_style(style).title("Dependents"));
     
     if selected{
     items

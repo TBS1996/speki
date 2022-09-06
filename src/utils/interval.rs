@@ -1,13 +1,16 @@
 use crate::utils::{
-    card::{Card, RecallGrade, Review},
+    card::{RecallGrade, Review},
     sql::{
         update::{update_strength, update_stability},
         fetch::load_cards,
     }    
 };
 
+use crate::utils::aliases::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::Connection;
+
+use super::sql::fetch::fetch_card;
 
 
 
@@ -46,7 +49,9 @@ pub fn calc_strength(conn: &Connection) {
 
 
 
-pub fn calc_stability(conn: &Connection, mut card: &mut Card){
+pub fn calc_stability(conn: &Connection, id: CardID){
+    let mut card = fetch_card(conn, id);
+
     let hislen         = (&card.history).len();
     
     if hislen < 2{
@@ -56,14 +61,6 @@ pub fn calc_stability(conn: &Connection, mut card: &mut Card){
     let prev_stability =   card.stability.clone();
     let grade          =  &card.history[hislen - 1 as usize].grade;
     let time_passed    = time_passed_since_review(&card.history[(hislen - 2) as usize]);
-   /*
-    let previous_time_passed = if hislen > 2 {
-        time_passed_since_review(&card.history[hislen - 3]) - time_passed
-    } else {
-        time_passed
-    };
-    */
-
     
     let gradefactor = match grade {
          RecallGrade::None   => 0.25,

@@ -1,5 +1,4 @@
 use crossterm::event::KeyCode;
-//use std::thread::__OsLocalKeyInner;
 
 use tui::{
     backend::Backend,
@@ -17,7 +16,9 @@ use tui::{
 pub struct Field {
     pub text: String,
     pub cursor: usize,
-    pub rowlen: usize,
+    pub rowlen: u16,
+    pub startselect: Option<usize>,
+    pub endselect: Option<usize>,
     pub maxlen: Option<usize>,
 }
 
@@ -27,7 +28,9 @@ impl Field{
         Field{
             text: String::new(),
             cursor: 0 as usize,
-            rowlen: 0 as usize, 
+            rowlen: 0,
+            startselect: None,
+            endselect: None,
             maxlen: None,
         }
     }
@@ -41,6 +44,24 @@ impl Field{
             }
         }
     }
+
+    fn paste(&mut self){
+
+        /*
+        let mut ctx = ClipboardContext::new().unwrap();
+        if let Ok(contents) = ctx.get_contents(){
+            self.text.insert_str(self.cursor, contents.as_str());
+        }
+        */
+        use std::fs;
+        let file_path = "incread.txt";
+        let contents = fs::read_to_string(file_path)
+            .expect("Should have been able to read the file");
+
+        self.text.insert_str(self.cursor, &contents);
+            
+    }
+
     pub fn backspace(&mut self){
         if self.cursor > 0 && self.text.len() > 0{
             self.text.remove(self.cursor - 1);
@@ -57,6 +78,18 @@ impl Field{
             self.cursor += 1;
         }
     }
+
+    pub fn up(&mut self){
+        if self.cursor as u16 > self.rowlen{ 
+            self.cursor = (self.cursor as u16 - self.rowlen) as usize;
+        }
+    }
+    pub fn down(&mut self){
+        if self.cursor as u16 + self.rowlen < self.text.len() as u16{
+            self.cursor = (self.cursor as u16 + self.rowlen) as usize;
+        }
+    }
+
     pub fn prev(&mut self) {
         if self.cursor > 0 {
             self.cursor -= 1;
@@ -64,9 +97,9 @@ impl Field{
     }
 
     pub fn replace_text(&mut self, newtext: String){
-        let textlen = newtext.len();
+        //let textlen = newtext.len();
         self.text = newtext;
-        self.cursor = textlen;
+        self.cursor = 0;
     }
 
     pub fn keyhandler(&mut self, key: KeyCode){
@@ -75,20 +108,68 @@ impl Field{
             KeyCode::Delete => self.delete(),
             KeyCode::Right => self.next(),
             KeyCode::Left => self.prev(),
+            KeyCode::Down => self.down(),
+            KeyCode::Up => self.up(),
+            KeyCode::Home => self.select(),
+            KeyCode::End => self.deselect(),
             KeyCode::Char(c) => self.addchar(c),
+            KeyCode::F(4) => self.paste(),
             _ => {},
             
         }
     }
 
+    pub fn select(&mut self){
+        if self.startselect.is_none(){
+            self.startselect = Some(self.cursor);
+        } else if self.endselect.is_none(){
+            self.endselect = Some(self.cursor);
+        } else {
+            self.startselect = Some(self.cursor);
+            self.endselect = None;
+        }
+        
 
-    pub fn cursorsplit(&self, selected: bool) -> Vec<Span> {
+        if let Some(start) = self.startselect{
+            if let Some(end) = self.endselect{
+                if start > end{
+                    (self.startselect, self.endselect) = (self.endselect, self.startselect);
+                    self.endselect = Some(start + 1);
+                } else {
+                    self.endselect = Some(end + 1);
+                }
+            }
+        }
+
+    }
+
+    pub fn selection_exists(&self) -> bool{
+        self.startselect.is_some() && self.endselect.is_some()
+    }
+    
+    pub fn deselect(&mut self){
+        self.startselect = None;
+        self.endselect = None;
+    }
+
+
+    pub fn return_selection(&self) -> Option<String>{
+        if self.selection_exists(){
+            let start = self.startselect.unwrap();
+            let end = self.endselect.unwrap();
+            return Some(String::from(&self.text[start..end]));
+        } else {
+            None
+        }
+    }
+
+    pub fn cursorsplit(&self, selected: bool) -> Vec<Spans> {
         
         let mut text = self.text.clone();
         let cursor = self.cursor.clone();
 
         if !selected{
-            return vec![Span::from(text)];
+            return vec![Spans::from(text)];
         }
         
         let textlen = text.len();
@@ -96,31 +177,94 @@ impl Field{
             text.push('_');
         }
 
-        let (beforecursor, cursor) = text.split_at(cursor);
-        let (cursor, aftercursor) = cursor.split_at(1);
+
+        let mut splits = Vec::<usize>::new();
+
+        splits.push(self.cursor);
+        splits.push(self.cursor + 1);
+        if self.startselect.is_none() || self.endselect.is_none(){
+            splits.push(0);
+            splits.push(0);
+        } else {
+            splits.push(self.startselect.unwrap());
+            splits.push(self.endselect.unwrap());
+        }
 
 
-        let beforecursor = String::from(beforecursor);
-        let cursor       = String::from(cursor);
-        let aftercursor  = String::from(aftercursor);
+        splits.sort();
 
-        vec![
-            Span::from(beforecursor),
-            Span::styled(cursor, Style::default().add_modifier(Modifier::REVERSED)),
-            Span::from(aftercursor)]
+
+        let textvec: Vec<String> = text
+            .split('\n')
+            .map(|x|{x.to_string()})
+            .collect();
+
+        let mut lenvec = vec![0 as usize];
+
+        let mut running_total: usize = 0;
+        for txt in &textvec {
+            running_total += txt.len();
+            lenvec.push(running_total);
+        }
+
+
+
+        let mut splitdex: i32= splits.len() as i32 - 1;
+
+        let mut vecvec = Vec::new();
+        let textqty: usize = textvec.len();
+
+        // check if 
+        for idx in (0..textqty).rev(){
+            let mut thetext = textvec[idx].clone();
+            let mut tempvec = Vec::<String>::new();
+            let offset = lenvec[idx];
+
+            while splitdex != -1 {   
+                let split = splits[splitdex as usize];
+                if split > offset {
+                    let splitter = thetext.clone();
+                    let (left, right) = splitter.split_at(split - offset);
+//                    let (left, right) = splitter.split_at(splitter.char_indices().nth(split - offset).unwrap().0);
+                    thetext = left.to_string();
+                    tempvec.insert(0, right.to_string());
+                    splitdex -= 1;
+                } else {break}
+            }
+            tempvec.insert(0, thetext.to_string());
+            vecvec.insert(0, tempvec);
+        }
+
+
+      //  if textvec.len() > 2 {
+       //     dbg!(vecvec);
+        //    panic!();
+       // }
+       let mut styled_vec = Vec::<Spans>::new(); 
+
+       let mut styled = false;
+       if self.cursor == 0 {styled = true};
+       for outer in vecvec{
+           let mut tempvec = Vec::<Span>::new();
+           styled = !styled;
+           for inner in outer{
+               if !styled{
+                    tempvec.push(Span::styled(inner.to_string(),  Style::default().add_modifier(Modifier::REVERSED)));
+               } else {
+                    tempvec.push(Span::from(inner.to_string()));
+               }
+               styled = !styled;
+           }
+        styled_vec.push(Spans::from(tempvec));
+       }
+
+    styled_vec
     }
 
-}
 
 
 
-
-
-
-
-
-
-pub fn draw_field<B>(f: &mut Frame<B>, area: Rect, text: Vec<Span>, title: &str, alignment: Alignment, selected: bool)
+pub fn draw_field<B>(&self, f: &mut Frame<B>, area: Rect, title: &str, alignment: Alignment, selected: bool)
 where
     B: Backend,
 {
@@ -134,7 +278,14 @@ where
             .fg(Color::Magenta)
             .add_modifier(Modifier::BOLD),
     ));
-    let paragraph = Paragraph::new(Spans::from(text)).block(block).alignment(alignment).wrap(Wrap { trim: true });
+
+    let formatted_text = self.cursorsplit(selected);
+
+    let paragraph = Paragraph::new(formatted_text)
+        .block(block)
+        .alignment(alignment)
+        .wrap(Wrap { trim: true });
     f.render_widget(paragraph, area);
 }
 
+}

@@ -86,11 +86,4 @@ impl<T> StatefulList<T> {
 
 
 
-// dummy implementation, only here because I want to use partialEQ on an enum which contains this
-// struct
-impl<T: PartialEq> PartialEq for StatefulList<T> {
-    fn eq(&self, _other: &Self) -> bool{
-        panic!("no comparison plz");
-        false
-    }
-}
+

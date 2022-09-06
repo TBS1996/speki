@@ -1,13 +1,16 @@
 
+use crate::utils::statelist::StatefulList;
+use crate::utils::widgets::list::StraitList;
+use tui::widgets::ListItem;
+use tui::widgets::ListState;
+use tui::widgets::List;
 use crate::utils::sql::fetch::fetch_card;
-use crate::app::App;
 use tui::{
     backend::Backend,
-    layout::{Constraint, Rect},
+    layout::Rect,
     style::{Color, Style},
-    text::Span,
     widgets::{
-        Block, Borders, Row, Table, Cell},
+        Block, Borders},
     Frame,
 };
 
@@ -40,11 +43,6 @@ where
 }
 
 
-use crate::utils::statelist::StatefulList;
-use crate::utils::widgets::list::StraitList;
-use tui::widgets::ListItem;
-use tui::widgets::ListState;
-use tui::widgets::List;
 
 impl<T> StraitList<T> for StatefulList<Dependency>{
 

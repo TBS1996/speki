@@ -3,11 +3,11 @@
 
 use tui::{
     backend::Backend,
-    layout::{Alignment, Rect},
+    layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::Spans,
     widgets::{
-        Block, Borders, Paragraph, Wrap},
+        Block, Borders},
     Frame,
 };
 
@@ -54,13 +54,13 @@ impl<T> StraitList<T> for StatefulList<CardMatch>{
             })
             .collect();
     
-    let items = List::new(items).block(Block::default().borders(Borders::ALL).title("Selected"));
-    let items = items
-        .highlight_style(
-            Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
-    items
+        let items = List::new(items).block(Block::default().borders(Borders::ALL).title("Selected"));
+        let items = items
+            .highlight_style(
+                Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        );
+        items
     }
 }

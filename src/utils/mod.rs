@@ -3,6 +3,9 @@ pub mod card;
 pub mod interval;
 pub mod statelist;
 pub mod widgets;
+pub mod aliases;
+pub mod incread;
+pub mod misc;
 
 
 #[derive(Clone, PartialEq)]

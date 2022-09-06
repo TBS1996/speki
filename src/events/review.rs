@@ -1,71 +1,167 @@
-use crate::utils::sql::fetch::fetch_card;
-use crate::utils::sql::insert::update_both;
-use crate::app::App;
+
+
+use crate::logic::review::{UnfCard, UnfSelection, CardReview};
+use crate::utils::sql::update::{update_inc_text,  update_card_question, update_card_answer};
 use crossterm::event::KeyCode;
+use crate::app::App;
 use crate::utils::card::{RecallGrade, Card};
-use crate::logic::add_card::DepState;
-use crate::logic::review::{ReviewSelection, SelectCard};
-use crate::logic::review::CardPurpose;
+use crate::logic::review::{ReviewSelection, IncSelection, IncMode};
 use crate::logic::review::ReviewMode;
 
-use crate::utils::sql::update::update_card_answer;
-use crate::utils::sql::update::update_card_question;
+use rusqlite::Connection;
+use crate::utils::aliases::*;
 
+
+
+
+enum Action {
+    IncNext(String, TopicID),
+    IncDone(String, TopicID),
+    Review(String, String, CardID, RecallGrade),
+    SkipUnf(String, String, CardID),
+    CompleteUnf(String, String, CardID),
+    Quit,
+    None,
+}
 
 pub fn review_event(app: &mut App, key: KeyCode) {
-    let card = match app.review.get_id(){
-        Some(id) => Some(fetch_card(&app.conn, id)),
-        None => None,
-    };
-
-    if let ReviewSelection::Question(false) = app.review.selection{
-        if KeyCode::Enter == key {
-            app.review.selection = ReviewSelection::Question(true);
-            return;
-        }
-    }
-    if let ReviewSelection::Answer(false) = app.review.selection{
-        if KeyCode::Enter == key {
-            app.review.selection = ReviewSelection::Answer(true);
-            return;
-        }
-    }
 
 
-    if let ReviewSelection::Question(true) = app.review.selection{
-        match key {
-            KeyCode::Enter | KeyCode::Esc => {
-                let id = app.review.get_id().unwrap();
-                let name = app.review.question.text.clone(); 
-                update_card_question(&app.conn, id, name).unwrap();
-                app.review.selection = ReviewSelection::Question(false);
+    let mut action = Action::None;
 
-            },
-            key => app.review.question.keyhandler(key),
-        }
-        return
-    }
+    match &mut app.review.mode{
+        ReviewMode::Done => mode_done(key, &mut action),
+        ReviewMode::Unfinished(unf) => mode_unfinished( unf, key, &mut action),
+        ReviewMode::Pending(rev) | ReviewMode::Review(rev) => mode_review(rev, key, &mut action),
+        ReviewMode::IncRead(inc) => mode_inc(&app.conn, inc, key, &mut action),
+}
 
 
-    if let ReviewSelection::Answer(true) = app.review.selection{
-        match key {
-            KeyCode::Enter | KeyCode::Esc => {
-                let id = app.review.get_id().unwrap();
-                let name = app.review.answer.text.clone(); 
-                update_card_answer(&app.conn, id, name).unwrap();
-                app.review.selection = ReviewSelection::Answer(false);
-            },
-            key => app.review.answer.keyhandler(key),
-        }
-        return;
+    match action{
+        Action::IncNext(source, id) => {
+            app.review.inc_next(&app.conn);
+            update_inc_text(&app.conn, source, id).unwrap();
+        },
+        Action::IncDone(source, id) => {
+            app.review.inc_done(id, &app.conn);
+            update_inc_text(&app.conn, source, id).unwrap();
+        },
+        Action::Review(question, answer, id, grade) => {
+            app.review.new_review(&app.conn, id, grade);
+            update_card_question(&app.conn, id, question).unwrap();
+            update_card_answer(&app.conn, id, answer).unwrap();
+        },
+        Action::SkipUnf(question, answer, id) => {
+            app.review.random_mode(&app.conn);
+            update_card_question(&app.conn, id, question).unwrap();
+            update_card_answer(&app.conn, id, answer).unwrap();
+        },
+        Action::CompleteUnf(question, answer, id) => {
+            Card::toggle_complete(id, &app.conn);
+            app.review.random_mode(&app.conn);
+            update_card_question(&app.conn, id, question).unwrap();
+            update_card_answer(&app.conn, id, answer).unwrap();
+        },
+        Action::Quit => {
+            app.should_quit = true;
+      //      update_card_question(&app.conn, id, question);
+      //      update_card_answer(&app.conn, id, answer);
+        },
+        Action::None => {},
     }
 
 
+}
 
-    match app.review.mode{
-        ReviewMode::Done => mode_done(app, key),
-        ReviewMode::Unfinished => mode_unfinished(app, key),
-        ReviewMode::Pending(_) | ReviewMode::Review(_) => mode_review(app, key),
+
+fn mode_inc(conn: &Connection, inc: &mut IncMode, key: KeyCode, action: &mut Action) {
+    use KeyCode::*;
+    use IncSelection::*;
+
+
+    match (&inc.selection, key) {
+        (Source(false), Enter) => inc.selection = Source(true),
+        (Source(false), Char('d')) => inc.selection = Extracts(false),
+        (Source(false), Char('s')) => inc.selection = Skip,
+        
+        (Source(true), Esc) => inc.selection = Source(false),
+        (Source(true), key) =>  inc.source.keyhandler(conn, key),
+
+        (Extracts(false), Enter) => inc.selection = Extracts(true),
+        (Extracts(false), Char('a')) => inc.selection = Source(false),
+        (Extracts(false), Char('s')) => inc.selection = Clozes(false),
+        
+        (Extracts(true), Esc) => inc.selection = Extracts(false),
+
+        (Clozes(true), Esc) => inc.selection = Clozes(false),
+
+        (Clozes(false), Enter) => inc.selection = Clozes(true),
+        (Clozes(false), Char('s')) => inc.selection = Complete,
+        (Clozes(false), Char('a')) => inc.selection = Source(false),
+
+
+        (Skip, Char('d')) => inc.selection = Complete,
+        (Skip, Char('w')) => inc.selection = Source(false),
+        (Skip, Enter) => *action = Action::IncNext(inc.source.source.text.clone(), inc.id),
+
+        (Complete, Char('w')) => inc.selection = Clozes(false),
+        (Complete, Char('a')) => inc.selection = Skip,
+        (Complete, Enter) => *action = Action::IncDone(inc.source.source.text.clone(), inc.id), //app.review.inc_done(inc.id, &app.conn),
+        (_,_) => {},
+
+
+    }
+
+}
+
+
+
+
+
+
+fn mode_review(unf: &mut CardReview, key: KeyCode, action: &mut Action) {
+    use ReviewSelection::*;
+    use KeyCode::*;
+        
+    match (&unf.selection, key){
+
+        (Question(true), Esc) => unf.selection = Question(false),
+        (Question(true), key) => unf.question.keyhandler(key),
+
+        (Question(false), Char('d')) => unf.selection = Dependents(false),
+        (Question(false), Char('s')) => unf.selection = Answer(false),
+        (Question(false), Enter) => unf.selection = Question(true),
+
+
+        (Answer(true), Esc) => unf.selection = Answer(false),
+        (Answer(true), key) => unf.answer.keyhandler(key),
+
+        (Answer(false), Char('w')) => unf.selection = Question(false),
+        (Answer(false), Char('d')) => unf.selection = Dependencies(false),
+        (Answer(false), Enter) => unf.selection = Answer(true),
+        
+        (Dependencies(true),  Esc) => unf.selection = Dependencies(false),
+
+        (Dependencies(false), Enter) => unf.selection = Dependencies(true),
+        (Dependencies(false),  Char('a')) => unf.selection = Answer(false),
+        (Dependencies(false),  Char('w')) => unf.selection = Dependents(false),
+        
+        (Dependents(true),  Esc) => unf.selection = Dependents(false),
+
+        (Dependents(false), Enter) => unf.selection = Dependents(true),
+        (Dependents(false), Char('a')) => unf.selection = Question(false),
+        (Dependents(false), Char('s')) => unf.selection = Dependencies(false),
+
+        (_, Char('1')) => *action = Action::Review(unf.question.text.clone(), unf.answer.text.clone(), unf.id, RecallGrade::None),
+        (_, Char('2')) => *action = Action::Review(unf.question.text.clone(), unf.answer.text.clone(), unf.id, RecallGrade::Failed),
+        (_, Char('3')) => *action = Action::Review(unf.question.text.clone(), unf.answer.text.clone(), unf.id, RecallGrade::Decent),
+        (_, Char('4')) => *action = Action::Review(unf.question.text.clone(), unf.answer.text.clone(), unf.id, RecallGrade::Easy),
+     
+        (_, Char(' ')) => unf.reveal = true,
+        (_,_) => {},
+
+
+        
     }
 }
 
@@ -73,109 +169,61 @@ pub fn review_event(app: &mut App, key: KeyCode) {
 
 
 
-pub fn mode_unfinished(app: &mut App, key: KeyCode) {
-    if ReviewSelection::Skip == app.review.selection && key == KeyCode::Enter{
-        app.review.skip_unf(&app.conn);
-    }
-    if ReviewSelection::Finish == app.review.selection && key == KeyCode::Enter{
-        app.review.complete_card(&app.conn);
-    }
-    
-    if let  KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down  = key {
-        app.review.navigate(key);
-    }
-
-    if key == KeyCode::Char('q') { app.should_quit = true;}
-}
 
 
 
+fn mode_done(key: KeyCode, action: &mut Action){
 
-
-pub fn mode_review(app: &mut App, key: KeyCode) {
-    let card = match app.review.get_id(){
-        Some(id) => Some(fetch_card(&app.conn, id)),
-        None => None,
-    };
-
-    if let ReviewSelection::SelectCard(foo) =  &mut app.review.selection{
-            match key{
-                KeyCode::Enter => {
-                    if let Some(index) = foo.cardfinder.list.state.selected(){
-                        let current = card.as_ref().unwrap();
-                        let chosen_card = foo.cardfinder.list.items[index].id;
-                        match foo.purpose{
-                            CardPurpose::Dependent  => {
-                                update_both(&app.conn, chosen_card,current.card_id).unwrap();
-                            },
-                            CardPurpose::Dependency => {
-                                update_both(&app.conn, current.card_id,chosen_card).unwrap();
-                            },
-                        }
-                        app.review.selection = ReviewSelection::Question(false);
-                    }
-                }
-                KeyCode::Esc => {
-                    app.review.selection = ReviewSelection::Question(false);
-                    }
-                KeyCode::Down => {
-                    foo.cardfinder.list.next();
-                },
-                KeyCode::Up => {
-                    foo.cardfinder.list.previous();
-                },
-                key => {
-                    foo.cardfinder.keyhandler(&app.conn, key);
-                    foo.cardfinder.list.state.select(None);
-                },
-            }
-    } else {
-        match key {
-                KeyCode::Char('q') => app.should_quit = true,
-                KeyCode::Char(' ') => {
-                    match app.review.mode{
-                        ReviewMode::Review(_)  => app.review.mode = ReviewMode::Review(true),
-                        ReviewMode::Pending(_) => app.review.mode = ReviewMode::Pending(true),
-                        _ => {},
-                    }
-
-                },
-                KeyCode::Char('1') => app.review.new_review(&app.conn, RecallGrade::None),
-                KeyCode::Char('2') => app.review.new_review(&app.conn, RecallGrade::Failed), 
-                KeyCode::Char('3') => app.review.new_review(&app.conn, RecallGrade::Decent),
-                KeyCode::Char('4') => app.review.new_review(&app.conn, RecallGrade::Easy),
-                KeyCode::Char('T') => {
-                    app.review.selection = ReviewSelection::SelectCard(SelectCard::new(&app.conn, String::from("Add new dependent"), CardPurpose::Dependent));
-                },
-                KeyCode::Char('Y') => {
-                    app.review.selection = ReviewSelection::SelectCard(SelectCard::new(&app.conn, String::from("Add new dependency"), CardPurpose::Dependency));
-                },
-                KeyCode::Char('y') => {
-                    if let None = card {return};
-                    app.add_card.reset(DepState::HasDependent(card.unwrap().card_id), &app.conn);
-                    app.tabs.index = 1;
-                }
-                KeyCode::Char('t') => {
-                    if let None = card {return};
-                    app.add_card.reset(DepState::HasDependency(card.unwrap().card_id), &app.conn);
-                    app.tabs.index = 1;
-                }
-                KeyCode::Char('c') => {
-                    if let Some(card) = card{
-                    Card::toggle_complete(card, &app.conn);
-                    }
-                }
-                KeyCode::Char('a') |  KeyCode::Char('s') | KeyCode::Char('d') | KeyCode::Char('w') => app.review.navigate(key),
-                _=> {},
-    }
-}
-}
-
-
-
-pub fn mode_done(app: &mut App, key: KeyCode) {
     match key{
-        KeyCode::Char('q') => app.should_quit = true,
-        _ => return,
+        KeyCode::Char('q') => *action = Action::Quit,
+        _ => {},
+    }
+}
+
+
+
+fn mode_unfinished(unf: &mut UnfCard, key: KeyCode, action: &mut Action) {
+    use UnfSelection::*;
+    use KeyCode::*;
+        
+    match (&unf.selection, key){
+
+        (Question(true), Esc) => unf.selection = Question(false),
+        (Question(true), key) => unf.question.keyhandler(key),
+
+        (Question(false), Char('d')) => unf.selection = Dependents(false),
+        (Question(false), Char('s')) => unf.selection = Answer(false),
+        (Question(false), Enter) => unf.selection = Question(true),
+
+
+        (Answer(true), Esc) => unf.selection = Answer(false),
+        (Answer(true), key) => unf.answer.keyhandler(key),
+
+        (Answer(false), Char('w')) => unf.selection = Question(false),
+        (Answer(false), Char('d')) => unf.selection = Dependencies(false),
+        (Answer(false), Char('s')) => unf.selection = Skip,
+        (Answer(false), Enter) => unf.selection = Answer(true),
+        
+        (Dependencies(true),  Esc) => unf.selection = Dependencies(false),
+
+        (Dependencies(false), Enter) => unf.selection = Dependencies(true),
+        (Dependencies(false),  Char('a')) => unf.selection = Answer(false),
+        (Dependencies(false),  Char('s')) => unf.selection = Complete,
+        (Dependencies(false),  Char('w')) => unf.selection = Dependents(false),
+        
+        (Dependents(true),  Esc) => unf.selection = Dependents(false),
+
+        (Dependents(false), Enter) => unf.selection = Dependents(true),
+        (Dependents(false), Char('a')) => unf.selection = Question(false),
+        (Dependents(false), Char('s')) => unf.selection = Dependencies(false),
+
+        (Skip, Char('d')) => unf.selection = Complete,
+        (Skip, Char('w')) => unf.selection = Answer(false),
+        (Skip, Enter) => *action = Action::SkipUnf(unf.question.text.clone(), unf.answer.text.clone(), unf.id), //app.review.random_mode(&app.conn),
+        
+        (Complete, Char('w')) => unf.selection = Dependencies(false),
+        (Complete, Char('a')) => unf.selection = Skip,
+        (Complete, Enter) =>  *action = Action::CompleteUnf(unf.question.text.clone(), unf.answer.text.clone(), unf.id), 
+        (_,_) => {},
     }
 }

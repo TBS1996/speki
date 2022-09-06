@@ -4,13 +4,14 @@ use crossterm::event::KeyCode;
 use crate::{logic::{
     review::ReviewList,
     browse::Browse,
-    add_card::{NewCard, TextSelect, DepState},
+    add_card::{NewCard, DepState}, incread::MainInc,
 }, utils::widgets::find_card::FindCardWidget};
 use crate::events::{
     review::review_event,
     browse::browse_event,
     add_card::add_card_event,
     import::main_port,
+    incread::main_inc,
 };
 
 
@@ -43,7 +44,16 @@ impl<'a> TabsState<'a> {
 }
 
 
-
+// structs where sometimes you must choose a card can have that findcard widget in their struct 
+// itll be none normally. if you need to select a card, make the selection enum equal to findcard,
+// when you click select it will become a Some(Card) value, the next call it will extract that
+// value for its purpose and turn it back to none afterwards
+//
+// hmm can enum be generic or something
+//
+// maybe a trait that is something like "selected card" so that when you bring certain widgets that
+// require a card it can be automatically configured with that trait
+//
 
 pub struct App<'a> {
     pub should_quit: bool,
@@ -54,9 +64,10 @@ pub struct App<'a> {
     pub add_card: NewCard,
     pub browse: Browse,
     pub cardfinder: FindCardWidget,
+    pub incread: MainInc,
 }
 
-
+//use crate::logic::incread::MainInc;
 
 impl<'a> App<'a> {
     pub fn new() -> App<'a> {
@@ -66,17 +77,19 @@ impl<'a> App<'a> {
         let cardfinder = FindCardWidget::new(&conn, "find a card!!".to_string());
         let mut addcards =  NewCard::new(&conn, DepState::None);
         addcards.topics.next();
+        let incread = MainInc::new(&conn);
 
 
         App {
             should_quit: false,
-            tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "import"]),
+            tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "import", "Incremental reading"]),
             conn,
             prev_key: KeyCode::Null,
             review: revlist,
             add_card: addcards,
             browse,
             cardfinder,
+            incread,
         }
     }
 
@@ -100,6 +113,7 @@ impl<'a> App<'a> {
             1 => add_card_event(self, key),
             2 => browse_event(self, key),
             3 => main_port(self, key),
+            4 => main_inc(self, key),
             _ => {},
         }
         self.prev_key = keyclone;

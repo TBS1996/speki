@@ -1,14 +1,14 @@
+use crate::utils::aliases::*;
 use rusqlite::Connection;
 use crossterm::event::KeyCode;
 use crate::utils::{
     sql::{
-        fetch::{highest_id, get_topics, fetch_card},
+        fetch::{highest_id, fetch_card},
         insert::{update_both, save_card, revlog_new},
     },
     card::{Status, RecallGrade, Review, Card},
     widgets::textinput::Field,
-    statelist::StatefulList,
-    widgets::{topics::Topic, find_card::FindCardWidget},
+    widgets::find_card::FindCardWidget,
 };
 
 
@@ -16,11 +16,11 @@ use crate::utils::{
 #[derive(Clone)]
 pub enum DepState{
     None,
-    HasDependency(u32),
-    HasDependent(u32),
+    HasDependency(CardID),
+    HasDependent(CardID),
 }
 
-#[derive(Clone)]
+//#[derive(Clone)]
 pub enum TextSelect{
     Question(bool), // Bool indicates if youre in text-editing mode
     Answer(bool),
@@ -33,7 +33,7 @@ pub enum TextSelect{
 use crate::utils::widgets::topics::TopicList;
 
 
-#[derive(Clone)]
+//#[derive(Clone)]
 pub struct NewCard{
     pub prompt: String,
     pub question:  Field,
@@ -97,7 +97,7 @@ impl NewCard{
 
 
     pub fn submit_card(&mut self, conn: &Connection) {
-        let topic: u32; 
+        let topic: TopicID; 
         match self.topics.get_selected_id(){
             None => topic = 0,
             Some(num) => topic = num,
@@ -118,20 +118,21 @@ impl NewCard{
             status,
             strength: 1f32,
             stability: 1f32,
-            dependencies: Vec::<u32>::new(),
-            dependents: Vec::<u32>::new(),
+            dependencies: Vec::<CardID>::new(),
+            dependents: Vec::<CardID>::new(),
             history: vec![Review::from(&RecallGrade::Decent)] ,
             topic,
             future: String::from("[]"),
             integrated: 1f32,
-            card_id: 0u32,
+            card_id: 0,
+            source: 0,
 
         };
 
         save_card(conn, newcard).unwrap();
         revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent)).unwrap();
 
-        let last_id: u32 = highest_id(conn).unwrap();
+        let last_id: CardID = highest_id(conn).unwrap();
         match self.state{
             DepState::None => {},
             DepState::HasDependent(id) => {

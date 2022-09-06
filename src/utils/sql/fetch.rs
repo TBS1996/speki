@@ -1,6 +1,7 @@
 use rusqlite::{Connection,Row, Result};
 use crate::utils::card::{Card, RecallGrade, Review, Status}; //, Topic, Review}
 use crate::utils::widgets::topics::Topic;
+use crate::utils::aliases::*;
 
 #[derive(Clone)]
 pub struct DepPair{
@@ -76,8 +77,7 @@ pub fn get_topics(conn: &Connection) -> Result<Vec<Topic>>{
 
 pub fn get_history(conn: &Connection, id: u32) -> Result<Vec<Review>>{
     let mut stmt = conn.prepare("SELECT * FROM revlog WHERE cid = ?")?;
-    let rows = stmt.query_map([id], |row| {
-        Ok(
+    let rows = stmt.query_map([id], |row| { Ok(
             Review{
                 grade: RecallGrade::from(row.get(2)?).unwrap(),
                 date: row.get(0)?,
@@ -203,5 +203,169 @@ pub fn row2card(conn: &Connection, row: &Row) -> Result<Card>{
             future: String::from("[]"),
             integrated: 1f32,
             card_id: row.get(0)?,
+            source: row.get(11)?,
         })
 }
+
+use crate::utils::incread::IncRead;
+use crate::utils::widgets::textinput::Field;
+use crate::utils::statelist::StatefulList;
+
+struct IncTemp{
+    parent: u32,
+    topic: u32,
+    source: String,
+    isactive: bool,
+}
+
+
+
+// TODO fix this mess
+pub fn get_incread(conn: &Connection, id: u32) -> Result<IncRead>{
+    let mut stmt = conn.prepare("SELECT * FROM incread WHERE id = ?")?;
+
+    let mut temp = stmt.query_map([id], |row| {
+     
+        Ok(
+            IncTemp{
+                parent: row.get(1)?,
+                topic: row.get(2)?,
+                source: row.get(3)?,
+                isactive: row.get(4)?,
+            }
+            )
+    
+    })?;
+
+    let temp = temp.next().unwrap().unwrap();
+
+
+    let extracts = StatefulList::with_items(load_extracts(conn, id).unwrap());
+
+    let clozes = crate::utils::statelist::StatefulList::with_items(load_cloze_cards(conn, id).unwrap());
+
+
+    let mut foo = 
+        IncRead{
+            id,
+            parent: temp.parent,
+            topic: temp.topic,
+            source: Field::new(),
+            extracts,
+            clozes,
+            isactive: temp.isactive,
+        };
+
+    foo.source.replace_text(temp.source.to_string());
+
+    Ok(foo)
+}
+
+
+use crate::utils::incread::IncListItem;
+
+pub fn load_inc_items(conn: &Connection, topic: TopicID) -> Result<Vec<IncListItem>> {
+    let mut incvec = Vec::<IncListItem>::new();
+    let mut stmt = conn.prepare("SELECT * FROM incread where parent = 0 and topic = ?")?;
+
+    
+
+    let inc_iter = stmt.query_map([topic], |row| 
+                                   Ok(
+                                       IncListItem{
+                                           text: row.get(3)?,
+                                           id: row.get(0)?,
+                                       }
+                                       ))
+                                   ?;
+
+    for inc in inc_iter {
+        incvec.push(inc.unwrap().clone());}
+    
+    Ok(incvec)
+}
+
+
+
+
+pub fn load_extracts(conn: &Connection, parent: IncID) -> Result<Vec<IncListItem>> {
+    let mut incvec = Vec::<IncListItem>::new();
+    let mut stmt = conn.prepare("SELECT * FROM incread where parent = ?")?;
+
+    
+
+    let inc_iter = stmt.query_map([parent], |row| 
+                                   Ok(
+                                       IncListItem{
+                                           text: row.get(3)?,
+                                           id: row.get(0)?,
+                                       }
+                                       ))
+                                   ?;
+
+    for inc in inc_iter {
+        incvec.push(inc.unwrap().clone());}
+    
+    Ok(incvec)
+}
+
+
+pub fn load_active_inc(conn: &Connection) -> Result<Vec<IncID>>{
+    let mut incvec = Vec::<IncID>::new();
+    let mut stmt = conn.prepare("SELECT * FROM incread where active = 1")?;
+    let inc_iter = stmt.query_map([], |row| Ok(row.get(0)?))?;
+
+    for inc in inc_iter {
+        incvec.push(inc.unwrap());}
+
+    Ok(incvec)
+}
+
+use crate::utils::widgets::cardlist::CardItem;
+
+
+
+
+
+pub fn load_cloze_cards(conn: &Connection, source: IncID) -> Result<Vec<CardItem>> {
+    let mut clozevec = Vec::<CardItem>::new();
+    let mut stmt = conn.prepare("SELECT * FROM cards where source = ?")?;
+
+    
+
+    let inc_iter = stmt.query_map([source], |row| 
+                                   Ok(
+                                       CardItem{
+                                           question: row.get(1)?,
+                                           id: row.get(0)?,
+                                       }
+                                       ))
+                                   ?;
+
+    for inc in inc_iter {
+        clozevec.push(inc.unwrap().clone());}
+    
+    Ok(clozevec)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

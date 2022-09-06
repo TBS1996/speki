@@ -1,15 +1,13 @@
-use crate::app::App;
+use crate::{app::App, utils::widgets::button::draw_button};
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::Span,
     Frame,
 };
 
 
-use crate::utils::widgets::textinput::draw_field;
-use crate::logic::add_card::{TextSelect, NewCard};
+use crate::utils::widgets::message_box::draw_message;
+use crate::logic::add_card::TextSelect;
 use crate::utils::widgets::list::list_widget;
 //use crate::utils::widgets::topics::topiclist;
 
@@ -41,38 +39,16 @@ where
    // let chunks = Layout::default().constraints([Constraint::Percentage(37), Constraint::Percentage(37),Constraint::Min(6)].as_ref(),).split(area);
     let chunks = Layout::default().constraints([Constraint::Percentage(10), Constraint::Percentage(37), Constraint::Percentage(37),Constraint::Min(6)].as_ref(),).split(area);
 
-    let cardedit = app.add_card.clone();
-
-    let question: Vec<Span>;
-    let answer: Vec<Span>;
-    
-    if cardedit.istextselected(){
-        match cardedit.selection{
-            TextSelect::Question(_) => {
-                question = cardedit.question.cursorsplit(true);
-                answer   = vec![Span::from(cardedit.answer.text.as_str())];
-                },
-            _ => {
-                question = vec![Span::from(cardedit.question.text.as_str())];
-                answer = cardedit.answer.cursorsplit(true);
-                },
-            }
-        }
-    else {
-        question = vec![Span::from(cardedit.question.text.as_str())];
-        answer   = vec![Span::from(cardedit.answer.text.as_str())];
-        }
-
 
     let isqselected = {
-        if let TextSelect::Question(_) = cardedit.selection{
+        if let TextSelect::Question(_) = app.add_card.selection{
             true
         }else{
             false
         }
     };
     let is_ans_selected = {
-        if let TextSelect::Answer(_) = cardedit.selection{
+        if let TextSelect::Answer(_) = app.add_card.selection{
             true
         }else{
             false
@@ -80,37 +56,28 @@ where
     };
 
 
-    draw_field(f, chunks[0], vec![Span::from(cardedit.prompt.as_str())], "", Alignment::Center, false); 
-    draw_field(f, chunks[1], question,       "question", Alignment::Left, isqselected);
-    draw_field(f, chunks[2], answer.clone(), "answer",   Alignment::Left, is_ans_selected);
-    draw_bottom_menu(f, chunks[3], cardedit, app);
+    draw_message(f, chunks[0], app.add_card.prompt.as_str());
+    app.add_card.question.draw_field(f, chunks[1], "question", Alignment::Left, isqselected);
+    app.add_card.answer.draw_field(  f, chunks[2], "answer",   Alignment::Left, is_ans_selected);
+    draw_bottom_menu(f, chunks[3], app);
     
 }
 
 
 
 
-fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, newcard: NewCard, app: &App)
+fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, app: &App)
     where
     B: Backend,
 {
 //    let chunks = Vec::new();
 
-    let chunks = Layout::default().direction(Direction::Vertical)
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(area);
     
 
-    
-    let mut fin = vec![Span::from("Submit as finished")];
-    let mut unf = vec![Span::from("Submit as unfinished")];
-
-    match newcard.selection {
-        TextSelect::SubmitFinished   => {fin  = vec![Span::styled("Submit as finished",   Style::default().add_modifier(Modifier::REVERSED))]},
-        TextSelect::SubmitUnfinished => {unf  = vec![Span::styled("Submit as unfinished", Style::default().add_modifier(Modifier::REVERSED))]},
-        _ => {},
-
-    }
 
     let isfinselected = {
         if let TextSelect::SubmitFinished = app.add_card.selection{
@@ -126,13 +93,8 @@ fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, newcard: NewCard, app: &App
             false
         }
     };
-
-
-    let alignment = Alignment::Center;
-    draw_field(f, chunks[0], fin,"" , alignment, isfinselected);
-    draw_field(f, chunks[1], unf, "", alignment, isunfinselected);
-
-
+    draw_button(f, chunks[0], "Submit as finished",   isfinselected);
+    draw_button(f, chunks[1], "Submit as unfinished", isunfinselected);
 }
 
 

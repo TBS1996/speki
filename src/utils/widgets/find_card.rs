@@ -1,14 +1,11 @@
+use crate::utils::aliases::*;
 use rusqlite::Connection;
 use crate::utils::sql::fetch::load_cards;
 use crate::utils::statelist::StatefulList;
-use crate::utils::widgets::textinput::{Field, draw_field};
+use crate::utils::widgets::textinput::Field;
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction::{Vertical, Horizontal}, Layout, Rect},
-    style::{Color, Style},
-    text::Span,
-    widgets::{
-        Block, Borders, Gauge},
+    layout::{Alignment, Constraint, Direction::Vertical, Layout, Rect},
     Frame,
 };
 
@@ -18,15 +15,15 @@ use crossterm::event::KeyCode;
 #[derive(Clone, PartialEq)]
 pub struct CardMatch{
     pub question: String,
-    pub id: u32,
+    pub id: CardID,
 }
 
-#[derive(Clone, PartialEq)]
+//#[derive(Clone, PartialEq)]
 pub struct FindCardWidget{
     pub prompt: String,
     pub searchterm: Field,
     pub list: StatefulList<CardMatch>,
-    pub chosen_card: Option<u32>,
+    pub chosen_card: Option<CardID>,
     pub exit: bool,
 }
 
@@ -117,7 +114,7 @@ where
     let (prompt, searchbar, matchlist) = (chunks[0], chunks[1], chunks[2]);
     
     draw_message(f, prompt, &widget.prompt);
-    draw_field(f, searchbar, vec![Span::from(widget.searchterm.text.as_str())], "", Alignment::Left, false);
+    widget.searchterm.draw_field(f, searchbar, "", Alignment::Left, false);
     list_widget(f, &widget.list, matchlist, false);
 }
 

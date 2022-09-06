@@ -6,8 +6,20 @@ use crate::utils::card::{Card, Review};//, Status, Topic, Review}
 pub fn save_card(conn: &Connection, somecard: Card)-> Result<()>{
 
     conn.execute(
-        "INSERT INTO cards (question, answer, strength, stability, topic, initiated, complete, resolved, suspended, gain) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        params![somecard.question, somecard.answer, somecard.strength, somecard.stability, somecard.topic, somecard.status.initiated, somecard.status.complete, somecard.status.resolved, somecard.status.suspended, -1.0],
+        "INSERT INTO cards (question, answer, strength, stability, topic, initiated, complete, resolved, suspended, gain, source) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![
+        somecard.question, 
+        somecard.answer, 
+        somecard.strength, 
+        somecard.stability, 
+        somecard.topic, 
+        somecard.status.initiated, 
+        somecard.status.complete, 
+        somecard.status.resolved, 
+        somecard.status.suspended, 
+        -1.0, 
+        somecard.source,
+        ],
     )?;
 
     Ok(())
@@ -41,5 +53,12 @@ pub fn new_topic(conn: &Connection, name: String, parent: u32, pos: u32) -> Resu
 
 
 
+pub fn new_incread(conn: &Connection, parent: u32, topic: u32, source: String, isactive: bool) -> Result<()>{
+    conn.execute(
+        "INSERT INTO incread (parent, topic, source, active) VALUES (?1, ?2, ?3, ?4)",
+        params![parent, topic, source, isactive],
+    )?;
+    Ok(())
+}
 
 

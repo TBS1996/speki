@@ -73,11 +73,62 @@ impl Field{
             
     }
 
+/*
+ 
+iterate through text 
+count number of consecutive non-whitespaces
+when you hit the supposedly end of the line 
+then  rowlen - that number represents how much it is wrapped around
+
+
+
+
+ */
+
+    fn update_linelengths(&mut self){
+        if self.text.len() < self.rowlen as usize{
+            return self.linelengths = vec![0];
+        }
+        
+    let mut cons_non_space = 0;
+    let mut linestartvec = Vec::<usize>::new();
+    linestartvec.push(0);
+    let mut linestart = 0;
+    for (idx, c) in self.text.chars().enumerate(){
+        
+        if c != ' '{
+            cons_non_space += 1;
+        } else {
+            cons_non_space = 0;
+        }
+
+        if (idx as u16 - linestart as u16) > self.rowlen{
+            linestart = (linestart as u16 + self.rowlen - cons_non_space as u16) as usize;
+            linestartvec.push(linestart);
+        } else if c == '\n'{
+            linestart = idx + 1;
+            linestartvec.push(linestart);
+        }
+    }
+
+    //dbg!(&linestartvec);
+
+   // dbg!(&linestartvec, &self.rowlen);
+    self.linelengths = linestartvec;
+
+        
+
+
+
+    }
+
+
     pub fn backspace(&mut self){
         if self.cursor > 0 && self.text.len() > 0{
             self.text.remove(self.cursor - 1);
             self.cursor -= 1;
         }
+        self.update_linelengths();
     }
     pub fn delete(&mut self){
         if self.text.len() > 1 && self.cursor != self.text.len() - 1{
@@ -85,20 +136,41 @@ impl Field{
         }
     }
     pub fn next(&mut self) {
-        if self.cursor < self.text.len() - 0{
+        if self.cursor < self.text.len() - 2{
             self.cursor += 1;
         }
     }
 
     pub fn up(&mut self){
-        if self.cursor as u16 > self.rowlen{ 
-            self.cursor = (self.cursor as u16 - self.rowlen) as usize;
+        self.update_linelengths();
+        if self.linelengths[1] > self.cursor {return}
+        for i in  (0..self.linelengths.len()).rev(){
+            if self.linelengths[i] < self.cursor{
+                let relpos = self.cursor - self.linelengths[i];
+                if self.linelengths[i - 1] + relpos < self.linelengths[i]{
+                    self.cursor = self.linelengths[i - 1] + relpos;
+                } else {
+                    self.cursor = self.linelengths[i] - 0;
+                }
+                
+                return
+            }
         }
+
     }
     pub fn down(&mut self){
-        if self.cursor as u16 + self.rowlen < self.text.len() as u16{
-            self.cursor = (self.cursor as u16 + self.rowlen) as usize;
+        self.update_linelengths();
+
+        if self.linelengths.len() == 1 {return};
+
+        for i in  0..self.linelengths.len(){
+            if self.linelengths[i] > self.cursor{
+                self.cursor += self.linelengths[i] - self.linelengths[i - 1];
+                return
+            }
         }
+
+
     }
 
     pub fn prev(&mut self) {
@@ -236,7 +308,6 @@ impl Field{
                 if split > offset {
                     let splitter = thetext.clone();
                     let (left, right) = splitter.split_at(split - offset);
-//                    let (left, right) = splitter.split_at(splitter.char_indices().nth(split - offset).unwrap().0);
                     thetext = left.to_string();
                     tempvec.insert(0, right.to_string());
                     splitdex -= 1;
@@ -295,7 +366,7 @@ where
     let paragraph = Paragraph::new(formatted_text)
         .block(block)
         .alignment(alignment)
-        .wrap(Wrap { trim: true });
+        .wrap(Wrap { trim: false });
     f.render_widget(paragraph, area);
 }
 

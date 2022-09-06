@@ -208,6 +208,11 @@ impl ReviewList {
         let  inc: u32 = self.for_review.active_increads.len() as u32 + unf;
         let  pen: u32 = self.for_review.pending_cards.len() as u32 + inc;
 
+        if pen == 0{
+            self.mode = ReviewMode::Done;
+            return;
+        }
+
         let mut rng = rand::thread_rng();
         let rand = rng.gen_range(0..pen);
 
@@ -220,7 +225,7 @@ impl ReviewList {
         } else if rand < pen {
             self.new_pending_mode(conn);
         } else {
-            self.mode = ReviewMode::Done;
+            panic!();
         };
     }
 

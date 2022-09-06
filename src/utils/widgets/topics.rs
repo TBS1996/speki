@@ -18,7 +18,7 @@ use crossterm::event::KeyCode;
 use super::textinput::Field;
 
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct NewTopic{
     pub name: Field,
     pub id: u32,

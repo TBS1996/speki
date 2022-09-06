@@ -11,8 +11,15 @@ use tui::{
 };
 
 
+#[derive(Clone)]
+pub enum Mode{
+    Normal,
+    Insert,
+    Visual,
+}
 
-#[derive(Clone, PartialEq)]
+
+#[derive(Clone)]
 pub struct Field {
     pub text: String,
     pub cursor: usize,
@@ -20,6 +27,8 @@ pub struct Field {
     pub startselect: Option<usize>,
     pub endselect: Option<usize>,
     pub maxlen: Option<usize>,
+    pub mode: Mode,
+    pub linelengths: Vec<usize>,
 }
 
 
@@ -32,6 +41,8 @@ impl Field{
             startselect: None,
             endselect: None,
             maxlen: None,
+            mode: Mode::Insert,
+            linelengths: Vec::<usize>::new(),
         }
     }
     pub fn addchar(&mut self, c: char){

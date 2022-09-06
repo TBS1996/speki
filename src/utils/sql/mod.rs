@@ -81,6 +81,18 @@ pub fn init_db() -> Result<()>{
         )?;
 
 
+    conn.execute(
+        "create table if not exists incread ( 
+
+        id integer primary key,
+        parent integer not null,
+        topic integer not null,
+        source text not null,
+        active integer not null
+
+    )",
+        [],
+        )?;
     
     if new_db {new_topic(&conn, String::from("root"), 0, 0)?;}
      

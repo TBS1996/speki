@@ -1,6 +1,7 @@
 // done
 add "finish cards" mode on review tab
 add "learn new cards" mode on review tab
+add incremental reading mode
 
 
 // todo
@@ -8,7 +9,6 @@ make import-page UI
 proper filter + actions in browse page
 widget that lists most recent cards added
 add ML-model for reviewing
-add incremental reading mode
 mode to find show cards without a parent (can be toggled on a card basis)
 same as above but cards without dependents 
 stats page
@@ -25,3 +25,9 @@ maybe make dependencies of an extract before you start making items out of it?
 auto-suggest dependencies
 flashform?
 hashmap for mode colors
+rss support - auto-add articles to inc reading
+support fullscreen temp screens
+suspend until specified date
+list of which order to introduce pending cards, with new DB table
+add tags
+add priority to topics && tags

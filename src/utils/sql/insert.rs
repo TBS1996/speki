@@ -6,7 +6,7 @@ use crate::utils::card::{Card, Review};//, Status, Topic, Review}
 pub fn save_card(conn: &Connection, somecard: Card)-> Result<()>{
 
     conn.execute(
-        "INSERT INTO cards (question, answer, strength, stability, topic, initiated, complete, resolved, suspended, gain, source) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO cards (question, answer, strength, stability, topic, initiated, complete, resolved, suspended, gain, source, skiptime, skipduration) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
         somecard.question, 
         somecard.answer, 
@@ -19,6 +19,8 @@ pub fn save_card(conn: &Connection, somecard: Card)-> Result<()>{
         somecard.status.suspended, 
         -1.0, 
         somecard.source,
+        somecard.skiptime,
+        somecard.skipduration,
         ],
     )?;
 
@@ -34,7 +36,6 @@ pub fn update_both(conn: &Connection, dependent: u32, dependency: u32) -> Result
 }
 
 pub fn revlog_new(conn: &Connection, card_id: u32, review: Review) -> Result<()> {
-
     conn.execute(
         "INSERT INTO revlog (unix, cid, grade, qtime, atime) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![review.date, card_id, review.grade as u32, review.answertime, -1],

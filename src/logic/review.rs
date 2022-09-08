@@ -1,4 +1,5 @@
 
+use std::time::{UNIX_EPOCH, SystemTime};
 use crate::utils::{
     card::{Card, RecallGrade},
     sql::fetch::load_cards,
@@ -12,26 +13,8 @@ use crate::utils::incread::IncRead;
 use rand::prelude::*;
 use crate::utils::sql::update::update_inc_active;
 
-#[derive(PartialEq)]
-pub enum CardPurpose{
-    Dependency,
-    Dependent,
-}
 
-//#[derive(PartialEq)]
-pub struct SelectCard{
-    pub cardfinder: FindCardWidget,
-    pub purpose: CardPurpose,
-}
 
-impl SelectCard{
-    pub fn new(conn: &Connection, prompt: String, purpose: CardPurpose) -> Self{
-       SelectCard{
-           cardfinder: FindCardWidget::new(conn, prompt),
-           purpose,
-       } 
-    }
-}
 
 pub enum ReviewSelection{
     Question(bool),
@@ -47,6 +30,7 @@ pub struct CardReview{
     pub answer: Field,
     pub reveal: bool,
     pub selection: ReviewSelection,
+//    pub select_card: FindCardWidget,
 }
 
 
@@ -55,6 +39,7 @@ pub struct UnfCard{
     pub question: Field,
     pub answer: Field,
     pub selection: UnfSelection,
+ //   pub select_card: FindCardWidget,
 }
 
 pub enum UnfSelection{
@@ -83,9 +68,6 @@ pub enum IncSelection{
 }
 
 
-
-
-
 pub enum ReviewMode{
     Review(CardReview),
     Pending(CardReview),
@@ -96,10 +78,10 @@ pub enum ReviewMode{
 
 
 pub struct ForReview{
-    pub review_cards: Vec<CardID>,
+    pub review_cards:     Vec<CardID>,
     pub unfinished_cards: Vec<CardID>,
-    pub pending_cards: Vec<CardID>,
-    pub active_increads: Vec<IncID>,
+    pub pending_cards:    Vec<CardID>,
+    pub active_increads:  Vec<IncID>,
 }
 
 
@@ -120,7 +102,12 @@ impl ForReview{
             } else if !card.status.initiated{
                 pending_cards.push(card.card_id);
             } else if !card.status.complete{
-                unfinished_cards.push(card.card_id);
+                let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
+
+                if current_time - card.skiptime > card.skipduration * 84_600{
+                    unfinished_cards.push(card.card_id);
+                }
+                
             }
         }
 

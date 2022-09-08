@@ -18,10 +18,8 @@ use crate::utils::sql::insert::new_topic;
 pub fn init_db() -> Result<()>{
 
     let mut new_db = false;
-
-    match std::fs::metadata("dbflash.db"){
-        Err(_) => {new_db = true},
-        _ => {},
+    if let Err(_) = std::fs::metadata("dbflash.db"){
+        new_db = true;
     }
 
 
@@ -49,32 +47,30 @@ pub fn init_db() -> Result<()>{
 
     conn.execute(
         "create table if not exists topics ( 
-        id     integer primary key,
-        name   text,
-        parent integer not null,
-        relpos integer not null
+            id     integer primary key,
+            name   text,
+            parent integer not null,
+            relpos integer not null
     )",
         [],
         )?;
     
     conn.execute(
         "create table if not exists revlog ( 
-
-        unix   integer not null,
-        cid    integer not null,
-        grade  integernot null,
-        qtime  real not null,
-        atime  real not null
-    )",
+            unix   integer not null,
+            cid    integer not null,
+            grade  integernot null,
+            qtime  real not null,
+            atime  real not null
+        )",
         [],
         )?;
 
 
     conn.execute(
         "create table if not exists dependencies ( 
-
-        dependent integer not null,
-        dependency integer not null
+            dependent integer not null,
+            dependency integer not null
 
     )",
         [],
@@ -83,12 +79,11 @@ pub fn init_db() -> Result<()>{
 
     conn.execute(
         "create table if not exists incread ( 
-
-        id integer primary key,
-        parent integer not null,
-        topic integer not null,
-        source text not null,
-        active integer not null
+            id integer primary key,
+            parent integer not null,
+            topic integer not null,
+            source text not null,
+            active integer not null
 
     )",
         [],

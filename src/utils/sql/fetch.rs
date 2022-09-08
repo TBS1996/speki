@@ -200,10 +200,12 @@ pub fn row2card(conn: &Connection, row: &Row) -> Result<Card>{
             dependents:    get_dependents(conn, row.get(0).unwrap()).unwrap(),
             history:       get_history(conn, row.get(0).unwrap()).unwrap(),  
             topic:         row.get(5)?,
-            future: String::from("[]"),
+            future:        String::from("[]"),
             integrated: 1f32,
             card_id: row.get(0)?,
             source: row.get(11)?,
+            skiptime: row.get(12)?,
+            skipduration: row.get(13)?,
         })
 }
 

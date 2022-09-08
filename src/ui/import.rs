@@ -17,5 +17,5 @@ where
     B: Backend,
 {
 
-    draw_find_card(f, &_app.cardfinder, area);
+    //draw_find_card(f, &_app.cardfinder, area);
 }

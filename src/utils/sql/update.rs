@@ -2,6 +2,8 @@ use rusqlite::{params, Connection, Result};
 use crate::utils::card::Card;
 use crate::utils::aliases::*;
 
+use super::fetch::fetch_card;
+
 
 pub fn update_card_question(conn: &Connection, id: u32, name: String) -> Result<()>{
     let mut stmt = conn.prepare("UPDATE cards SET question = ? WHERE id = ?")?;
@@ -80,5 +82,14 @@ pub fn update_inc_text(conn: &Connection, source: String, id: IncID) -> Result<(
 pub fn update_inc_active(conn: &Connection, id: IncID, active: bool) -> Result<()>{
     let mut stmt = conn.prepare("UPDATE incread SET active = ? WHERE id = ?")?;
     stmt.execute(params![active, id])?;
+    Ok(())
+}
+
+
+
+pub fn double_skip_duration(conn: &Connection, id: IncID) -> Result<()>{
+    let card = fetch_card(conn, id);
+    let mut stmt = conn.prepare("UPDATE cards SET skipduration = ? WHERE id = ?")?;
+    stmt.execute(params![card.skipduration * 2, id])?;
     Ok(())
 }

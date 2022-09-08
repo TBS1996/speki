@@ -6,7 +6,7 @@ pub fn main_port(app: &mut App, key: KeyCode){
         app.on_left();
         return;
     }
-    app.cardfinder.keyhandler(&app.conn, key);
+   // app.cardfinder.keyhandler(&app.conn, key);
 /*
             match key{
                 KeyCode::Char('i') => import_cards(&app.conn),

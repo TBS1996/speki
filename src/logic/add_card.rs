@@ -1,3 +1,4 @@
+use std::time::{UNIX_EPOCH, SystemTime};
 use crate::utils::aliases::*;
 use rusqlite::Connection;
 use crossterm::event::KeyCode;
@@ -16,8 +17,8 @@ use crate::utils::{
 #[derive(Clone)]
 pub enum DepState{
     None,
-    HasDependency(CardID),
-    HasDependent(CardID),
+    NewDependent(CardID),
+    NewDependency(CardID),
 }
 
 //#[derive(Clone)]
@@ -79,14 +80,14 @@ impl NewCard{
                 prompt.push_str("Add new card");
                 prompt
             },
-            DepState::HasDependent(idx) => {
+            DepState::NewDependency(idx) => {
                 prompt.push_str("Add new dependency for ");
                 let card = fetch_card(conn, *idx);
                 prompt.push_str(&card.question);
                 prompt
 
             },
-            DepState::HasDependency(idx) => {
+            DepState::NewDependent(idx) => {
                 prompt.push_str("Add new dependent of: ");
                 let card = fetch_card(conn, *idx);
                 prompt.push_str(&card.question);
@@ -126,6 +127,8 @@ impl NewCard{
             integrated: 1f32,
             card_id: 0,
             source: 0,
+            skiptime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32,
+            skipduration: 1,
 
         };
 
@@ -135,11 +138,13 @@ impl NewCard{
         let last_id: CardID = highest_id(conn).unwrap();
         match self.state{
             DepState::None => {},
-            DepState::HasDependent(id) => {
+            DepState::NewDependency(id) => {
                 update_both(conn, id, last_id).unwrap();
+            },  
+            DepState::NewDependent(id) => {
+                update_both(conn, last_id, id).unwrap();
                 Card::check_resolved(id, conn);
             },  
-            DepState::HasDependency(id) => {update_both(conn, last_id, id).unwrap();},  
         }
 
         self.reset(DepState::None, conn);

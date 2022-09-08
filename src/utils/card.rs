@@ -122,6 +122,8 @@ pub struct Card{
     pub integrated: f32,
     pub card_id: CardID,
     pub source: IncID,
+    pub skiptime: u32,
+    pub skipduration: u32,
 }
 
 
@@ -132,26 +134,28 @@ impl Card {
     pub fn check_resolved(id: u32, conn: &Connection) -> bool {
         let mut change_detected = false;
         let mut card = fetch_card(conn, id);
-        let mut check_resolved = true;
+        let mut is_resolved = true;
+
         for dependency in &card.dependencies{
            let dep_card = fetch_card(conn, *dependency);
-           if !dep_card.status.complete || !dep_card.status.resolved{
-               check_resolved = false;
+           if  !dep_card.status.resolved  ||!dep_card.status.complete {
+               is_resolved = false;
                break;
            };
        } 
-        if card.status.resolved != check_resolved{
+        if card.status.resolved != is_resolved{
             change_detected = true;
-            card.status.resolved = check_resolved;
+            card.status.resolved = is_resolved;
             update_status(conn, &card.clone()).unwrap();
 
             for dependent in card.dependents{
                 Card::check_resolved(dependent, conn);
             }
-            
         }
         change_detected
     }
+
+
 
 
     pub fn new_review(conn: &Connection, id: CardID, review: RecallGrade){
@@ -188,6 +192,8 @@ impl Card {
             integrated: 1.,
             card_id: 1,
             source,
+            skiptime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32,
+            skipduration: 1,
         };
 
 

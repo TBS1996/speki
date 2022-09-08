@@ -1,9 +1,11 @@
 
 
+use crate::logic::add_card::NewCard;
 use crate::logic::review::{UnfCard, UnfSelection, CardReview};
-use crate::utils::sql::update::{update_inc_text,  update_card_question, update_card_answer};
+use crate::utils::sql::update::{update_inc_text,  update_card_question, update_card_answer, double_skip_duration};
+use crate::utils::widgets::find_card::{FindCardWidget, CardPurpose};
 use crossterm::event::KeyCode;
-use crate::app::App;
+use crate::app::{App, PopUp};
 use crate::utils::card::{RecallGrade, Card};
 use crate::logic::review::{ReviewSelection, IncSelection, IncMode};
 use crate::logic::review::ReviewMode;
@@ -20,6 +22,10 @@ enum Action {
     Review(String, String, CardID, RecallGrade),
     SkipUnf(String, String, CardID),
     CompleteUnf(String, String, CardID),
+    NewDependency(CardID),
+    NewDependent(CardID),
+    AddDependency(CardID),
+    AddDependent(CardID),
     Quit,
     None,
 }
@@ -55,6 +61,7 @@ pub fn review_event(app: &mut App, key: KeyCode) {
             app.review.random_mode(&app.conn);
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();
+            double_skip_duration(&app.conn, id).unwrap();
         },
         Action::CompleteUnf(question, answer, id) => {
             Card::toggle_complete(id, &app.conn);
@@ -62,15 +69,35 @@ pub fn review_event(app: &mut App, key: KeyCode) {
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();
         },
+        Action::NewDependency(id) => {
+            let prompt = String::from("Add new dependency");
+            let purpose = CardPurpose::NewDependency(id);
+            let cardfinder = FindCardWidget::new(&app.conn, prompt, purpose);
+            app.popup = PopUp::CardSelecter(cardfinder);
+            app.review.random_mode(&app.conn);
+        },
+        Action::NewDependent(id) => {
+            let prompt = String::from("Add new dependent");
+            let purpose = CardPurpose::NewDependent(id);
+            let cardfinder = FindCardWidget::new(&app.conn, prompt, purpose);
+            app.popup = PopUp::CardSelecter(cardfinder);
+        },
+        Action::AddDependent(id) => {
+            let newcard = NewCard::new(&app.conn, crate::logic::add_card::DepState::NewDependent(id));  
+            app.add_card = newcard;
+            app.on_right();
+        },
+        Action::AddDependency(id) => {
+            let newcard = NewCard::new(&app.conn, crate::logic::add_card::DepState::NewDependency(id));  
+            app.add_card = newcard;
+            app.on_right();
+            app.review.random_mode(&app.conn);
+        },
         Action::Quit => {
             app.should_quit = true;
-      //      update_card_question(&app.conn, id, question);
-      //      update_card_answer(&app.conn, id, answer);
         },
         Action::None => {},
     }
-
-
 }
 
 
@@ -98,6 +125,7 @@ fn mode_inc(conn: &Connection, inc: &mut IncMode, key: KeyCode, action: &mut Act
         (Clozes(false), Enter) => inc.selection = Clozes(true),
         (Clozes(false), Char('s')) => inc.selection = Complete,
         (Clozes(false), Char('a')) => inc.selection = Source(false),
+        (Clozes(false), Char('w')) => inc.selection = Extracts(false),
 
 
         (Skip, Char('d')) => inc.selection = Complete,
@@ -158,6 +186,10 @@ fn mode_review(unf: &mut CardReview, key: KeyCode, action: &mut Action) {
         (_, Char('4')) => *action = Action::Review(unf.question.text.clone(), unf.answer.text.clone(), unf.id, RecallGrade::Easy),
      
         (_, Char(' ')) => unf.reveal = true,
+        (_, Char('t')) => *action = Action::NewDependent(unf.id),
+        (_, Char('y')) => *action = Action::NewDependency(unf.id),
+        (_, Char('T')) => *action = Action::AddDependent(unf.id),
+        (_, Char('Y')) => *action = Action::AddDependency(unf.id),
         (_,_) => {},
 
 
@@ -224,6 +256,10 @@ fn mode_unfinished(unf: &mut UnfCard, key: KeyCode, action: &mut Action) {
         (Complete, Char('w')) => unf.selection = Dependencies(false),
         (Complete, Char('a')) => unf.selection = Skip,
         (Complete, Enter) =>  *action = Action::CompleteUnf(unf.question.text.clone(), unf.answer.text.clone(), unf.id), 
+        (_, Char('t')) => *action = Action::NewDependent(unf.id),
+        (_, Char('y')) => *action = Action::NewDependency(unf.id),
+        (_, Char('T')) => *action = Action::AddDependent(unf.id),
+        (_, Char('Y')) => *action = Action::AddDependency(unf.id),
         (_,_) => {},
     }
 }

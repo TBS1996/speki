@@ -1,3 +1,4 @@
+use std::time::{UNIX_EPOCH, SystemTime};
 use std::{fs::File, io::Read};
 use crate::utils::{
     card::{Card, Review, Status},
@@ -51,6 +52,8 @@ pub fn import_cards(conn: &Connection){
             integrated: 1.0,
             card_id: 0u32,
             source: 0,
+            skiptime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32,
+            skipduration: 1,
         };
         save_card(conn, card).unwrap();
         

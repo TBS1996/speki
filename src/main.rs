@@ -58,7 +58,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     terminal.show_cursor()?;
 
     if let Err(err) = res {println!("{:?}", err)}
-
     Ok(())
 }
 
@@ -79,7 +78,7 @@ fn run_app<B: Backend>(
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
-            .unwrap_or_else(|| Duration::from_secs(0));
+            .unwrap_or_else(|| Duration::from_secs(1));
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
                 app.handle_key(key.code);

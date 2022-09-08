@@ -5,7 +5,10 @@ pub mod import;
 pub mod incread;
 
 use crate::app::App;
+use crate::utils::widgets::find_card::draw_find_card;
 
+
+use crate::app::PopUp;
 
 use crate::ui::{
     review::main_review,
@@ -40,14 +43,24 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .block(Block::default().borders(Borders::ALL))
         .highlight_style(Style::default().fg(Color::Yellow))
         .select(app.tabs.index);
-    f.render_widget(tabs, chunks[0]);
-    match app.tabs.index {
-        0 => main_review(f, app, chunks[1]),
-        1 => draw_add_card(f, app, chunks[1]),
-        2 => draw_browse(f, app, chunks[1]),
-        3 => draw_import(f, app, chunks[1]),
-        4 => draw_incread(f, app, chunks[1]),
-        _ => {}
-    };
 
+
+    match &app.popup{
+        PopUp::CardSelecter(cardfinder) => draw_find_card(f, &cardfinder, chunks[1]),
+        PopUp::None => {
+            f.render_widget(tabs, chunks[0]);
+            match app.tabs.index {
+                0 => main_review(f,   app, chunks[1]),
+                1 => draw_add_card(f, app, chunks[1]),
+                2 => draw_browse(f,   app, chunks[1]),
+                3 => draw_incread(f,  app, chunks[1]),
+                4 => draw_import(f,   app, chunks[1]),
+                _ => {},
+            };
+        },
+    };
 }
+
+
+
+

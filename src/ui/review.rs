@@ -115,6 +115,7 @@ where
 
 
     inc.source.source.rowlen = area.source.width - 2;
+    inc.source.source.window_height = area.source.height - 2;
 
 
     inc.source.source.draw_field(f, area.source, "hey", Alignment::Left, selected.source);

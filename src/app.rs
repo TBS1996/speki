@@ -5,7 +5,7 @@ use crate::{logic::{
     review::ReviewList,
     browse::Browse,
     add_card::{NewCard, DepState}, incread::MainInc,
-}, utils::widgets::find_card::FindCardWidget};
+}, utils::widgets::find_card::{FindCardWidget, FindCardStatus}};
 use crate::events::{
     review::review_event,
     browse::browse_event,
@@ -43,17 +43,27 @@ impl<'a> TabsState<'a> {
     }
 }
 
+/* 
 
-// structs where sometimes you must choose a card can have that findcard widget in their struct 
-// itll be none normally. if you need to select a card, make the selection enum equal to findcard,
-// when you click select it will become a Some(Card) value, the next call it will extract that
-// value for its purpose and turn it back to none afterwards
-//
-// hmm can enum be generic or something
-//
-// maybe a trait that is something like "selected card" so that when you bring certain widgets that
-// require a card it can be automatically configured with that trait
-//
+Architecture idea: 
+each tab has a trait with a keyhandler and a render function. 
+perhaps return a custom result option if needed 
+
+perhaps the tabs are a vector of tabs, you can move them around and close and open and such
+
+
+perhaps popup is a simple option 
+
+option type is one that has the same render and keyhandler trait as above 
+
+  */
+
+pub enum PopUp{
+    None,
+    CardSelecter(FindCardWidget),
+}
+
+
 
 pub struct App<'a> {
     pub should_quit: bool,
@@ -63,8 +73,8 @@ pub struct App<'a> {
     pub review: ReviewList,
     pub add_card: NewCard,
     pub browse: Browse,
-    pub cardfinder: FindCardWidget,
     pub incread: MainInc,
+    pub popup: PopUp,
 }
 
 //use crate::logic::incread::MainInc;
@@ -74,22 +84,22 @@ impl<'a> App<'a> {
         let conn    = Connection::open("dbflash.db").expect("Failed to connect to database.");
         let revlist = ReviewList::new(&conn);
         let browse  = Browse::new(&conn);
-        let cardfinder = FindCardWidget::new(&conn, "find a card!!".to_string());
         let mut addcards =  NewCard::new(&conn, DepState::None);
         addcards.topics.next();
         let incread = MainInc::new(&conn);
+        let popup = PopUp::None;
 
 
         App {
             should_quit: false,
-            tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "import", "Incremental reading"]),
+            tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "Incremental reading"]),
             conn,
             prev_key: KeyCode::Null,
             review: revlist,
             add_card: addcards,
             browse,
-            cardfinder,
             incread,
+            popup,
         }
     }
 
@@ -105,18 +115,35 @@ impl<'a> App<'a> {
     pub fn on_tick(&mut self) {}
 
     pub fn handle_key(&mut self, key: KeyCode) {
-        if KeyCode::Tab == key {self.on_right()};
-        if KeyCode::BackTab == key {self.on_left()};
-        let keyclone = key.clone();
-        match self.tabs.index {
-            0 => review_event(self, key),
-            1 => add_card_event(self, key),
-            2 => browse_event(self, key),
-            3 => main_port(self, key),
-            4 => main_inc(self, key),
-            _ => {},
+        use PopUp::*;
+
+        match &mut self.popup{
+            None => {
+                if KeyCode::Tab == key {self.on_right()};
+                if KeyCode::BackTab == key {self.on_left()};
+                let keyclone = key.clone();
+                match self.tabs.index {
+                    0 => review_event(self, key),
+                    1 => add_card_event(self, key),
+                    2 => browse_event(self, key),
+                    3 => main_port(self, key),
+                    4 => main_inc(self, key),
+                    _ => {},
+                }
+                self.prev_key = keyclone;
+            },
+            CardSelecter(findcard) => {
+                findcard.keyhandler(&self.conn, key);
+                if let FindCardStatus::Finished = findcard.status{
+                    self.popup = None;
+                    return;
+                }
+            },
+            
         }
-        self.prev_key = keyclone;
+
     }
+
+
 }
 

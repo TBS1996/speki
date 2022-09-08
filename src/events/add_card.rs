@@ -62,14 +62,14 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
                 KeyCode::Char('w')     => app.add_card.upkey(),
                 KeyCode::Char('d') => app.add_card.rightkey(),
                 KeyCode::Char('a')  => app.add_card.leftkey(),
-                KeyCode::Char('y') => {
+                KeyCode::Char('Y') => {
                     let id = highest_id(&app.conn).unwrap();
-                    app.add_card.reset(DepState::HasDependent(id), &app.conn);
+                    app.add_card.reset(DepState::NewDependency(id), &app.conn);
 
                 },
-                KeyCode::Char('t') => {
+                KeyCode::Char('T') => {
                     let id = highest_id(&app.conn).unwrap();
-                    app.add_card.reset(DepState::HasDependency(id), &app.conn);
+                    app.add_card.reset(DepState::NewDependent(id), &app.conn);
                 },
                 _=> {},
         }

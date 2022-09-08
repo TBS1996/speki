@@ -29,6 +29,8 @@ pub struct Field {
     pub maxlen: Option<usize>,
     pub mode: Mode,
     pub linelengths: Vec<usize>,
+    pub scroll: u16,
+    pub window_height: u16,
 }
 
 
@@ -43,6 +45,8 @@ impl Field{
             maxlen: None,
             mode: Mode::Insert,
             linelengths: Vec::<usize>::new(),
+            scroll: 0,
+            window_height: 0,
         }
     }
     pub fn addchar(&mut self, c: char){
@@ -110,16 +114,7 @@ then  rowlen - that number represents how much it is wrapped around
             linestartvec.push(linestart);
         }
     }
-
-    //dbg!(&linestartvec);
-
-   // dbg!(&linestartvec, &self.rowlen);
     self.linelengths = linestartvec;
-
-        
-
-
-
     }
 
 
@@ -128,7 +123,6 @@ then  rowlen - that number represents how much it is wrapped around
             self.text.remove(self.cursor - 1);
             self.cursor -= 1;
         }
-        self.update_linelengths();
     }
     pub fn delete(&mut self){
         if self.text.len() > 1 && self.cursor != self.text.len() - 1{
@@ -136,14 +130,20 @@ then  rowlen - that number represents how much it is wrapped around
         }
     }
     pub fn next(&mut self) {
-        if self.cursor < self.text.len() - 2{
+        if self.cursor < self.text.len() - 0{
             self.cursor += 1;
         }
     }
 
     pub fn up(&mut self){
         self.update_linelengths();
+        if self.linelengths.len() == 1 {return};
         if self.linelengths[1] > self.cursor {return}
+
+        if self.current_line() - 2 < self.scroll {
+            self.scroll -= 1;
+        }
+
         for i in  (0..self.linelengths.len()).rev(){
             if self.linelengths[i] < self.cursor{
                 let relpos = self.cursor - self.linelengths[i];
@@ -158,14 +158,34 @@ then  rowlen - that number represents how much it is wrapped around
         }
 
     }
-    pub fn down(&mut self){
+
+    fn current_line(&mut self) -> u16{
         self.update_linelengths();
 
+        for (idx, linestart) in self.linelengths.iter().enumerate(){
+            if linestart > &self.cursor{
+                return idx as u16
+            }
+        }
+        panic!("");
+    }
+
+
+    pub fn down(&mut self){
+        self.update_linelengths();
         if self.linelengths.len() == 1 {return};
+        let lineqty = self.linelengths.len();
+        if self.cursor > self.linelengths[lineqty - 2] {return}
+        if self.current_line() > self.scroll + self.window_height - 2{
+            self.scroll += 1;
+        }
 
         for i in  0..self.linelengths.len(){
             if self.linelengths[i] > self.cursor{
                 self.cursor += self.linelengths[i] - self.linelengths[i - 1];
+                if self.cursor > self.text.len(){
+                    self.cursor = self.text.len() - 1;
+                }
                 return
             }
         }
@@ -177,6 +197,7 @@ then  rowlen - that number represents how much it is wrapped around
         if self.cursor > 0 {
             self.cursor -= 1;
         }
+     //   dbg!(&self.cursor, &self.linelengths);
     }
 
     pub fn replace_text(&mut self, newtext: String){
@@ -238,8 +259,8 @@ then  rowlen - that number represents how much it is wrapped around
 
     pub fn return_selection(&self) -> Option<String>{
         if self.selection_exists(){
-            let start = self.startselect.unwrap();
-            let end = self.endselect.unwrap();
+            let start = self.startselect.unwrap() + 0;
+            let end = self.endselect.unwrap() + 0;
             return Some(String::from(&self.text[start..end]));
         } else {
             None
@@ -366,6 +387,7 @@ where
     let paragraph = Paragraph::new(formatted_text)
         .block(block)
         .alignment(alignment)
+        .scroll((self.scroll, 0))
         .wrap(Wrap { trim: false });
     f.render_widget(paragraph, area);
 }

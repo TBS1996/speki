@@ -1,4 +1,4 @@
-use crate::utils::aliases::*;
+use crate::utils::{aliases::*, sql::insert::update_both, card::Card};
 use rusqlite::Connection;
 use crate::utils::sql::fetch::load_cards;
 use crate::utils::statelist::StatefulList;
@@ -9,8 +9,24 @@ use tui::{
     Frame,
 };
 
+use crate::utils::widgets::list::list_widget;
 use super::message_box::draw_message;
 use crossterm::event::KeyCode;
+
+
+
+pub struct FindCardWidget{
+    pub prompt: String,
+    pub searchterm: Field,
+    pub list: StatefulList<CardMatch>,
+    pub status: FindCardStatus,
+    pub purpose: CardPurpose,
+}
+
+pub enum FindCardStatus{
+    Searching,
+    Finished,
+}
 
 #[derive(Clone, PartialEq)]
 pub struct CardMatch{
@@ -18,45 +34,64 @@ pub struct CardMatch{
     pub id: CardID,
 }
 
-//#[derive(Clone, PartialEq)]
-pub struct FindCardWidget{
-    pub prompt: String,
-    pub searchterm: Field,
-    pub list: StatefulList<CardMatch>,
-    pub chosen_card: Option<CardID>,
-    pub exit: bool,
+pub enum CardPurpose{
+    NewDependency(CardID),
+    NewDependent(CardID),
+    NewCloze(TopicID),
 }
 
 
 impl FindCardWidget{
-    pub fn new(conn: &Connection, prompt: String) -> Self{
+    pub fn new(conn: &Connection, prompt: String, purpose: CardPurpose) -> Self{
         let mut list = StatefulList::<CardMatch>::new();
         let searchterm = Field::new();
         list.reset_filter(conn, searchterm.text.clone());
-        let chosen_card = None;
-        let exit = false;
+        let status = FindCardStatus::Searching;
+
         FindCardWidget{
             prompt,
             searchterm,
             list,
-            chosen_card,
-            exit,
+            status,
+            purpose,
+
         }
     }
 
     pub fn keyhandler(&mut self, conn: &Connection, key: KeyCode){
-        if key == KeyCode::Enter{
-            if self.list.state.selected().is_some(){
-                self.chosen_card = Some(self.list.items[self.list.state.selected().unwrap()].id);
-                self.exit = true;
+        match key {
+            KeyCode::Enter => self.complete(conn), 
+            KeyCode::Esc => self.status = FindCardStatus::Finished,
+            KeyCode::Down => self.list.next(),
+            KeyCode::Up => self.list.previous(),
+            key => {
+                self.searchterm.keyhandler(key);
+                self.list.reset_filter(conn, self.searchterm.text.clone());
             }
         }
-        if key == KeyCode::Esc{self.exit = true;}
+    }
 
 
-        self.searchterm.keyhandler(key);
-        self.list.reset_filter(conn, self.searchterm.text.clone());
+    fn complete(&mut self, conn: &Connection){
+        if self.list.state.selected().is_none() {return}
 
+        let idx = self.list.state.selected().unwrap();
+        let chosen_id = self.list.items[idx].id;
+
+        match self.purpose{
+            CardPurpose::NewDependent(source_id) => {
+                update_both(conn, chosen_id, source_id).unwrap();
+                Card::check_resolved(chosen_id, conn);
+            },
+            CardPurpose::NewDependency(source_id) => {
+                update_both(conn, source_id, chosen_id).unwrap();
+                Card::check_resolved(source_id, conn);
+            },
+            CardPurpose::NewCloze(_topic_id) => {
+                todo!();
+            }, 
+        }
+        self.status = FindCardStatus::Finished;
     }
 }
 
@@ -78,9 +113,9 @@ pub fn reset_filter(&mut self, conn: &Connection, mut searchterm: String){
                 }
             );
         };
+        }
+        self.items = matching_cards;
     }
-    self.items = matching_cards;
-}
 
 
     pub fn choose_card(&self) -> u32{
@@ -89,7 +124,6 @@ pub fn reset_filter(&mut self, conn: &Connection, mut searchterm: String){
     }
 }
 
-use crate::utils::widgets::list::list_widget;
 
 
 

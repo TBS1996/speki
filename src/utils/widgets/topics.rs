@@ -388,14 +388,14 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
                 KeyCode::Char(c) => {
                     inner.name.addchar(c);
                     let id = inner.id;
-                    let name = inner.name.text.clone();
+                    let name = inner.name.return_text();
                     update_topic_name(conn, id, name).unwrap();
                     self.reload_topics(conn);
                 },
                 KeyCode::Backspace => {
                     inner.name.backspace();
                     let id = inner.id;
-                    let name = inner.name.text.clone();
+                    let name = inner.name.return_text();
                     update_topic_name(conn, id, name).unwrap();
                     self.reload_topics(conn);
                 },

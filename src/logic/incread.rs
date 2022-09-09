@@ -57,7 +57,7 @@ impl MainInc{
     pub fn update_text(&self, conn: &Connection){
         if let Some(inc) = &self.focused{
             let id = inc.id;
-            let text = inc.source.text.clone();
+            let text = inc.source.return_text();
             update_inc_text(conn, text, id).unwrap();
             
         }

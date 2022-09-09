@@ -45,7 +45,8 @@ impl FindCardWidget{
     pub fn new(conn: &Connection, prompt: String, purpose: CardPurpose) -> Self{
         let mut list = StatefulList::<CardMatch>::new();
         let searchterm = Field::new();
-        list.reset_filter(conn, searchterm.text.clone());
+        list.reset_filter(conn, searchterm.return_text());
+
         let status = FindCardStatus::Searching;
 
         FindCardWidget{
@@ -66,7 +67,7 @@ impl FindCardWidget{
             KeyCode::Up => self.list.previous(),
             key => {
                 self.searchterm.keyhandler(key);
-                self.list.reset_filter(conn, self.searchterm.text.clone());
+                self.list.reset_filter(conn, self.searchterm.return_text());
             }
         }
     }

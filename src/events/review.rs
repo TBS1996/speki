@@ -130,11 +130,12 @@ fn mode_inc(conn: &Connection, inc: &mut IncMode, key: KeyCode, action: &mut Act
 
         (Skip, Char('d')) => inc.selection = Complete,
         (Skip, Char('w')) => inc.selection = Source(false),
-        (Skip, Enter) => *action = Action::IncNext(inc.source.source.text.clone(), inc.id),
+        (Skip, Enter) => *action = Action::IncNext(inc.source.source.return_text(), inc.id),
 
         (Complete, Char('w')) => inc.selection = Clozes(false),
         (Complete, Char('a')) => inc.selection = Skip,
-        (Complete, Enter) => *action = Action::IncDone(inc.source.source.text.clone(), inc.id), //app.review.inc_done(inc.id, &app.conn),
+        (Complete, Enter) => *action = Action::IncDone(inc.source.source.return_text(), inc.id), //app.review.inc_done(inc.id, &app.conn),
+        (_,Char('q')) => *action = Action::Quit,
         (_,_) => {},
 
 
@@ -180,10 +181,10 @@ fn mode_review(unf: &mut CardReview, key: KeyCode, action: &mut Action) {
         (Dependents(false), Char('a')) => unf.selection = Question(false),
         (Dependents(false), Char('s')) => unf.selection = Dependencies(false),
 
-        (_, Char('1')) => *action = Action::Review(unf.question.text.clone(), unf.answer.text.clone(), unf.id, RecallGrade::None),
-        (_, Char('2')) => *action = Action::Review(unf.question.text.clone(), unf.answer.text.clone(), unf.id, RecallGrade::Failed),
-        (_, Char('3')) => *action = Action::Review(unf.question.text.clone(), unf.answer.text.clone(), unf.id, RecallGrade::Decent),
-        (_, Char('4')) => *action = Action::Review(unf.question.text.clone(), unf.answer.text.clone(), unf.id, RecallGrade::Easy),
+        (_, Char('1')) => *action = Action::Review(unf.question.return_text(), unf.answer.return_text(), unf.id, RecallGrade::None),
+        (_, Char('2')) => *action = Action::Review(unf.question.return_text(), unf.answer.return_text(), unf.id, RecallGrade::Failed),
+        (_, Char('3')) => *action = Action::Review(unf.question.return_text(), unf.answer.return_text(), unf.id, RecallGrade::Decent),
+        (_, Char('4')) => *action = Action::Review(unf.question.return_text(), unf.answer.return_text(), unf.id, RecallGrade::Easy),
      
         (_, Char(' ')) => unf.reveal = true,
         (_, Char('t')) => *action = Action::NewDependent(unf.id),
@@ -251,11 +252,11 @@ fn mode_unfinished(unf: &mut UnfCard, key: KeyCode, action: &mut Action) {
 
         (Skip, Char('d')) => unf.selection = Complete,
         (Skip, Char('w')) => unf.selection = Answer(false),
-        (Skip, Enter) => *action = Action::SkipUnf(unf.question.text.clone(), unf.answer.text.clone(), unf.id), //app.review.random_mode(&app.conn),
+        (Skip, Enter) => *action = Action::SkipUnf(unf.question.return_text(), unf.answer.return_text(), unf.id), //app.review.random_mode(&app.conn),
         
         (Complete, Char('w')) => unf.selection = Dependencies(false),
         (Complete, Char('a')) => unf.selection = Skip,
-        (Complete, Enter) =>  *action = Action::CompleteUnf(unf.question.text.clone(), unf.answer.text.clone(), unf.id), 
+        (Complete, Enter) =>  *action = Action::CompleteUnf(unf.question.return_text(), unf.answer.return_text(), unf.id), 
         (_, Char('t')) => *action = Action::NewDependent(unf.id),
         (_, Char('y')) => *action = Action::NewDependency(unf.id),
         (_, Char('T')) => *action = Action::AddDependent(unf.id),

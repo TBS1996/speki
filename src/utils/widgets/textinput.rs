@@ -11,199 +11,142 @@ use tui::{
 };
 
 
-#[derive(Clone)]
-pub enum Mode{
-    Normal,
-    Insert,
-    Visual,
+
+#[derive(Clone, Debug)]
+pub struct CursorPos{
+    pub row: usize,
+    pub column: usize,
+}
+
+impl CursorPos {
+    fn new() -> Self{
+        CursorPos{
+            row: 0,
+            column: 0,
+        }
+    }
 }
 
 
 #[derive(Clone)]
 pub struct Field {
-    pub text: String,
-    pub cursor: usize,
+    pub text: Vec<String>,
+    pub cursor: CursorPos,
     pub rowlen: u16,
-    pub startselect: Option<usize>,
-    pub endselect: Option<usize>,
-    pub maxlen: Option<usize>,
-    pub mode: Mode,
-    pub linelengths: Vec<usize>,
-    pub scroll: u16,
     pub window_height: u16,
+    pub startselect: Option<CursorPos>,
+    pub endselect: Option<CursorPos>,
+    pub scroll: u16,
+    pub debug: bool,
 }
 
 
 impl Field{
     pub fn new() -> Self{
         Field{
-            text: String::new(),
-            cursor: 0 as usize,
+            text: vec![String::new()],
+            cursor: CursorPos::new(),
             rowlen: 0,
+            window_height: 0,
             startselect: None,
             endselect: None,
-            maxlen: None,
-            mode: Mode::Insert,
-            linelengths: Vec::<usize>::new(),
             scroll: 0,
-            window_height: 0,
+            debug: false,
         }
     }
     pub fn addchar(&mut self, c: char){
-        self.text.insert_str(self.cursor, c.to_string().as_str());
-        self.cursor += 1;
-
-        if let Some(maxval) = self.maxlen{
-            if self.text.len() > maxval{
-                self.backspace();
-            }
-        }
-    }
-
-    fn paste(&mut self){
-
-        /*
-        let mut ctx = ClipboardContext::new().unwrap();
-        if let Ok(contents) = ctx.get_contents(){
-            self.text.insert_str(self.cursor, contents.as_str());
-        }
-        */
-        use std::fs;
-        let file_path = "incread.txt";
-        let contents = fs::read_to_string(file_path)
-            .expect("Should have been able to read the file");
-
-        self.text.insert_str(self.cursor, &contents);
-            
-    }
-
-/*
- 
-iterate through text 
-count number of consecutive non-whitespaces
-when you hit the supposedly end of the line 
-then  rowlen - that number represents how much it is wrapped around
-
-
-
-
- */
-
-    fn update_linelengths(&mut self){
-        if self.text.len() < self.rowlen as usize{
-            return self.linelengths = vec![0];
-        }
-        
-    let mut cons_non_space = 0;
-    let mut linestartvec = Vec::<usize>::new();
-    linestartvec.push(0);
-    let mut linestart = 0;
-    for (idx, c) in self.text.chars().enumerate(){
-        
-        if c != ' '{
-            cons_non_space += 1;
-        } else {
-            cons_non_space = 0;
-        }
-
-        if (idx as u16 - linestart as u16) > self.rowlen{
-            linestart = (linestart as u16 + self.rowlen - cons_non_space as u16) as usize;
-            linestartvec.push(linestart);
-        } else if c == '\n'{
-            linestart = idx + 1;
-            linestartvec.push(linestart);
-        }
-    }
-    self.linelengths = linestartvec;
+        self.text[self.cursor.row].insert_str(self.cursor.column, c.to_string().as_str());
+        self.cursor.column += 1;
     }
 
 
     pub fn backspace(&mut self){
-        if self.cursor > 0 && self.text.len() > 0{
-            self.text.remove(self.cursor - 1);
-            self.cursor -= 1;
+        if self.cursor.column > 0 { //&& self.text[self.cursor.row].len() > 0{
+            self.text[self.cursor.row].remove(self.cursor.column - 1);
+            self.cursor.column -= 1;
+        } else if self.cursor.row == 0 {
+            return;
+        } else {
+            self.cursor.column = self.text[self.cursor.row-1].len();
+            let current = self.text[self.cursor.row].clone();
+            self.text[self.cursor.row - 1].push_str(&current);
+            self.text.remove(self.cursor.row);
+            self.cursor.row -= 1;
+
         }
     }
     pub fn delete(&mut self){
-        if self.text.len() > 1 && self.cursor != self.text.len() - 1{
-            self.text.remove(self.cursor);
+        if self.text[self.cursor.row].len() > 1 && self.cursor.column != self.text[self.cursor.row].len() - 1{
+            self.text[self.cursor.row].remove(self.cursor.column);
         }
     }
     pub fn next(&mut self) {
-        if self.cursor < self.text.len() - 0{
-            self.cursor += 1;
+        if self.cursor.column < self.text[self.cursor.row].len() - 0{
+            self.cursor.column += 1;
+        } else if self.cursor.row != self.text.len() - 1 {
+            self.cursor.column = 0;
+            self.cursor.row += 1;
         }
     }
 
     pub fn up(&mut self){
-        self.update_linelengths();
-        if self.linelengths.len() == 1 {return};
-        if self.linelengths[1] > self.cursor {return}
-
-        if self.current_line() - 2 < self.scroll {
-            self.scroll -= 1;
-        }
-
-        for i in  (0..self.linelengths.len()).rev(){
-            if self.linelengths[i] < self.cursor{
-                let relpos = self.cursor - self.linelengths[i];
-                if self.linelengths[i - 1] + relpos < self.linelengths[i]{
-                    self.cursor = self.linelengths[i - 1] + relpos;
-                } else {
-                    self.cursor = self.linelengths[i] - 0;
-                }
-                
-                return
-            }
-        }
-
+        if self.cursor.row == 0 {return}
+        self.cursor.row -= 1;
+        let line_above_max_col = self.text[self.cursor.row].len();
+        let current_col = self.cursor.column;
+        self.cursor.column = std::cmp::min(current_col, line_above_max_col);
     }
-
-    fn current_line(&mut self) -> u16{
-        self.update_linelengths();
-
-        for (idx, linestart) in self.linelengths.iter().enumerate(){
-            if linestart > &self.cursor{
-                return idx as u16
-            }
-        }
-        panic!("");
-    }
-
 
     pub fn down(&mut self){
-        self.update_linelengths();
-        if self.linelengths.len() == 1 {return};
-        let lineqty = self.linelengths.len();
-        if self.cursor > self.linelengths[lineqty - 2] {return}
-        if self.current_line() > self.scroll + self.window_height - 2{
-            self.scroll += 1;
-        }
-
-        for i in  0..self.linelengths.len(){
-            if self.linelengths[i] > self.cursor{
-                self.cursor += self.linelengths[i] - self.linelengths[i - 1];
-                if self.cursor > self.text.len(){
-                    self.cursor = self.text.len() - 1;
-                }
-                return
-            }
-        }
-
-
+        if self.cursor.row == self.text.len() - 1 {return}
+        self.cursor.row += 1;
+        let line_below_max_col = self.text[self.cursor.row].len();
+        let current_col = self.cursor.column;
+        self.cursor.column = std::cmp::min(current_col, line_below_max_col);
     }
 
+
     pub fn prev(&mut self) {
-        if self.cursor > 0 {
-            self.cursor -= 1;
+        if self.cursor.column > 0 {
+            self.cursor.column -= 1;
+        } else if self.cursor.row != 0{
+            self.cursor.row -= 1;
+            self.cursor.column = self.text[self.cursor.row].len();
         }
-     //   dbg!(&self.cursor, &self.linelengths);
+    }
+
+
+    pub fn newline(&mut self){
+        let current_line = self.text[self.cursor.row].clone();
+        let (left, right) = current_line.split_at(self.cursor.column);
+        self.text[self.cursor.row] = left.to_string();
+        self.text.insert(self.cursor.row + 1, right.to_string());
+        self.cursor.row += 1;
+        self.cursor.column = 0;
     }
 
     pub fn replace_text(&mut self, newtext: String){
-        //let textlen = newtext.len();
-        self.text = newtext;
-        self.cursor = 0;
+        self.text = newtext.split('\n').map(|s| s.to_string()).collect();
+    }
+
+
+    pub fn return_text(&self) -> String{
+        let mut retstring = String::new();
+        let lineqty = self.text.len();
+
+        for i in 0..lineqty{
+            retstring.push_str(&self.text[i].clone());
+            if i != lineqty - 1{
+                retstring.push('\n');
+            }
+        }
+        retstring
+
+        
+    }
+
+    fn scroll_half_down(&mut self) {
+
     }
 
     pub fn keyhandler(&mut self, key: KeyCode){
@@ -217,35 +160,42 @@ then  rowlen - that number represents how much it is wrapped around
             KeyCode::Home => self.select(),
             KeyCode::End => self.deselect(),
             KeyCode::Char(c) => self.addchar(c),
-            KeyCode::F(4) => self.paste(),
+            KeyCode::Enter => self.newline(),
+         //   KeyCode::F(4) => self.paste(),
             _ => {},
             
         }
     }
 
+    
     pub fn select(&mut self){
         if self.startselect.is_none(){
-            self.startselect = Some(self.cursor);
+            self.startselect = Some(self.cursor.clone());
         } else if self.endselect.is_none(){
-            self.endselect = Some(self.cursor);
+            self.endselect = Some(self.cursor.clone());
         } else {
-            self.startselect = Some(self.cursor);
+            self.startselect = Some(self.cursor.clone());
             self.endselect = None;
         }
         
 
-        if let Some(start) = self.startselect{
-            if let Some(end) = self.endselect{
-                if start > end{
-                    (self.startselect, self.endselect) = (self.endselect, self.startselect);
-                    self.endselect = Some(start + 1);
-                } else {
-                    self.endselect = Some(end + 1);
+        let mut switch = false;
+        if let Some(start) = &self.startselect{
+            if let Some(end) = &self.endselect{
+                if start.row > end.row || ((start.row == end.row) && (start.column > end.column)){
+                    switch = true;
                 }
             }
         }
 
+        if switch {
+            let start = self.startselect.clone();
+            let end = self.endselect.clone();
+            self.startselect = end;
+            self.endselect = start;
+        }
     }
+
 
     pub fn selection_exists(&self) -> bool{
         self.startselect.is_some() && self.endselect.is_some()
@@ -257,117 +207,100 @@ then  rowlen - that number represents how much it is wrapped around
     }
 
 
+    fn get_text_left_of_position(&self, pos: &CursorPos)->String{
+        let mut retstring = String::new();
+        let line = self.text[pos.row].clone();
+        let (select, _) = line.split_at(pos.column + 1);
+        retstring.push_str(select);
+        retstring
+    }
+    fn get_text_right_of_position(&self, pos: &CursorPos)->String{
+        let mut retstring = String::new();
+        let firstline = self.text[pos.row].clone();
+        let (_, firstselect) = firstline.split_at(pos.column);
+        retstring.push_str(firstselect);
+        retstring
+    }
+
+
     pub fn return_selection(&self) -> Option<String>{
         if self.selection_exists(){
-            let start = self.startselect.unwrap() + 0;
-            let end = self.endselect.unwrap() + 0;
-            return Some(String::from(&self.text[start..end]));
-        } else {
-            None
-        }
-    }
-
-    pub fn cursorsplit(&self, selected: bool) -> Vec<Spans> {
-        
-        let mut text = self.text.clone();
-        let cursor = self.cursor.clone();
-
-        if !selected{
-            return vec![Spans::from(text)];
-        }
-        
-        let textlen = text.len();
-        if cursor == textlen{
-            text.push('_');
-        }
-
-
-        let mut splits = Vec::<usize>::new();
-
-        splits.push(self.cursor);
-        splits.push(self.cursor + 1);
-        if self.startselect.is_none() || self.endselect.is_none(){
-            splits.push(0);
-            splits.push(0);
-        } else {
-            splits.push(self.startselect.unwrap());
-            splits.push(self.endselect.unwrap());
-        }
-
-
-        splits.sort();
-
-
-        let textvec: Vec<String> = text
-            .split('\n')
-            .map(|x|{x.to_string()})
-            .collect();
-
-        let mut lenvec = vec![0 as usize];
-
-        let mut running_total: usize = 0;
-        for txt in &textvec {
-            running_total += txt.len();
-            lenvec.push(running_total);
-        }
-
-
-
-        let mut splitdex: i32= splits.len() as i32 - 1;
-
-        let mut vecvec = Vec::new();
-        let textqty: usize = textvec.len();
-
-        // check if 
-        for idx in (0..textqty).rev(){
-            let mut thetext = textvec[idx].clone();
-            let mut tempvec = Vec::<String>::new();
-            let offset = lenvec[idx];
-
-            while splitdex != -1 {   
-                let split = splits[splitdex as usize];
-                if split > offset {
-                    let splitter = thetext.clone();
-                    let (left, right) = splitter.split_at(split - offset);
-                    thetext = left.to_string();
-                    tempvec.insert(0, right.to_string());
-                    splitdex -= 1;
-                } else {break}
+            let start = self.startselect.clone().unwrap();
+            let end   = self.endselect.clone().unwrap();
+            if start.row == end.row {
+                let line = self.text[start.row].clone();
+                let (left, _) = line.split_at(end.column + 1);
+                let left = left.to_string();
+                let (_, selected) = left.split_at(start.column);
+                Some(selected.to_string()) 
+            }else {
+                let mut retstring = self.get_text_right_of_position(&start);
+                retstring.push('\n');
+                for i in start.row+1..end.row{
+                    retstring.push_str(&self.text[i].clone());
+                    retstring.push('\n');
+                }
+                retstring.push_str(&self.get_text_left_of_position(&end));
+                Some(retstring)
             }
-            tempvec.insert(0, thetext.to_string());
-            vecvec.insert(0, tempvec);
-        }
-
-
-      //  if textvec.len() > 2 {
-       //     dbg!(vecvec);
-        //    panic!();
-       // }
-       let mut styled_vec = Vec::<Spans>::new(); 
-
-       let mut styled = false;
-       if self.cursor == 0 {styled = true};
-       for outer in vecvec{
-           let mut tempvec = Vec::<Span>::new();
-           styled = !styled;
-           for inner in outer{
-               if !styled{
-                    tempvec.push(Span::styled(inner.to_string(),  Style::default().add_modifier(Modifier::REVERSED)));
-               } else {
-                    tempvec.push(Span::from(inner.to_string()));
-               }
-               styled = !styled;
-           }
-        styled_vec.push(Spans::from(tempvec));
-       }
-
-    styled_vec
+        } else {None}  
     }
 
 
 
+    fn cursorsplit(&self) -> Vec<Spans>{
+        let mut onemore = self.cursor.clone();
+        onemore.column += 1;
 
-pub fn draw_field<B>(&self, f: &mut Frame<B>, area: Rect, title: &str, alignment: Alignment, selected: bool)
+        let mut splitvec: Vec<CursorPos> = vec![self.cursor.clone(), onemore];
+        if self.selection_exists(){
+            splitvec.push(self.startselect.clone().unwrap());
+            splitvec.push(self.endselect.clone().unwrap());
+        }
+
+        splitvec.sort_by_key(|curse| (curse.row, curse.column) );
+
+        let mut coolvec = Vec::<Spans>::new();
+        let mut styled = false;
+
+        let mut splitdex = 0;
+        for (idx, txt) in self.text.iter().enumerate(){
+            let mut foo = txt.clone();
+            let mut spanvec = Vec::<Span>::new();
+            while foo.len() != 0 && splitdex != splitvec.len() && splitvec[splitdex].row == idx{
+                let bar = foo.clone();
+                let column = splitvec[splitdex].column;
+                let offset = if splitdex == 0 || splitvec[splitdex - 1].row != idx  {0} else {splitvec[splitdex - 1].column};
+                let (left, right) = bar.split_at(column  - offset);
+                foo = right.to_string().clone();
+
+                if styled {
+                    spanvec.push(Span::styled(left.to_string(), Style::default().add_modifier(Modifier::REVERSED)));
+                } else {
+                    spanvec.push(Span::from(left.to_string()));
+                }
+                splitdex += 1;
+                styled = !styled;
+                if splitdex == splitvec.len(){break}
+            }
+
+                if styled {
+                    spanvec.push(Span::styled(foo.to_string(), Style::default().add_modifier(Modifier::REVERSED)));
+                } else {
+                    spanvec.push(Span::from(foo.to_string()));
+                }
+            coolvec.push(Spans::from(spanvec));
+        } 
+
+        coolvec
+    }
+
+
+    
+
+
+
+pub fn draw_field<B>(& self, f: &mut Frame<B>, area: Rect, title: &str, alignment: Alignment, selected: bool)
 where
     B: Backend,
 {
@@ -382,7 +315,7 @@ where
             .add_modifier(Modifier::BOLD),
     ));
 
-    let formatted_text = self.cursorsplit(selected);
+    let formatted_text = self.cursorsplit();
 
     let paragraph = Paragraph::new(formatted_text)
         .block(block)
@@ -393,3 +326,6 @@ where
 }
 
 }
+
+
+

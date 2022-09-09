@@ -37,9 +37,9 @@ pub fn add_card_event(app: &mut App, key: KeyCode){
             KeyCode::Esc  => app.add_card.deselect(),
             KeyCode::Home => app.add_card.home(),
             KeyCode::Down   => app.add_card.downrow(),
-            KeyCode::PageUp => app.add_card.pageup(),
+           // KeyCode::PageUp => app.add_card.pageup(),
             KeyCode::BackTab   => app.add_card.backtab(),
-            KeyCode::PageDown  => app.add_card.pagedown(),
+            //KeyCode::PageDown  => app.add_card.pagedown(),
             _ => {},
         }
         

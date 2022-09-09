@@ -43,7 +43,7 @@ impl IncRead{
     }
     pub fn cloze(&mut self, conn: &Connection){
         if let Some(cloze) = self.source.return_selection(){
-            let mut question = self.source.text.clone();
+            let mut question = self.source.return_text();
             question = question.replace(&cloze, "[...]");
             let answer = cloze;
             Card::save_new_card(conn, question, answer, self.topic, self.id);
@@ -69,7 +69,7 @@ impl IncRead{
         }
     }
     pub fn update_text(&self, conn: &Connection){
-        let text = self.source.text.clone();
+        let text = self.source.return_text();
         update_inc_text(conn, text, self.id).unwrap();
             
     }

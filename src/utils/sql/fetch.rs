@@ -128,14 +128,14 @@ pub fn get_dependencies(conn: &Connection, dependent: u32) -> Result<Vec<u32>>{
     })?;
         
     let mut dependencies = Vec::<u32>::new();
-    let mut wtf = Vec::new();
+    let mut foo = Vec::new();
     for dep in dep_iter{
-        wtf.push(dep.unwrap().clone());
+        foo.push(dep.unwrap().clone());
     }
 
-    for lol in wtf{
-        if lol.dependent == dependent{
-            dependencies.push(lol.dependency);
+    for bar in foo{
+        if bar.dependent == dependent{
+            dependencies.push(bar.dependency);
         }
     }
 
@@ -163,14 +163,14 @@ pub fn get_dependents(conn: &Connection, dependency: u32) -> Result<Vec<u32>>{
     })?;
         
     let mut dependents = Vec::<u32>::new();
-    let mut wtf = Vec::new();
+    let mut foo = Vec::new();
     for dep in dep_iter{
-        wtf.push(dep.unwrap().clone());
+        foo.push(dep.unwrap().clone());
     }
 
-    for lol in wtf{
-        if lol.dependency == dependency{
-            dependents.push(lol.dependent);
+    for bar in foo{
+        if bar.dependency == dependency{
+            dependents.push(bar.dependent);
         }
     }
 

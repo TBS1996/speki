@@ -104,8 +104,8 @@ impl NewCard{
             Some(num) => topic = num,
         }
 
-        let question = self.question.text.clone(); 
-        let answer   = self.answer.text.clone();
+        let question = self.question.return_text();
+        let answer   = self.answer.return_text();
 
         let status = match self.selection{
             TextSelect::SubmitFinished => Status::new_complete(),
@@ -197,6 +197,7 @@ impl NewCard{
     pub fn downrow(&mut self){}
     pub fn home(&mut self){}
     pub fn end(&mut self){}
+    /*
     pub fn pageup(&mut self){
         match self.selection{
             TextSelect::Question(_) => self.question.cursor = 0,
@@ -211,6 +212,7 @@ impl NewCard{
             _ => {},
         }
     }
+    */ 
     pub fn tab(&mut self){
 
         match self.selection{

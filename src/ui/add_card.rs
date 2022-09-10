@@ -57,8 +57,8 @@ where
 
 
     draw_message(f, chunks[0], app.add_card.prompt.as_str());
-    app.add_card.question.draw_field(f, chunks[1], "question", Alignment::Left, isqselected);
-    app.add_card.answer.draw_field(  f, chunks[2], "answer",   Alignment::Left, is_ans_selected);
+    app.add_card.question.draw_field(f, chunks[1], isqselected);
+    app.add_card.answer.draw_field(  f, chunks[2], is_ans_selected);
     draw_bottom_menu(f, chunks[3], app);
     
 }

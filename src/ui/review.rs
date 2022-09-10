@@ -96,8 +96,8 @@ where
     let selected = UnfSelect::new(&unfinished.selection);
     view_dependencies(f, unfinished.id, conn, area.dependencies,selected.dependencies); 
     view_dependents(f,   unfinished.id, conn, area.dependents, selected.dependents);
-    unfinished.question.draw_field(f, area.question, "question", Alignment::Left, selected.question);
-    unfinished.answer.draw_field(f,   area.answer,   "answer",   Alignment::Left, selected.answer);
+    unfinished.question.draw_field(f, area.question,  selected.question);
+    unfinished.answer.draw_field(f,   area.answer,    selected.answer);
     draw_button(f, area.skip,   "skip",   selected.skip);
     draw_button(f, area.finish, "finish", selected.finish);
 }
@@ -118,7 +118,7 @@ where
     inc.source.source.window_height = area.source.height - 2;
 
 
-    inc.source.source.draw_field(f, area.source, "hey", Alignment::Left, selected.source);
+    inc.source.source.draw_field(f, area.source, selected.source);
     let clozes: StatefulList<CardItem> = inc.source.clozes.clone();
     let list = {
         let bordercolor = if selected.clozes {Color::Red} else {Color::White};
@@ -240,9 +240,9 @@ where
 
 
    // card_status(f, app, area.status, false);
-    review.question.draw_field(f, area.question, "question", Alignment::Left, selected.question);
+    review.question.draw_field(f, area.question, selected.question);
     if review.reveal{
-        review.answer.draw_field(f, area.answer, "answer", Alignment::Left, selected.answer);
+        review.answer.draw_field(f, area.answer, selected.answer);
     } else {
         draw_message(f, area.answer, "Space to reveal");
     }

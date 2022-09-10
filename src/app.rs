@@ -140,8 +140,8 @@ impl<'a> App<'a> {
                     0 => review_event(self,   key),
                     1 => add_card_event(self, key),
                     2 => browse_event(self,   key),
-                    3 => main_port(self,      key),
-                    4 => main_inc(self,       key),
+                    4 => main_port(self,      key),
+                    3 => main_inc(self,       key),
                     _ => {},
                 }
             },

@@ -35,15 +35,14 @@ pub struct MainInc{
 use crate::utils::sql::fetch::{get_incread, load_inc_items};
 use crate::utils::sql::insert::new_incread;
 use rusqlite::Connection;
-
-
 use crate::utils::sql::fetch::load_extracts;
 
 impl MainInc{
     pub fn new(conn: &Connection) -> Self{
         let items = load_inc_items(conn, 1).unwrap();
         let foo = StatefulList::with_items(items);
-        let topics = TopicList::new(conn);
+        let mut topics = TopicList::new(conn);
+        topics.next();
         let focused: Option<IncRead> = None;
         MainInc{
             inclist: foo,
@@ -65,10 +64,7 @@ impl MainInc{
 
     pub fn create_source(&mut self, conn: &Connection){
         let topic: TopicID = self.topics.get_selected_id().unwrap();
-        use std::fs;
-        let file_path = "incread.txt";
-        let source = fs::read_to_string(file_path).expect("file not found");
-        new_incread(conn, 0, topic, source , true).unwrap();
+        new_incread(conn, 0, topic, "new source".to_string() , true).unwrap();
         self.reload_inc_list(conn);
     }
 

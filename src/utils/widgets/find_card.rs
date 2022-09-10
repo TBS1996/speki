@@ -149,7 +149,7 @@ where
     let (prompt, searchbar, matchlist) = (chunks[0], chunks[1], chunks[2]);
     
     draw_message(f, prompt, &widget.prompt);
-    widget.searchterm.draw_field(f, searchbar, "", Alignment::Left, false);
+    widget.searchterm.draw_field(f, searchbar, false);
     list_widget(f, &widget.list, matchlist, false);
 }
 

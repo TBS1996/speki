@@ -98,6 +98,10 @@ fn run_app<B: Backend>(
 // creating my own version of this because I want Paste() to be included in the enum, which it
 // isn't in the crossterm library. This will keep the code simpler. hmm perhaps instead of passing
 // in a struct of 
+
+
+
+#[derive(Clone, PartialEq)]
 pub enum MyKey{
     Backspace,
     Enter,
@@ -119,6 +123,7 @@ pub enum MyKey{
     Paste(String),
     Ctrl(char),
     Alt(char),
+    Null,
 }
 
 

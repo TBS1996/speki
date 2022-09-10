@@ -1,4 +1,4 @@
-use crossterm::event::KeyCode;
+use crate::MyKey;
 
 use tui::{
     backend::Backend,
@@ -37,7 +37,16 @@ pub struct Field {
     pub startselect: Option<CursorPos>,
     pub endselect: Option<CursorPos>,
     pub scroll: u16,
-    pub debug: bool,
+    pub mode: Mode,
+    pub buffer: String,
+}
+
+
+#[derive(Clone)]
+pub enum Mode{
+    Normal,
+    Insert,
+    Visual,
 }
 
 
@@ -51,7 +60,8 @@ impl Field{
             startselect: None,
             endselect: None,
             scroll: 0,
-            debug: false,
+            mode: Mode::Insert,
+            buffer: String::new(),
         }
     }
     pub fn addchar(&mut self, c: char){
@@ -129,6 +139,13 @@ impl Field{
         self.text = newtext.split('\n').map(|s| s.to_string()).collect();
     }
 
+    pub fn paste(&mut self, paste: String) {
+        let foo: Vec<String> = paste.split('\n').map(|s| s.to_string()).collect();
+        for i in (0..foo.len()).rev(){
+            self.text.insert(self.cursor.row, foo[i].clone());
+        }
+    }
+
 
     pub fn return_text(&self) -> String{
         let mut retstring = String::new();
@@ -149,23 +166,86 @@ impl Field{
 
     }
 
-    pub fn keyhandler(&mut self, key: KeyCode){
+    pub fn keyhandler(&mut self, key: MyKey){
+        match self.mode{
+            Mode::Normal => self.normal_keyhandler(key),
+            Mode::Insert => self.insert_keyhandler(key),
+            Mode::Visual => self.visual_keyhandler(key),
+        }
+    
+
+
+    }
+
+    fn insert_keyhandler(&mut self, key: MyKey){
         match key {
-            KeyCode::Backspace => self.backspace(),
-            KeyCode::Delete => self.delete(),
-            KeyCode::Right => self.next(),
-            KeyCode::Left => self.prev(),
-            KeyCode::Down => self.down(),
-            KeyCode::Up => self.up(),
-            KeyCode::Home => self.select(),
-            KeyCode::End => self.deselect(),
-            KeyCode::Char(c) => self.addchar(c),
-            KeyCode::Enter => self.newline(),
-         //   KeyCode::F(4) => self.paste(),
+            MyKey::Backspace => self.backspace(),
+            MyKey::Delete => self.delete(),
+            MyKey::Right => self.next(),
+            MyKey::Left => self.prev(),
+            MyKey::Down => self.down(),
+            MyKey::Up => self.up(),
+            MyKey::Ctrl('c') => self.mode = Mode::Normal,
+            MyKey::Char(c) => self.addchar(c),
+            MyKey::Enter => self.newline(),
+            MyKey::Paste(paste) => self.paste(paste),
             _ => {},
-            
         }
     }
+    fn normal_keyhandler(&mut self, key: MyKey){
+        use MyKey::*;
+        match key{
+            Char('i') => self.mode = Mode::Insert,
+            Char('Y') => self.copy_right(),
+            Char('D') => self.delete_right_of_cursor(),
+            Char('p') => self.paste_buffer(),
+            Char('k') => self.up(),
+            Char('j') => self.down(),
+            Char('h') => self.prev(),
+            Char('l') => self.next(),
+            Char('w') => self.start_of_next_word(),
+            Char('v') => self.mode = Mode::Visual,
+            _ => {}
+        }
+    }
+    fn visual_keyhandler(&mut self, key: MyKey){
+
+    }
+
+
+    
+    fn start_of_next_word(&mut self){
+        let mut prev_char = 'a';
+        let mut curr_char = 'b';
+        while !((prev_char == ' ' || prev_char == '.') && (curr_char != ' ' || curr_char != '.')){
+            self.next();
+        }
+    }
+
+    fn paste_buffer(&mut self){
+        self.text[self.cursor.row].insert_str(self.cursor.column, &self.buffer.clone());
+    }
+
+    fn delete_right_of_cursor(&mut self){
+        let leftext = self.get_text_left_of_position(&self.cursor);
+        self.text[self.cursor.row] = leftext;
+    }
+
+
+    fn delete_current_line(&mut self){
+        if self.text.len() == 1 {
+            self.text = vec![String::new()];
+            self.cursor.column = 0;
+        } else {
+            self.text.remove(self.cursor.row);
+            self.cursor.column = 0;
+        }
+    }
+    
+    fn copy_right(&mut self){
+        self.buffer = self.get_text_right_of_position(&self.cursor);
+    }
+
 
     
     pub fn select(&mut self){

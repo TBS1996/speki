@@ -13,7 +13,7 @@ use super::list::StraitList;
 use tui::widgets::ListState;
 use crate::utils::sql::insert::new_topic;
 use crate::utils::sql::update::update_topic_name;
-use crossterm::event::KeyCode;
+use crate::MyKey;
 
 use super::textinput::Field;
 
@@ -381,25 +381,25 @@ pub fn previous(&mut self) {
 
 
 
-pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
+pub fn keyhandler(&mut self, key: MyKey, conn: &Connection){
     match &mut self.writing{
         Some(inner) => {
             match key{
-                KeyCode::Char(c) => {
+                MyKey::Char(c) => {
                     inner.name.addchar(c);
                     let id = inner.id;
                     let name = inner.name.return_text();
                     update_topic_name(conn, id, name).unwrap();
                     self.reload_topics(conn);
                 },
-                KeyCode::Backspace => {
+                MyKey::Backspace => {
                     inner.name.backspace();
                     let id = inner.id;
                     let name = inner.name.return_text();
                     update_topic_name(conn, id, name).unwrap();
                     self.reload_topics(conn);
                 },
-                KeyCode::Enter => {
+                MyKey::Enter => {
                     let id = inner.id;
                     let index = self.index_from_id(id);
                     let parent_id = self.items[index as usize].parent;
@@ -413,8 +413,8 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
         },
         None => {
             match key{
-                KeyCode::Char('k') => self.previous(),
-                KeyCode::Delete => {
+                MyKey::Char('k') => self.previous(),
+                MyKey::Delete => {
                     let mut index = self.state.selected().unwrap() as u32;
                     if index == 0 {return}
                     self.delete_topic(conn, index);
@@ -422,7 +422,7 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
                     self.reload_topics(conn);
                     self.state.select(Some((index) as usize));
                 }
-                KeyCode::Char('h') => {
+                MyKey::Char('h') => {
                     let index = self.state.selected().unwrap() as u32;
                     let topic = self.items[index as usize].clone();
                     if topic.parent == 1 {return}
@@ -432,7 +432,7 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
                     self.reload_topics(conn);
                     self.state.select(Some((parent_index) as usize));
                 }
-                KeyCode::Char('l') => {
+                MyKey::Char('l') => {
                     let index = self.state.selected().unwrap() as u32;
                     if index == (self.items.len() as u32) - 1 {return}
                     if index == 0 {return}
@@ -443,7 +443,7 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
                     self.reload_topics(conn);
                     self.state.select(Some((index + 1) as usize));
                 }
-                KeyCode::Char('J') => {
+                MyKey::Char('J') => {
                     let index = self.state.selected().unwrap() as u32;
                     let topic = self.items[index as usize].clone();
                     self.shift_down(conn, index as u32);
@@ -451,7 +451,7 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
                     let new_index = self.index_from_id(topic.id);
                     self.state.select(Some((new_index) as usize));
                 }
-                KeyCode::Char('K') => {
+                MyKey::Char('K') => {
                     let index = self.state.selected().unwrap();
                     let topic = self.items[index as usize].clone();
                     self.shift_up(conn, index as u32);
@@ -459,13 +459,13 @@ pub fn keyhandler(&mut self, key: KeyCode, conn: &Connection){
                     let new_index = self.index_from_id(topic.id);
                     self.state.select(Some(new_index as usize));
                 },
-                KeyCode::Char('e') => {
+                MyKey::Char('e') => {
                     let index = self.state.selected().unwrap() as u32;
                     let topic = self.items[index as usize].clone();
                     self.writing = Some(NewTopic::new(topic.id));
                 }
-                KeyCode::Char('j') => self.next(),
-                KeyCode::Char('n') => {
+                MyKey::Char('j') => self.next(),
+                MyKey::Char('n') => {
                     let parent = self.get_selected_id().unwrap();
                     let parent_index = self.state.selected().unwrap();
                     let name = String::new();

@@ -6,7 +6,7 @@ use super::aliases::*;
 use super::widgets::textinput::Field;
 use rusqlite::Connection;
 use crate::utils::statelist::StatefulList;
-use crossterm::event::KeyCode;
+use crate::MyKey;
 use crate::utils::sql::update::update_inc_text;
 
 
@@ -51,17 +51,17 @@ impl IncRead{
         }
     }
 
-    pub fn keyhandler(&mut self, conn: &Connection, key: KeyCode){
+    pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
         match key {
-            KeyCode::F(1) => {
+            MyKey::F(1) => {
                 self.extract(conn);
                 self.source.deselect();
             },
-            KeyCode::F(2) => {
+            MyKey::F(2) => {
                 self.cloze(conn);
                 self.source.deselect();
             },
-            KeyCode::Esc => {
+            MyKey::Esc => {
         //        self
             },
             key => self.source.keyhandler(key),

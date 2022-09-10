@@ -13,7 +13,8 @@ use crate::utils::incread::IncRead;
 use rand::prelude::*;
 use crate::utils::sql::update::update_inc_active;
 
-
+use tui::Frame;
+use tui::backend::Backend;
 
 
 pub enum ReviewSelection{
@@ -304,6 +305,22 @@ impl ReviewList {
         Card::new_review(conn, id, recallgrade);
         self.random_mode(conn);
     }
+}
 
+
+
+use crate::MyKey;
+use crate::app::App;
+use crate::app::Tab;
+use tui::layout::Rect;
+
+impl Tab for ReviewList{
+    fn keyhandler(app: &mut App, key: MyKey){
+        crate::events::review::review_event(app, key);
+    }
+    fn render<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect){
+        crate::ui::review::main_review(f, app, area);
+
+    }
 
 }

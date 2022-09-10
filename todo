@@ -31,3 +31,4 @@ suspend until specified date
 list of which order to introduce pending cards, with new DB table
 add tags
 add priority to topics && tags
+make paste work

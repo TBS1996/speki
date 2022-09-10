@@ -11,7 +11,7 @@ use tui::{
 
 use crate::utils::widgets::list::list_widget;
 use super::message_box::draw_message;
-use crossterm::event::KeyCode;
+use crate::MyKey;
 
 
 
@@ -59,12 +59,12 @@ impl FindCardWidget{
         }
     }
 
-    pub fn keyhandler(&mut self, conn: &Connection, key: KeyCode){
+    pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
         match key {
-            KeyCode::Enter => self.complete(conn), 
-            KeyCode::Esc => self.status = FindCardStatus::Finished,
-            KeyCode::Down => self.list.next(),
-            KeyCode::Up => self.list.previous(),
+            MyKey::Enter => self.complete(conn), 
+            MyKey::Esc => self.status = FindCardStatus::Finished,
+            MyKey::Down => self.list.next(),
+            MyKey::Up => self.list.previous(),
             key => {
                 self.searchterm.keyhandler(key);
                 self.list.reset_filter(conn, self.searchterm.return_text());

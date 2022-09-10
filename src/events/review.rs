@@ -1,10 +1,10 @@
 
+use crate::MyKey;
 
 use crate::logic::add_card::NewCard;
 use crate::logic::review::{UnfCard, UnfSelection, CardReview};
 use crate::utils::sql::update::{update_inc_text,  update_card_question, update_card_answer, double_skip_duration};
 use crate::utils::widgets::find_card::{FindCardWidget, CardPurpose};
-use crossterm::event::KeyCode;
 use crate::app::{App, PopUp};
 use crate::utils::card::{RecallGrade, Card};
 use crate::logic::review::{ReviewSelection, IncSelection, IncMode};
@@ -13,6 +13,24 @@ use crate::logic::review::ReviewMode;
 use rusqlite::Connection;
 use crate::utils::aliases::*;
 
+
+
+/* 
+
+
+perhaps store widgets in a 2D vec 
+each vec holds a widget with a render and keyhandler 
+
+so a struct with two fields 
+first is the 2d vec of widgets (trait objects)
+second one keeps track of position 
+
+navigation is with alt+[h,j,k,l]
+
+
+
+
+*/ 
 
 
 
@@ -30,7 +48,7 @@ enum Action {
     None,
 }
 
-pub fn review_event(app: &mut App, key: KeyCode) {
+pub fn review_event(app: &mut App, key: MyKey) {
 
 
     let mut action = Action::None;
@@ -101,8 +119,8 @@ pub fn review_event(app: &mut App, key: KeyCode) {
 }
 
 
-fn mode_inc(conn: &Connection, inc: &mut IncMode, key: KeyCode, action: &mut Action) {
-    use KeyCode::*;
+fn mode_inc(conn: &Connection, inc: &mut IncMode, key: MyKey, action: &mut Action) {
+    use MyKey::*;
     use IncSelection::*;
 
 
@@ -148,9 +166,9 @@ fn mode_inc(conn: &Connection, inc: &mut IncMode, key: KeyCode, action: &mut Act
 
 
 
-fn mode_review(unf: &mut CardReview, key: KeyCode, action: &mut Action) {
+fn mode_review(unf: &mut CardReview, key: MyKey, action: &mut Action) {
     use ReviewSelection::*;
-    use KeyCode::*;
+    use MyKey::*;
         
     match (&unf.selection, key){
 
@@ -205,19 +223,19 @@ fn mode_review(unf: &mut CardReview, key: KeyCode, action: &mut Action) {
 
 
 
-fn mode_done(key: KeyCode, action: &mut Action){
+fn mode_done(key: MyKey, action: &mut Action){
 
     match key{
-        KeyCode::Char('q') => *action = Action::Quit,
+        MyKey::Char('q') => *action = Action::Quit,
         _ => {},
     }
 }
 
 
 
-fn mode_unfinished(unf: &mut UnfCard, key: KeyCode, action: &mut Action) {
+fn mode_unfinished(unf: &mut UnfCard, key: MyKey, action: &mut Action) {
     use UnfSelection::*;
-    use KeyCode::*;
+    use MyKey::*;
         
     match (&unf.selection, key){
 

@@ -1,5 +1,5 @@
 use rusqlite::Connection;
-use crossterm::event::KeyCode;
+
 
 use crate::{logic::{
     review::ReviewList,
@@ -43,6 +43,8 @@ impl<'a> TabsState<'a> {
     }
 }
 
+
+
 /* 
 
 Architecture idea: 
@@ -57,6 +59,16 @@ perhaps popup is a simple option
 option type is one that has the same render and keyhandler trait as above 
 
   */
+use tui::layout::Rect;
+use tui::Frame;
+use tui::backend::Backend;
+
+pub trait Tab {
+    fn keyhandler(app: &mut App, key: MyKey);
+    fn render<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect); 
+}
+
+
 
 pub enum PopUp{
     None,
@@ -69,7 +81,6 @@ pub struct App<'a> {
     pub should_quit: bool,
     pub tabs: TabsState<'a>,
     pub conn: Connection,
-    pub prev_key: KeyCode,
     pub review: ReviewList,
     pub add_card: NewCard,
     pub browse: Browse,
@@ -94,7 +105,6 @@ impl<'a> App<'a> {
             should_quit: false,
             tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "Incremental reading"]),
             conn,
-            prev_key: KeyCode::Null,
             review: revlist,
             add_card: addcards,
             browse,
@@ -114,23 +124,26 @@ impl<'a> App<'a> {
 
     pub fn on_tick(&mut self) {}
 
-    pub fn handle_key(&mut self, key: KeyCode) {
+    pub fn handle_key(&mut self, key: MyKey) {
         use PopUp::*;
 
         match &mut self.popup{
             None => {
-                if KeyCode::Tab == key {self.on_right()};
-                if KeyCode::BackTab == key {self.on_left()};
-                let keyclone = key.clone();
+                match key {
+                    MyKey::Tab => self.on_right(),
+                    MyKey::BackTab => self.on_left(),
+                    _ => {},
+                };
+                 
+
                 match self.tabs.index {
-                    0 => review_event(self, key),
+                    0 => review_event(self,   key),
                     1 => add_card_event(self, key),
-                    2 => browse_event(self, key),
-                    3 => main_port(self, key),
-                    4 => main_inc(self, key),
+                    2 => browse_event(self,   key),
+                    3 => main_port(self,      key),
+                    4 => main_inc(self,       key),
                     _ => {},
                 }
-                self.prev_key = keyclone;
             },
             CardSelecter(findcard) => {
                 findcard.keyhandler(&self.conn, key);
@@ -146,4 +159,6 @@ impl<'a> App<'a> {
 
 
 }
+use crossterm::event::Event;
 
+use crate::MyKey;

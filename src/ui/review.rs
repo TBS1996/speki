@@ -114,8 +114,8 @@ where
 //    _app.review.incread.unwrap().source.draw_field(f, editing, "hey", Alignment::Left, false);
 
 
-    inc.source.source.rowlen = area.source.width - 2;
-    inc.source.source.window_height = area.source.height - 2;
+    inc.source.source.set_rowlen(area.source.width - 2);
+    inc.source.source.set_win_height(area.source.height - 2);
 
 
     inc.source.source.draw_field(f, area.source, selected.source);
@@ -274,9 +274,9 @@ impl IncSelect{
         };
 
         match choice{
-            Source(_) => sel.source = true,
-            Extracts(_) => sel.extracts = true,
-            Clozes(_) => sel.clozes = true,
+            Source => sel.source = true,
+            Extracts => sel.extracts = true,
+            Clozes => sel.clozes = true,
             Skip => sel.skip = true,
             Complete => sel.complete = true,
         }

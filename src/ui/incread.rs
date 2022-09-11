@@ -21,7 +21,7 @@ where
     let (topright, middleright, bottomright) = (right[0], right[1], right[2]);
 
     if let Some(inc) = &mut app.incread.focused{
-        inc.source.rowlen = left.width - 2;
+        inc.source.set_rowlen(left.width - 2);
     }
 
 

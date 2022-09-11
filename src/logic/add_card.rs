@@ -1,5 +1,5 @@
 use std::time::{UNIX_EPOCH, SystemTime};
-use crate::utils::aliases::*;
+use crate::utils::{aliases::*, sql::{fetch::load_inc_title, update::update_card_source}};
 use rusqlite::Connection;
 use crossterm::event::KeyCode;
 use crate::utils::{
@@ -19,6 +19,7 @@ pub enum DepState{
     None,
     NewDependent(CardID),
     NewDependency(CardID),
+    NewChild(IncID),
 }
 
 //#[derive(Clone)]
@@ -48,7 +49,8 @@ pub struct NewCard{
 
 impl NewCard{
     pub fn new(conn: &Connection, state: DepState) -> NewCard{
-        let topics = TopicList::new(conn);
+        let mut topics = TopicList::new(conn);
+        topics.next();
         
         NewCard {
             prompt: NewCard::make_prompt(&state,conn),
@@ -91,6 +93,12 @@ impl NewCard{
                 prompt.push_str("Add new dependent of: ");
                 let card = fetch_card(conn, *idx);
                 prompt.push_str(&card.question);
+                prompt
+            }
+            DepState::NewChild(id) => {
+                prompt.push_str("Add new child of source: ");
+                let title = load_inc_title(conn, *id, 15).unwrap();
+                prompt.push_str(&title);
                 prompt
             }
         }
@@ -145,6 +153,9 @@ impl NewCard{
                 update_both(conn, last_id, id).unwrap();
                 Card::check_resolved(id, conn);
             },  
+            DepState::NewChild(id) => {
+                update_card_source(conn, last_id, id).unwrap();
+            }
         }
 
         self.reset(DepState::None, conn);

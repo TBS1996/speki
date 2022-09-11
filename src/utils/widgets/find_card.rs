@@ -1,4 +1,4 @@
-use crate::utils::{aliases::*, sql::insert::update_both, card::Card};
+use crate::{utils::{aliases::*, sql::insert::update_both, card::Card}, app::PopUp};
 use rusqlite::Connection;
 use crate::utils::sql::fetch::load_cards;
 use crate::utils::statelist::StatefulList;
@@ -12,6 +12,7 @@ use tui::{
 use crate::utils::widgets::list::list_widget;
 use super::message_box::draw_message;
 use crate::MyKey;
+use crate::utils::misc::PopUpStatus;
 
 
 
@@ -19,14 +20,10 @@ pub struct FindCardWidget{
     pub prompt: String,
     pub searchterm: Field,
     pub list: StatefulList<CardMatch>,
-    pub status: FindCardStatus,
+    pub status: PopUpStatus,
     pub purpose: CardPurpose,
 }
 
-pub enum FindCardStatus{
-    Searching,
-    Finished,
-}
 
 #[derive(Clone, PartialEq)]
 pub struct CardMatch{
@@ -47,7 +44,7 @@ impl FindCardWidget{
         let searchterm = Field::new();
         list.reset_filter(conn, searchterm.return_text());
 
-        let status = FindCardStatus::Searching;
+        let status = PopUpStatus::OnGoing;
 
         FindCardWidget{
             prompt,
@@ -62,7 +59,7 @@ impl FindCardWidget{
     pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
         match key {
             MyKey::Enter => self.complete(conn), 
-            MyKey::Esc => self.status = FindCardStatus::Finished,
+            MyKey::Esc => self.status = PopUpStatus::Finished,
             MyKey::Down => self.list.next(),
             MyKey::Up => self.list.previous(),
             key => {
@@ -92,7 +89,7 @@ impl FindCardWidget{
                 todo!();
             }, 
         }
-        self.status = FindCardStatus::Finished;
+        self.status = PopUpStatus::Finished;
     }
 }
 
@@ -152,47 +149,5 @@ where
     widget.searchterm.draw_field(f, searchbar, false);
     list_widget(f, &widget.list, matchlist, false);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

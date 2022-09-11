@@ -61,9 +61,9 @@ pub struct IncMode{
 }
 
 pub enum IncSelection{
-    Source(bool),
-    Clozes(bool),
-    Extracts(bool),
+    Source,
+    Clozes,
+    Extracts,
     Skip,
     Complete,
 }
@@ -221,7 +221,7 @@ impl ReviewList {
 
     pub fn new_inc_mode(&mut self, conn: &Connection){
         let id = self.for_review.active_increads.remove(0);
-        let selection = IncSelection::Source(false);
+        let selection = IncSelection::Source;
         let source = IncRead::new(conn, id);
         let inc = IncMode{
             id,
@@ -314,6 +314,7 @@ use crate::app::App;
 use crate::app::Tab;
 use tui::layout::Rect;
 
+/*
 impl Tab for ReviewList{
     fn keyhandler(app: &mut App, key: MyKey){
         crate::events::review::review_event(app, key);
@@ -324,3 +325,5 @@ impl Tab for ReviewList{
     }
 
 }
+
+*/

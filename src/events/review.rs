@@ -1,5 +1,5 @@
 
-use crate::MyKey;
+use crate::{MyKey, Direction};
 
 use crate::logic::add_card::NewCard;
 use crate::logic::review::{UnfCard, UnfSelection, CardReview};
@@ -12,6 +12,7 @@ use crate::logic::review::ReviewMode;
 
 use rusqlite::Connection;
 use crate::utils::aliases::*;
+use crate::utils::widgets::newchild::AddChildWidget;
 
 
 
@@ -44,6 +45,7 @@ enum Action {
     NewDependent(CardID),
     AddDependency(CardID),
     AddDependent(CardID),
+    AddChild(IncID),
     Quit,
     None,
 }
@@ -111,6 +113,10 @@ pub fn review_event(app: &mut App, key: MyKey) {
             app.on_right();
             app.review.random_mode(&app.conn);
         },
+        Action::AddChild(id) => {
+            let addchild = AddChildWidget::new(&app.conn, id);
+            app.popup = PopUp::AddChild(addchild);
+        }
         Action::Quit => {
             app.should_quit = true;
         },
@@ -118,47 +124,60 @@ pub fn review_event(app: &mut App, key: MyKey) {
     }
 }
 
+fn inc_nav(inc: &mut IncMode, dir: &Direction){
+    use IncSelection::*;
+    use Direction::*;
+    match (&inc.selection, dir){
+        (Source, Right) => inc.selection = Extracts,
+        (Source, Down) => inc.selection = Skip,
+        
+        (Skip, Right) => inc.selection = Complete,
+        (Skip, Up) => inc.selection = Source,
+
+        (Complete, Up) => inc.selection = Clozes,
+        (Complete, Left) => inc.selection = Skip,
+
+        (Clozes, Down) => inc.selection = Complete,
+        (Clozes, Up) => inc.selection = Extracts,
+        (Clozes, Left) => inc.selection = Source,
+
+        (Extracts, Left) => inc.selection = Source,
+        (Extracts, Down) => inc.selection = Clozes,
+        _ => {},
+    }
+}
 
 fn mode_inc(conn: &Connection, inc: &mut IncMode, key: MyKey, action: &mut Action) {
     use MyKey::*;
     use IncSelection::*;
-
+    
+    if let MyKey::Nav(dir) = &key{
+        inc_nav(inc, dir);
+        return;
+    }
 
     match (&inc.selection, key) {
-        (Source(false), Enter) => inc.selection = Source(true),
-        (Source(false), Char('d')) => inc.selection = Extracts(false),
-        (Source(false), Char('s')) => inc.selection = Skip,
+        (Source, Enter) => inc.selection = Source,
         
-        (Source(true), Esc) => inc.selection = Source(false),
-        (Source(true), key) =>  inc.source.keyhandler(conn, key),
+        (Source, Esc) => inc.selection = Source,
+        (Source, Alt('a')) => *action = Action::AddChild(inc.id),
+        (Source, key) =>  inc.source.keyhandler(conn, key),
 
-        (Extracts(false), Enter) => inc.selection = Extracts(true),
-        (Extracts(false), Char('a')) => inc.selection = Source(false),
-        (Extracts(false), Char('s')) => inc.selection = Clozes(false),
+        (Extracts, Enter) => inc.selection = Extracts,
         
-        (Extracts(true), Esc) => inc.selection = Extracts(false),
+        (Extracts, Esc) => inc.selection = Extracts,
 
-        (Clozes(true), Esc) => inc.selection = Clozes(false),
+        (Clozes, Esc) => inc.selection = Clozes,
 
-        (Clozes(false), Enter) => inc.selection = Clozes(true),
-        (Clozes(false), Char('s')) => inc.selection = Complete,
-        (Clozes(false), Char('a')) => inc.selection = Source(false),
-        (Clozes(false), Char('w')) => inc.selection = Extracts(false),
+        (Clozes, Enter) => inc.selection = Clozes,
 
 
-        (Skip, Char('d')) => inc.selection = Complete,
-        (Skip, Char('w')) => inc.selection = Source(false),
         (Skip, Enter) => *action = Action::IncNext(inc.source.source.return_text(), inc.id),
 
-        (Complete, Char('w')) => inc.selection = Clozes(false),
-        (Complete, Char('a')) => inc.selection = Skip,
         (Complete, Enter) => *action = Action::IncDone(inc.source.source.return_text(), inc.id), //app.review.inc_done(inc.id, &app.conn),
         (_,Char('q')) => *action = Action::Quit,
         (_,_) => {},
-
-
     }
-
 }
 
 

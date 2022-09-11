@@ -15,3 +15,8 @@ pub fn modecolor(mode: &ReviewMode) -> Color {
         ReviewMode::Done => Color::Blue,
     }
 }
+
+pub enum PopUpStatus{
+    OnGoing,
+    Finished,
+}

@@ -326,8 +326,48 @@ pub fn load_active_inc(conn: &Connection) -> Result<Vec<IncID>>{
 use crate::utils::widgets::cardlist::CardItem;
 
 
+pub fn load_inc_text(conn: &Connection, incid: IncID) -> Result<String> {
+    let mut titlevec = Vec::<String>::new();
+    let mut stmt = conn.prepare("SELECT source FROM incread where id = ?")?;
+    let inc_iter = stmt.query_map([incid], |row| Ok(row.get(0)?))?;
+
+    for inc in inc_iter {
+        titlevec.push(inc.unwrap());
+    }
+    let title = titlevec[0].clone();
+
+    Ok(title)
+}
+
+pub fn load_inc_title(conn: &Connection, incid: IncID, titlelen: u16) -> Result<String> {
+    let mut titlevec = Vec::<String>::new();
+    let mut stmt = conn.prepare("SELECT source FROM incread where id = ?")?;
+    let inc_iter = stmt.query_map([incid], |row| Ok(row.get(0)?))?;
+
+    for inc in inc_iter {
+        titlevec.push(inc.unwrap());
+    }
+
+    let mut title = titlevec[0].clone();
+    title.truncate(titlelen.into());
+
+    Ok(title)
+}
 
 
+pub fn get_topic_of_inc(conn: &Connection, incid: IncID) -> Result<TopicID> {
+    let mut topicvec = Vec::<TopicID>::new();
+    let mut stmt = conn.prepare("SELECT topic FROM incread where id = ?")?;
+    let inc_iter = stmt.query_map([incid], |row| Ok(row.get(0)?))?;
+
+    for inc in inc_iter {
+        topicvec.push(inc.unwrap());
+    }
+
+    let mut topic = topicvec[0].clone();
+
+    Ok(topic)
+}
 
 pub fn load_cloze_cards(conn: &Connection, source: IncID) -> Result<Vec<CardItem>> {
     let mut clozevec = Vec::<CardItem>::new();

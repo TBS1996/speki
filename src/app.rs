@@ -1,11 +1,13 @@
 use rusqlite::Connection;
 
 
-use crate::{logic::{
-    review::ReviewList,
-    browse::Browse,
-    add_card::{NewCard, DepState}, incread::MainInc,
-}, utils::widgets::find_card::{FindCardWidget, FindCardStatus}};
+use crate::{
+    logic::{
+        review::ReviewList,
+        browse::Browse,
+        add_card::{NewCard, DepState}, incread::MainInc,
+    }, 
+    utils::widgets::find_card::{FindCardWidget}};
 use crate::events::{
     review::review_event,
     browse::browse_event,
@@ -14,7 +16,7 @@ use crate::events::{
     incread::main_inc,
 };
 
-
+use crate::utils::misc::PopUpStatus;
 
 
 
@@ -58,14 +60,29 @@ perhaps popup is a simple option
 
 option type is one that has the same render and keyhandler trait as above 
 
+
+ok wait
+
+there should be a tab struct 
+it keeps all the widgets in it,
+and it handles navigation
+and tab-specific functions
+
+it can also handle popups, so that you can have  a popup on one tab but able to switch to other tabs
+
+
+maybe widgets like topiclist and stuff should be mutable references so that they'll stay in sync
+
   */
+
 use tui::layout::Rect;
 use tui::Frame;
 use tui::backend::Backend;
+use crate::utils::widgets::newchild::AddChildWidget;
 
 pub trait Tab {
-    fn keyhandler(app: &mut App, key: MyKey);
-    fn render<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect); 
+    fn keyhandler(&mut self, app: &mut App, key: MyKey);
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, app: &mut App, area: Rect); 
 }
 
 
@@ -73,6 +90,7 @@ pub trait Tab {
 pub enum PopUp{
     None,
     CardSelecter(FindCardWidget),
+    AddChild(AddChildWidget),
 }
 
 
@@ -145,9 +163,16 @@ impl<'a> App<'a> {
                     _ => {},
                 }
             },
+            AddChild(addchild) => {
+                addchild.keyhandler(&self.conn, key);
+                if let PopUpStatus::Finished = addchild.status{
+                    self.popup = None;
+                    return;
+                }
+            },
             CardSelecter(findcard) => {
                 findcard.keyhandler(&self.conn, key);
-                if let FindCardStatus::Finished = findcard.status{
+                if let PopUpStatus::Finished = findcard.status{
                     self.popup = None;
                     return;
                 }

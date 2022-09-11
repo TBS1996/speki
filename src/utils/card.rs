@@ -176,12 +176,17 @@ impl Card {
     }
 
 
-    pub fn save_new_card(conn: &Connection, question: String, answer: String, topic: TopicID, source: IncID)-> CardID{
-        let card = Card {
+    pub fn save_new_card(conn: &Connection, question: String, answer: String, topic: TopicID, source: IncID, completed: bool)-> CardID{
+        let status = if completed{
+            Status::new_complete()
+        } else {
+            Status::new_incomplete()
+        };
 
+        let card = Card {
             question,
             answer,
-            status: Status::new_complete(),
+            status,
             strength: 1.,
             stability: 1.,
             dependencies: Vec::<u32>::new(),
@@ -195,8 +200,6 @@ impl Card {
             skiptime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32,
             skipduration: 1,
         };
-
-
         save_card(conn, card).unwrap();
         let card_id = conn.last_insert_rowid() as CardID;
         revlog_new(conn, card_id , Review::from(&RecallGrade::Decent)).unwrap();

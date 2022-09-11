@@ -61,6 +61,11 @@ pub fn update_topic_relpos(conn: &Connection, id: u32, relpos: u32) -> Result<()
     Ok(())
 }
 
+pub fn update_card_source(conn: &Connection, cardid: CardID, incid: IncID) -> Result<()>{
+    let mut stmt = conn.prepare("UPDATE cards SET source = ? WHERE id = ?")?;
+    stmt.execute(params![incid, cardid])?;
+    Ok(())
+}
 pub fn update_card_topic(conn: &Connection, old_topic: u32, new_topic: u32) -> Result<()>{
     let mut stmt = conn.prepare("UPDATE cards SET topic = ? WHERE topic = ?")?;
     stmt.execute(params![new_topic, old_topic])?;

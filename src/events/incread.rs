@@ -1,6 +1,7 @@
 use crate::app::App;
 use crate::logic::incread::Selection;
 use crate::MyKey;
+use crate::utils::widgets::textinput::Mode;
 
 
 
@@ -50,14 +51,14 @@ pub fn inc_focus_events(app: &mut App, key: MyKey) {
             MyKey::F(1) => {
                 if let Some(inc) = &mut app.incread.focused{
                     inc.extract(&app.conn);
-                    inc.source.deselect();
+                    inc.source.set_normal_mode();
                     app.incread.reload_inc_list(&app.conn);
                 }
             },
             MyKey::F(2) => {
                 if let Some(inc) = &mut app.incread.focused{
                     inc.cloze(&app.conn);
-                    inc.source.deselect();
+                    inc.source.set_normal_mode();
                 }
             },
             MyKey::Esc => {

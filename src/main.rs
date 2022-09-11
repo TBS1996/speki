@@ -124,9 +124,16 @@ pub enum MyKey{
     Ctrl(char),
     Alt(char),
     Null,
+    Nav(Direction),
 }
 
-
+#[derive(Clone, PartialEq)]
+pub enum Direction{
+    Up,
+    Down,
+    Left,
+    Right,
+}
 
 
 
@@ -142,6 +149,10 @@ impl MyKey{
 
             if modifiers == event::KeyModifiers::ALT{
                 if let KeyCode::Char(c) = key.code{
+                    if c == 'h' {return Some(MyKey::Nav(Direction::Left))}
+                    if c == 'j' {return Some(MyKey::Nav(Direction::Down))}
+                    if c == 'k' {return Some(MyKey::Nav(Direction::Up))}
+                    if c == 'l' {return Some(MyKey::Nav(Direction::Right))}
                     return Some(MyKey::Alt(c));
                 }
             } 

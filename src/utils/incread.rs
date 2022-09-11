@@ -8,6 +8,7 @@ use rusqlite::Connection;
 use crate::utils::statelist::StatefulList;
 use crate::MyKey;
 use crate::utils::sql::update::update_inc_text;
+use crate::utils::widgets::textinput::Mode;
 
 
 #[derive(Clone)]
@@ -46,20 +47,21 @@ impl IncRead{
             let mut question = self.source.return_text();
             question = question.replace(&cloze, "[...]");
             let answer = cloze;
-            Card::save_new_card(conn, question, answer, self.topic, self.id);
+            Card::save_new_card(conn, question, answer, self.topic, self.id, true);
             self.clozes = StatefulList::with_items(load_cloze_cards(conn, self.id).unwrap());
         }
     }
 
+
     pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
         match key {
-            MyKey::F(1) => {
+            MyKey::Alt('x') => {
                 self.extract(conn);
-                self.source.deselect();
+                self.source.set_normal_mode();
             },
-            MyKey::F(2) => {
+            MyKey::Alt('z') => {
                 self.cloze(conn);
-                self.source.deselect();
+                self.source.set_normal_mode();
             },
             MyKey::Esc => {
         //        self
@@ -71,10 +73,7 @@ impl IncRead{
     pub fn update_text(&self, conn: &Connection){
         let text = self.source.return_text();
         update_inc_text(conn, text, self.id).unwrap();
-            
     }
-    
-
 }
 
 

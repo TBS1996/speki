@@ -482,7 +482,7 @@ impl Field{
     fn get_text_left_of_position(&self, pos: &CursorPos)->String{
         let mut retstring = String::new();
         let line = self.text[pos.row].clone();
-        let (select, _) = line.split_at(pos.column + 1);
+        let (select, _) = line.split_at(pos.column);
         retstring.push_str(select);
         retstring
     }

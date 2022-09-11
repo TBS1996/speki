@@ -1,4 +1,5 @@
 target/
+backups/
 dbflash.db
 newcards.csv
 README.md

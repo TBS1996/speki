@@ -88,6 +88,7 @@ pub struct ForReview{
 
 impl ForReview{
     pub fn new(conn: &Connection)-> Self{
+        crate::utils::interval::calc_strength(conn);
         let thecards = load_cards(conn).unwrap();
         let mut review_cards     = Vec::<CardID>::new();
         let mut unfinished_cards = Vec::<CardID>::new();

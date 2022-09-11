@@ -34,6 +34,7 @@ use tui::{
 fn main() -> Result<(), Box<dyn Error>> {
     env::set_var("RUST_BACKTRACE", "1");
     init_db().expect("Failed to create sqlite database");
+    backup();
 
 
     // setup terminal
@@ -189,5 +190,26 @@ impl MyKey{
 
     }
 }
+
+use chrono::prelude::*;
+
+
+
+fn backup(){
+    let dbflash = "dbflash.db";
+    //let path = "/home/tor/prog/rust/flash-tui/";
+    if !std::path::Path::new("backups/").exists(){
+        std::fs::create_dir("backups/").unwrap();
+    }
+    if std::path::Path::new(dbflash).exists(){
+        let now: DateTime<Utc> = Utc::now();
+        let formatted = format!("./backups/backup_{}_dbflash.db", now.format("%d_%m_%Y"));
+        std::fs::copy(dbflash, formatted).unwrap();  // Copy foo.txt to bar.txt
+    }
+}
+
+
+
+
 
 

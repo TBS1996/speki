@@ -157,6 +157,9 @@ fn mode_inc(conn: &Connection, inc: &mut IncMode, key: MyKey, action: &mut Actio
     }
 
     match (&inc.selection, key) {
+        (_, Char('q')) => *action = Action::Quit,
+        (_, Alt('d')) => *action = Action::IncDone(inc.source.source.return_text(), inc.id), 
+        (_, Alt('n')) => *action = Action::IncNext(inc.source.source.return_text(), inc.id),
         (Source, Enter) => inc.selection = Source,
         
         (Source, Esc) => inc.selection = Source,
@@ -174,8 +177,7 @@ fn mode_inc(conn: &Connection, inc: &mut IncMode, key: MyKey, action: &mut Actio
 
         (Skip, Enter) => *action = Action::IncNext(inc.source.source.return_text(), inc.id),
 
-        (Complete, Enter) => *action = Action::IncDone(inc.source.source.return_text(), inc.id), //app.review.inc_done(inc.id, &app.conn),
-        (_,Char('q')) => *action = Action::Quit,
+        (Complete, Enter) => *action = Action::IncDone(inc.source.source.return_text(), inc.id),
         (_,_) => {},
     }
 }

@@ -6,7 +6,6 @@ pub mod widgets;
 pub mod aliases;
 pub mod incread;
 pub mod misc;
-pub mod dyn_widgets;
 
 
 #[derive(Clone, PartialEq)]

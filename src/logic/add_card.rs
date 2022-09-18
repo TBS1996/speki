@@ -116,7 +116,7 @@ impl NewCard{
         };
 
         Card::save_new_card(conn, question, answer, topic, source, iscompleted);
-        revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent)).unwrap();
+     //   revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent)).unwrap();
 
         let last_id: CardID = highest_id(conn).unwrap();
         match self.state{

@@ -37,7 +37,11 @@ pub fn init_db() -> Result<()>{
             complete     bool not null,
             resolved     bool not null,
             suspended    bool not null,
-            gain         real not null
+            gain         real not null,
+            source       integer not null,
+            skiptime     integer not null,
+            skipduration integer not null
+
 
     )",
         [],

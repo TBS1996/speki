@@ -309,6 +309,9 @@ impl Field{
     // first 
     pub fn delete_previous_word(&mut self){
         let mut char_found = false;
+        if self.text[self.cursor.row].len() == self.cursor.column {
+            self.prev();
+        }
         
         while self.cursor.column != 0{
             let mychar = self.text[self.cursor.row].remove(self.cursor.column);
@@ -407,9 +410,9 @@ impl Field{
     fn google_it(&self){
         let text = self.return_text();
         let mut text = text.replace(" ", "+");
-        let base_url = "http://www.google.com/search?q=";
-        text.push_str(base_url);
-        webbrowser::open(&text);
+        let mut base_url = "http://www.google.com/search?q=".to_string();
+        base_url.push_str(&text);
+        webbrowser::open(&base_url);
     }
 
 

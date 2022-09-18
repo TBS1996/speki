@@ -94,7 +94,7 @@ impl ForReview{
 
         for card in thecards{
             if card.status.isactive(){
-                if card.strength < 0.9{
+                if card.strength < 0.999{
                     review_cards.push(card.card_id);
                 }
             } else if !card.status.initiated{
@@ -110,6 +110,7 @@ impl ForReview{
         }
 
         unfinished_cards.shuffle(&mut thread_rng());
+        review_cards.shuffle(&mut thread_rng());
 
         ForReview{
             review_cards,

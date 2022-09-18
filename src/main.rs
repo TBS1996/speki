@@ -1,11 +1,18 @@
+#![allow(dead_code)]
+
+
 pub mod ui;
 pub mod logic;
 pub mod events;
 pub mod utils;
 pub mod app;
+pub mod tabs;
 
 
 use std::env;
+use chrono::prelude::*;
+use tabs::MyType;
+use utils::aliases::*;
 use crate::app::App;
 use crate::utils::sql::init_db;
 use crossterm::{
@@ -34,7 +41,6 @@ use tui::{
 fn main() -> Result<(), Box<dyn Error>> {
     env::set_var("RUST_BACKTRACE", "1");
     init_db().expect("Failed to create sqlite database");
-    backup();
 
 
     // setup terminal
@@ -70,11 +76,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
 
-
-
-
-fn run_app<B: Backend>(
-    terminal: &mut Terminal<B>,
+fn run_app(
+    terminal: &mut Terminal<MyType>,
     mut app: App,
 ) -> io::Result<()> 
 {
@@ -87,6 +90,7 @@ fn run_app<B: Backend>(
         }
 
         if app.should_quit {
+            backup();
             return Ok(());
         }
 
@@ -94,15 +98,7 @@ fn run_app<B: Backend>(
 }
 
 
-
-
-// creating my own version of this because I want Paste() to be included in the enum, which it
-// isn't in the crossterm library. This will keep the code simpler. hmm perhaps instead of passing
-// in a struct of 
-
-
-
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum MyKey{
     Backspace,
     Enter,
@@ -128,15 +124,14 @@ pub enum MyKey{
     Nav(Direction),
 }
 
-#[derive(Clone, PartialEq)]
+
+#[derive(Clone, PartialEq, Debug)]
 pub enum Direction{
     Up,
     Down,
     Left,
     Right,
 }
-
-
 
 
 impl MyKey{
@@ -156,7 +151,13 @@ impl MyKey{
                     if c == 'l' {return Some(MyKey::Nav(Direction::Right))}
                     return Some(MyKey::Alt(c));
                 }
+                
             } 
+            if modifiers == (event::KeyModifiers::ALT | event::KeyModifiers::SHIFT){
+                if let KeyCode::Char(c) = key.code{
+                    return Some(MyKey::Alt(c));
+                }
+            }
             if modifiers == event::KeyModifiers::CONTROL{
                 if let KeyCode::Char(c) = key.code{
                     return Some(MyKey::Ctrl(c));
@@ -186,18 +187,13 @@ impl MyKey{
         } else {
             return None
         }
-
-
     }
 }
-
-use chrono::prelude::*;
 
 
 
 fn backup(){
     let dbflash = "dbflash.db";
-    //let path = "/home/tor/prog/rust/flash-tui/";
     if !std::path::Path::new("backups/").exists(){
         std::fs::create_dir("backups/").unwrap();
     }
@@ -207,6 +203,84 @@ fn backup(){
         std::fs::copy(dbflash, formatted).unwrap();  // Copy foo.txt to bar.txt
     }
 }
+
+
+/*
+use tui::layout::Rect;
+use tui::Frame;
+
+
+
+
+struct MyWidget{
+    title: String,
+}
+
+
+
+struct Pane{
+    area: tui::layout::Rect,
+    content: Content,
+}
+
+enum Content{
+    Container(SplitContainer),
+ //   Widget(Obs),
+}
+
+struct SplitContainer{
+    direction: tui::layout::Direction,
+    splits: Vec<Split>,
+}
+
+struct Split{
+    constraint: tui::layout::Constraint,
+    pane: Pane,
+}
+
+struct Tabs{
+    tabs: Vec<Tab>,
+    selected: usize,
+}
+
+*/
+
+
+/*
+schemass!!! 
+
+
+tabs -> 
+id, name 
+
+widgets -> 
+id, name  
+
+panes -> 
+widget or split: bool 
+widget-id or splitcontainer-id, depending on the bool
+tab_id 
+pane_id 
+
+
+splits -> 
+constraint, parent_pane, new_pane, order
+
+
+
+hmm mmhm hmhmhmmm 
+
+maybe the tab should return options for card, topic etc..  
+
+so all of the tabs can return but some of it is just options 
+
+when you call for example get_question(), the tab will search all its widgets for a 
+question widget, if it finds it, it\ll return the text, if not it will return None 
+
+
+*/
+
+
 
 
 

@@ -1,24 +1,72 @@
+
 # flash-tui
 flashcard app in your terminal
 
 <img src="./media/demo.gif">
 
-## Explanation  
 
-Now you can work on your flashcards without leaving your terminal!  
+## Keybindings
 
-Features dependency logic, where "card A" can have "card B" as a dependency. This means that you cannot understand card A without knowing card B.   
-This allows for some interesting possibilities. For example, if you're reading the rust book, and you see the sentence "The box type stores data on the heap", but you don't know what a box type is, nor do you know what the heap is.   
+### General
 
-You can still add this card on my app. Simply add it as usual like this:  
-Q: Where does the Box type store data?  
-A: On the heap.  
+Next tab: Tab  
+Previous tab: Shift+Tab  
+Switch between widgets: Alt + (h | j | k | l)  
 
-Then add the two following dependencies:    
-Q: What is the Box type?  
-A: *blank*  
+### Review tab  
 
-Q: What is the heap?  
-A: *blank*  
+Skip card or text: Alt+s  
+Mark unfinished card as finished: Alt+f  
+On a text, make a new card with text as source: Alt+a  
+Mark existing card as dependency: Alt+y  
+Mark existing card as dependent: Alt+t  
+Add new card as dependency: Alt+Y  
+Add new card as dependent: Alt+T  
+Rate your recall grade: 1-4 
+    	1: No recall even after you see the answer  
+	2: Failed recall when presented answer, but answer is familiar  
+	3: Correct recall after some time to think   
+	4: Instant correct recall  
+
+### Add card tab  
+Add card as unfinished: Alt+u  
+Add card as finished: Alt+f  
+
+### Incremental reading tab  
+
+Add new text under selected topic: Alt+a  
+
+### Widget-specific keybindings  
  
-You will mark those cards as unfinished, as you do not yet know the answer to the questions. The original card will be de-activated, meaning it won't come up for review as it has unfinished dependencies. When you find out the answer to the dependencies, the original card will be activated. This also works recursively, you might find that the dependencies themselves have dependencies, it might go many layers deep, until you finally reach the end and all the cards will be activated as a line of falling dominos.
+#### Topic list  
+
+
+up/down: k/j  
+Place topic below topic beneath: l
+Put topic one step up: h  
+move topic up/down: K/J  
+  
+#### Incremental reading widget  
+
+normal mode: Ctrl + c  
+visual mode from normal mode: v  
+insert mode from normal mode: i  
+new extract from visual mode: Alt+x  
+new cloze from visual mode: Alt+z  
+.... and a bunch of other vim commands, feel free to make pull requests for new ones  
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

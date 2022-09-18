@@ -5,6 +5,7 @@ pub mod import;
 pub mod incread;
 
 use crate::app::App;
+use crate::tabs::Widget;
 use crate::utils::widgets::find_card::draw_find_card;
 
 
@@ -18,7 +19,7 @@ use crate::ui::{
     incread::draw_incread,
 };
 
-
+use crate::tabs::MyType;
 use tui::{
     backend::Backend,
     layout::{Constraint, Layout},
@@ -28,17 +29,24 @@ use tui::{
         Block, Borders, Tabs},
     Frame,
 };
-pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+pub fn draw(f: &mut Frame<MyType>, app: &mut App) {
     
     let chunks = Layout::default()
-        .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+        .constraints(
+            [
+            Constraint::Length(3), 
+            Constraint::Min(0),
+            ]
+            .as_ref())
         .split(f.size());
+
     let titles = app
         .tabs
         .titles
         .iter()
         .map(|t| Spans::from(Span::styled(*t, Style::default().fg(Color::Green))))
         .collect();
+
     let tabs = Tabs::new(titles)
         .block(Block::default().borders(Borders::ALL))
         .highlight_style(Style::default().fg(Color::Yellow))
@@ -53,9 +61,9 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             match app.tabs.index {
                 0 => main_review(f,   app, chunks[1]),
                 1 => draw_add_card(f, app, chunks[1]),
-                2 => draw_browse(f,   app, chunks[1]),
-                3 => draw_incread(f,  app, chunks[1]),
-                4 => draw_import(f,   app, chunks[1]),
+                2 => draw_incread(f,  app, chunks[1]),
+                3 => draw_browse(f,   app, chunks[1]),
+                4 => app.debug.render(f, chunks[1]),
                 _ => {},
             };
         },

@@ -14,7 +14,7 @@ use rusqlite::Connection;
 use crate::utils::aliases::*;
 use crate::utils::widgets::newchild::AddChildWidget;
 
-
+use crate::utils::widgets::newchild::Purpose;
 
 /* 
 
@@ -38,8 +38,9 @@ navigation is with alt+[h,j,k,l]
 enum Action {
     IncNext(String, TopicID),
     IncDone(String, TopicID),
-    Review(String, String, CardID, RecallGrade),
+    Review(String, String, CardID, char),
     SkipUnf(String, String, CardID),
+    SkipRev(String, String, CardID),
     CompleteUnf(String, String, CardID),
     NewDependency(CardID),
     NewDependent(CardID),
@@ -72,7 +73,14 @@ pub fn review_event(app: &mut App, key: MyKey) {
             app.review.inc_done(id, &app.conn);
             update_inc_text(&app.conn, source, id).unwrap();
         },
-        Action::Review(question, answer, id, grade) => {
+        Action::Review(question, answer, id, char) => {
+            let grade = match char{
+                '1' => RecallGrade::None,
+                '2' => RecallGrade::Failed,
+                '3' => RecallGrade::Decent,
+                '4' => RecallGrade::Easy,
+                _ => panic!("illegal argument"),
+            };
             app.review.new_review(&app.conn, id, grade);
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();
@@ -82,6 +90,11 @@ pub fn review_event(app: &mut App, key: MyKey) {
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();
             double_skip_duration(&app.conn, id).unwrap();
+        },
+        Action::SkipRev(question, answer, id) => {
+            app.review.random_mode(&app.conn);
+            update_card_question(&app.conn, id, question).unwrap();
+            update_card_answer(&app.conn, id, answer).unwrap();
         },
         Action::CompleteUnf(question, answer, id) => {
             Card::toggle_complete(id, &app.conn);
@@ -94,7 +107,6 @@ pub fn review_event(app: &mut App, key: MyKey) {
             let purpose = CardPurpose::NewDependency(id);
             let cardfinder = FindCardWidget::new(&app.conn, prompt, purpose);
             app.popup = PopUp::CardSelecter(cardfinder);
-            app.review.random_mode(&app.conn);
         },
         Action::NewDependent(id) => {
             let prompt = String::from("Add new dependent");
@@ -103,18 +115,15 @@ pub fn review_event(app: &mut App, key: MyKey) {
             app.popup = PopUp::CardSelecter(cardfinder);
         },
         Action::AddDependent(id) => {
-            let newcard = NewCard::new(&app.conn, crate::logic::add_card::DepState::NewDependent(id));  
-            app.add_card = newcard;
-            app.on_right();
+            let addchild = AddChildWidget::new(&app.conn, Purpose::Dependency(id));
+            app.popup = PopUp::AddChild(addchild);
         },
         Action::AddDependency(id) => {
-            let newcard = NewCard::new(&app.conn, crate::logic::add_card::DepState::NewDependency(id));  
-            app.add_card = newcard;
-            app.on_right();
-            app.review.random_mode(&app.conn);
+            let addchild = AddChildWidget::new(&app.conn, Purpose::Dependent(id));
+            app.popup = PopUp::AddChild(addchild);
         },
         Action::AddChild(id) => {
-            let addchild = AddChildWidget::new(&app.conn, id);
+            let addchild = AddChildWidget::new(&app.conn, Purpose::Source(id));
             app.popup = PopUp::AddChild(addchild);
         }
         Action::Quit => {
@@ -124,21 +133,56 @@ pub fn review_event(app: &mut App, key: MyKey) {
     }
 }
 
+
+fn unf_nav(rev: &mut UnfCard, dir: &Direction){
+    use UnfSelection::*;
+    use Direction::*;
+    match (&rev.selection, dir){
+        (Question, Right) => rev.selection = Dependents,
+        (Question, Down)  => rev.selection = Answer,
+        
+        (Answer, Right)   => rev.selection = Dependencies,
+        (Answer, Up)      => rev.selection = Question,
+
+        (Dependencies, Left) => rev.selection = Answer,
+        (Dependencies, Up)   => rev.selection = Dependents,
+
+        (Dependents, Left)   => rev.selection = Question,
+        (Dependents, Down)   => rev.selection = Dependencies,
+
+        _ => {},
+    }
+}
+fn rev_nav(rev: &mut CardReview, dir: &Direction){
+    use ReviewSelection::*;
+    use Direction::*;
+    match (&rev.selection, dir){
+        (Question, Right) => rev.selection = Dependents,
+        (Question, Down) if rev.reveal => rev.selection = Answer,
+        (Question, Down) => rev.selection = RevealButton,
+        
+        (Answer, Right)   => rev.selection = Dependencies,
+        (Answer, Up)      => rev.selection = Question,
+
+        (Dependencies, Left) if rev.reveal => rev.selection = Answer,
+        (Dependencies, Left) => rev.selection = RevealButton,
+        (Dependencies, Up)   => rev.selection = Dependents,
+
+        (Dependents, Left)   => rev.selection = Question,
+        (Dependents, Down)   => rev.selection = Dependencies,
+
+        (RevealButton, Right)   => rev.selection = Dependencies,
+        (RevealButton, Up)   => rev.selection = Question,
+        _ => {},
+    }
+}
 fn inc_nav(inc: &mut IncMode, dir: &Direction){
     use IncSelection::*;
     use Direction::*;
     match (&inc.selection, dir){
         (Source, Right) => inc.selection = Extracts,
-        (Source, Down) => inc.selection = Skip,
-        
-        (Skip, Right) => inc.selection = Complete,
-        (Skip, Up) => inc.selection = Source,
 
-        (Complete, Up) => inc.selection = Clozes,
-        (Complete, Left) => inc.selection = Skip,
-
-        (Clozes, Down) => inc.selection = Complete,
-        (Clozes, Up) => inc.selection = Extracts,
+        (Clozes, Up)   => inc.selection = Extracts,
         (Clozes, Left) => inc.selection = Source,
 
         (Extracts, Left) => inc.selection = Source,
@@ -155,151 +199,76 @@ fn mode_inc(conn: &Connection, inc: &mut IncMode, key: MyKey, action: &mut Actio
         inc_nav(inc, dir);
         return;
     }
-
     match (&inc.selection, key) {
-        (_, Char('q')) => *action = Action::Quit,
+        (_, Alt('q')) => *action = Action::Quit,
         (_, Alt('d')) => *action = Action::IncDone(inc.source.source.return_text(), inc.id), 
-        (_, Alt('n')) => *action = Action::IncNext(inc.source.source.return_text(), inc.id),
-        (Source, Enter) => inc.selection = Source,
-        
-        (Source, Esc) => inc.selection = Source,
+        (_, Alt('s')) => *action = Action::IncNext(inc.source.source.return_text(), inc.id),
         (Source, Alt('a')) => *action = Action::AddChild(inc.id),
+        (_, Alt('f')) => *action = Action::IncDone(inc.source.source.return_text(), inc.id),
         (Source, key) =>  inc.source.keyhandler(conn, key),
-
-        (Extracts, Enter) => inc.selection = Extracts,
-        
-        (Extracts, Esc) => inc.selection = Extracts,
-
-        (Clozes, Esc) => inc.selection = Clozes,
-
-        (Clozes, Enter) => inc.selection = Clozes,
-
-
-        (Skip, Enter) => *action = Action::IncNext(inc.source.source.return_text(), inc.id),
-
-        (Complete, Enter) => *action = Action::IncDone(inc.source.source.return_text(), inc.id),
         (_,_) => {},
     }
 }
-
-
-
-
-
 
 fn mode_review(unf: &mut CardReview, key: MyKey, action: &mut Action) {
     use ReviewSelection::*;
     use MyKey::*;
         
+    if let MyKey::Nav(dir) = &key{
+        rev_nav(unf, dir);
+        return;
+    }
     match (&unf.selection, key){
-
-        (Question(true), Esc) => unf.selection = Question(false),
-        (Question(true), key) => unf.question.keyhandler(key),
-
-        (Question(false), Char('d')) => unf.selection = Dependents(false),
-        (Question(false), Char('s')) => unf.selection = Answer(false),
-        (Question(false), Enter) => unf.selection = Question(true),
-
-
-        (Answer(true), Esc) => unf.selection = Answer(false),
-        (Answer(true), key) => unf.answer.keyhandler(key),
-
-        (Answer(false), Char('w')) => unf.selection = Question(false),
-        (Answer(false), Char('d')) => unf.selection = Dependencies(false),
-        (Answer(false), Enter) => unf.selection = Answer(true),
-        
-        (Dependencies(true),  Esc) => unf.selection = Dependencies(false),
-
-        (Dependencies(false), Enter) => unf.selection = Dependencies(true),
-        (Dependencies(false),  Char('a')) => unf.selection = Answer(false),
-        (Dependencies(false),  Char('w')) => unf.selection = Dependents(false),
-        
-        (Dependents(true),  Esc) => unf.selection = Dependents(false),
-
-        (Dependents(false), Enter) => unf.selection = Dependents(true),
-        (Dependents(false), Char('a')) => unf.selection = Question(false),
-        (Dependents(false), Char('s')) => unf.selection = Dependencies(false),
-
-        (_, Char('1')) => *action = Action::Review(unf.question.return_text(), unf.answer.return_text(), unf.id, RecallGrade::None),
-        (_, Char('2')) => *action = Action::Review(unf.question.return_text(), unf.answer.return_text(), unf.id, RecallGrade::Failed),
-        (_, Char('3')) => *action = Action::Review(unf.question.return_text(), unf.answer.return_text(), unf.id, RecallGrade::Decent),
-        (_, Char('4')) => *action = Action::Review(unf.question.return_text(), unf.answer.return_text(), unf.id, RecallGrade::Easy),
-     
-        (_, Char(' ')) => unf.reveal = true,
-        (_, Char('t')) => *action = Action::NewDependent(unf.id),
-        (_, Char('y')) => *action = Action::NewDependency(unf.id),
-        (_, Char('T')) => *action = Action::AddDependent(unf.id),
-        (_, Char('Y')) => *action = Action::AddDependency(unf.id),
+        (_, Alt('q')) => *action = Action::Quit,
+        (_, Char(num)) if num.is_digit(10) 
+            && (1..5).contains(&num.to_digit(10).unwrap()) =>  {
+                *action = Action::Review(
+                    unf.question.return_text(), 
+                    unf.answer.return_text(), 
+                    unf.id, 
+                    num,
+            )},
+        (_, Alt('w')) => unf.reveal = true,
+        (_, Alt('s'))     => *action = Action::SkipRev(unf.question.return_text(), unf.answer.return_text(), unf.id),
+        (_, Alt('t')) => *action = Action::NewDependent(unf.id),
+        (_, Alt('y')) => *action = Action::NewDependency(unf.id),
+        (_, Alt('T')) => *action = Action::AddDependent(unf.id),
+        (_, Alt('Y')) => *action = Action::AddDependency(unf.id),
+        (RevealButton, Char(' '))  => {
+            unf.reveal = true;
+            unf.selection = Answer;
+        },
+        (Question, key) => unf.question.keyhandler(key),
+        (Answer,   key) => unf.answer.keyhandler(key),
         (_,_) => {},
-
-
-        
     }
 }
 
-
-
-
-
-
-
-
 fn mode_done(key: MyKey, action: &mut Action){
-
     match key{
-        MyKey::Char('q') => *action = Action::Quit,
+        MyKey::Alt('q') => *action = Action::Quit,
         _ => {},
     }
 }
 
-
-
 fn mode_unfinished(unf: &mut UnfCard, key: MyKey, action: &mut Action) {
     use UnfSelection::*;
     use MyKey::*;
-        
+
+    if let MyKey::Nav(dir) = &key{
+        unf_nav(unf, dir);
+        return;
+    }
     match (&unf.selection, key){
-
-        (Question(true), Esc) => unf.selection = Question(false),
-        (Question(true), key) => unf.question.keyhandler(key),
-
-        (Question(false), Char('d')) => unf.selection = Dependents(false),
-        (Question(false), Char('s')) => unf.selection = Answer(false),
-        (Question(false), Enter) => unf.selection = Question(true),
-
-
-        (Answer(true), Esc) => unf.selection = Answer(false),
-        (Answer(true), key) => unf.answer.keyhandler(key),
-
-        (Answer(false), Char('w')) => unf.selection = Question(false),
-        (Answer(false), Char('d')) => unf.selection = Dependencies(false),
-        (Answer(false), Char('s')) => unf.selection = Skip,
-        (Answer(false), Enter) => unf.selection = Answer(true),
-        
-        (Dependencies(true),  Esc) => unf.selection = Dependencies(false),
-
-        (Dependencies(false), Enter) => unf.selection = Dependencies(true),
-        (Dependencies(false),  Char('a')) => unf.selection = Answer(false),
-        (Dependencies(false),  Char('s')) => unf.selection = Complete,
-        (Dependencies(false),  Char('w')) => unf.selection = Dependents(false),
-        
-        (Dependents(true),  Esc) => unf.selection = Dependents(false),
-
-        (Dependents(false), Enter) => unf.selection = Dependents(true),
-        (Dependents(false), Char('a')) => unf.selection = Question(false),
-        (Dependents(false), Char('s')) => unf.selection = Dependencies(false),
-
-        (Skip, Char('d')) => unf.selection = Complete,
-        (Skip, Char('w')) => unf.selection = Answer(false),
-        (Skip, Enter) => *action = Action::SkipUnf(unf.question.return_text(), unf.answer.return_text(), unf.id), //app.review.random_mode(&app.conn),
-        
-        (Complete, Char('w')) => unf.selection = Dependencies(false),
-        (Complete, Char('a')) => unf.selection = Skip,
-        (Complete, Enter) =>  *action = Action::CompleteUnf(unf.question.return_text(), unf.answer.return_text(), unf.id), 
-        (_, Char('t')) => *action = Action::NewDependent(unf.id),
-        (_, Char('y')) => *action = Action::NewDependency(unf.id),
-        (_, Char('T')) => *action = Action::AddDependent(unf.id),
-        (_, Char('Y')) => *action = Action::AddDependency(unf.id),
+        (_, Alt('q')) => *action = Action::Quit,
+        (_, Alt('s'))     => *action = Action::SkipUnf    (unf.question.return_text(), unf.answer.return_text(), unf.id),
+        (_, Alt('f')) => *action = Action::CompleteUnf(unf.question.return_text(), unf.answer.return_text(), unf.id), 
+        (_, Alt('t'))  => *action = Action::NewDependent(unf.id),
+        (_, Alt('y'))  => *action = Action::NewDependency(unf.id),
+        (_, Alt('T'))  => *action = Action::AddDependent(unf.id),
+        (_, Alt('Y'))  => *action = Action::AddDependency(unf.id),
+        (Question, key) => unf.question.keyhandler(key),
+        (Answer,   key) => unf.answer.keyhandler(key),
         (_,_) => {},
     }
 }

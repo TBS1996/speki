@@ -64,7 +64,7 @@ where
             Span::styled(format!("Current mode: {}    ", current_mode), Style::default().fg(Color::Magenta)),
             Span::styled(finished,   Style::default().fg(Color::Red)),
             Span::styled(unfinished, Style::default().fg(Color::Yellow)),
-            Span::styled(pending,    Style::default().fg(Color::Cyan)),
+        //    Span::styled(pending,    Style::default().fg(Color::Cyan)),
             Span::styled(incread,    Style::default().fg(Color::Green)),
             ]
             )

@@ -8,6 +8,17 @@ use tui::{
     Frame,
 };
 
+use crate::Object;
+
+struct SubFin{
+    text: String,
+}
+
+
+
+
+
+
 pub fn draw_button<B>(f: &mut Frame<B>, area: Rect, text: &str, selected: bool)
 where
     B: Backend,
@@ -23,3 +34,33 @@ where
     let paragraph = Paragraph::new(Spans::from(text)).block(block).alignment(Alignment::Center).wrap(Wrap { trim: true });
     f.render_widget(paragraph, area);
 }
+
+
+/*
+
+
+asf asd
+
+
+
+so a tab may implement a get_card trait 
+
+a tab will call keyhandler on all its widgets 
+
+
+
+impl Object for SubFin{
+    fn keyhandler(&mut self, key: crate::MyKey) {
+        
+    }
+}
+
+
+
+
+
+*/
+
+
+
+

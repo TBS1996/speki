@@ -17,7 +17,7 @@ use crate::utils::incread::IncListItem;
 
 #[derive(PartialEq)]
 pub enum Selection{
-    Incread(bool),
+    Incread,
     List,
     Extracts,
     Topics,
@@ -92,6 +92,10 @@ impl MainInc{
         let foo = StatefulList::with_items(items);
         self.inclist = foo;
     }
+
+    pub fn reload_extracts(&mut self, conn: &Connection, id: IncID){
+        self.extracts.items = load_extracts(conn, id).unwrap();
+    }
 }
 
 
@@ -103,13 +107,14 @@ impl<T> StraitList<T> for StatefulList<IncListItem>{
     fn generate_list_items(&self, selected: bool) -> List{
         let bordercolor = if selected {Color::Red} else {Color::White};
         let style = Style::default().fg(bordercolor);
+        
 
         let items: Vec<ListItem> = self.items.iter().map(|inc| {
             let lines = vec![Spans::from(inc.text.clone())];
             ListItem::new(lines).style(Style::default())
         }).collect();
         
-        let items = List::new(items).block(Block::default().borders(Borders::ALL).border_style(style).title("Inc texts"));
+        let items = List::new(items).block(Block::default().borders(Borders::ALL).border_style(style).title(""));
         
         if selected{
         items
@@ -121,4 +126,6 @@ impl<T> StraitList<T> for StatefulList<IncListItem>{
         else {items}
     }
 }
+
+
 

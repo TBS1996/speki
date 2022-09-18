@@ -39,7 +39,7 @@ where
         );
     }
     let statelist = StatefulList::with_items(dependent_vec);
-    list_widget(f, &statelist, area, selected)
+    list_widget(f, &statelist, area, selected);
 }
 
 

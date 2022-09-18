@@ -24,10 +24,8 @@ pub enum DepState{
 
 //#[derive(Clone)]
 pub enum TextSelect{
-    Question(bool), // Bool indicates if youre in text-editing mode
-    Answer(bool),
-    SubmitFinished,
-    SubmitUnfinished,
+    Question, // Bool indicates if youre in text-editing mode
+    Answer,
     Topic,
     ChooseCard(FindCardWidget),
 }
@@ -58,18 +56,21 @@ impl NewCard{
             answer:    Field::new(),
             state,
             topics,
-            selection: TextSelect::Question(false),
-
-
+            selection: TextSelect::Question,
         }
     }
 
 
-    pub fn navigate(&mut self, key: KeyCode){
-
-        match (&self.selection, key){
-            (TextSelect::Topic, KeyCode::Left) => self.selection = TextSelect::Question(false),
-            _ => {},
+    pub fn navigate(&mut self, dir: crate::Direction){
+        use TextSelect::*;
+        use crate::Direction::*;
+        match (&self.selection, dir){
+            (Question, Right) => self.selection = Topic,
+            (Question, Down) => self.selection = Answer,
+            (Answer, Up) => self.selection = Question,
+            (Answer, Right) => self.selection = Topic,
+            (Topic, Left) => self.selection = Question,
+            (_,_) => {},
         }
     }
 
@@ -104,43 +105,17 @@ impl NewCard{
         }
     }
 
-
-    pub fn submit_card(&mut self, conn: &Connection) {
-        let topic: TopicID; 
-        match self.topics.get_selected_id(){
-            None => topic = 0,
-            Some(num) => topic = num,
-        }
-
+    pub fn submit_card(&mut self, conn: &Connection, iscompleted: bool){
         let question = self.question.return_text();
-        let answer   = self.answer.return_text();
-
-        let status = match self.selection{
-            TextSelect::SubmitFinished => Status::new_complete(),
-            TextSelect::SubmitUnfinished => Status::new_incomplete(),
-            _  => panic!("wtf"),
+        let answer = self.answer.return_text();
+        let topic = self.topics.get_selected_id().unwrap();
+        let source = if let DepState::NewChild(incid) = self.state{
+            incid
+        } else {
+            0
         };
 
-        let newcard = Card{
-            question,
-            answer, 
-            status,
-            strength: 1f32,
-            stability: 1f32,
-            dependencies: Vec::<CardID>::new(),
-            dependents: Vec::<CardID>::new(),
-            history: vec![Review::from(&RecallGrade::Decent)] ,
-            topic,
-            future: String::from("[]"),
-            integrated: 1f32,
-            card_id: 0,
-            source: 0,
-            skiptime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32,
-            skipduration: 1,
-
-        };
-
-        save_card(conn, newcard).unwrap();
+        Card::save_new_card(conn, question, answer, topic, source, iscompleted);
         revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent)).unwrap();
 
         let last_id: CardID = highest_id(conn).unwrap();
@@ -154,10 +129,8 @@ impl NewCard{
                 Card::check_resolved(id, conn);
             },  
             DepState::NewChild(id) => {
-                update_card_source(conn, last_id, id).unwrap();
             }
         }
-
         self.reset(DepState::None, conn);
     }
 
@@ -167,103 +140,11 @@ impl NewCard{
         self.question = Field::new();
         self.answer = Field::new();
         self.state = state;
-        self.selection = TextSelect::Question(false);
+        self.selection = TextSelect::Question;
     }
 
-
-
-
-
-    pub fn enterkey(&mut self, conn: &Connection){
-        match self.selection{
-            TextSelect::Question(_) => self.selection = TextSelect::Question(true),
-            TextSelect::Answer(_)   => self.selection = TextSelect::Answer(true),
-            TextSelect::SubmitFinished | TextSelect::SubmitUnfinished => self.submit_card(conn),
-            _ => {}, 
-        }
-    }
-
-
-
-
-    pub fn istextselected(&self)->bool{
-//        (self.selection == TextSelect::Question(true)) || (self.selection == TextSelect::Answer(true))
-
-
-            match self.selection{
-                TextSelect::Question(true) => true,
-                TextSelect::Answer(true) => true,
-                _ => false,
-            }
-    }
-
-    pub fn deselect(&mut self){
-        match self.selection{
-            TextSelect::Answer(_) => self.selection = TextSelect::Answer(false),
-            TextSelect::Question(_) => self.selection = TextSelect::Question(false),
-            _ => {},
-        }
-    }
     pub fn uprow(&mut self){}
     pub fn downrow(&mut self){}
     pub fn home(&mut self){}
     pub fn end(&mut self){}
-    /*
-    pub fn pageup(&mut self){
-        match self.selection{
-            TextSelect::Question(_) => self.question.cursor = 0,
-            TextSelect::Answer(_) => self.answer.cursor = 0,
-            _ => {},
-        }
-    }
-    pub fn pagedown(&mut self){
-        match self.selection{
-            TextSelect::Question(_) => self.question.cursor = self.question.text.len() - 2,
-            TextSelect::Answer(_)   => self.answer.cursor   = self.answer.text.len()   - 2,
-            _ => {},
-        }
-    }
-    */ 
-    pub fn tab(&mut self){
-
-        match self.selection{
-            TextSelect::Question(_) => self.selection = TextSelect::Answer(false),
-            TextSelect::Answer(_)   => {},
-            _ => {},
-        }
-    }
-    pub fn backtab(&mut self){
-        match self.selection{
-            TextSelect::Question(_) => {},
-            TextSelect::Answer(_)   => self.selection = TextSelect::Question(false),
-            _ => {},
-        }
-    }
-
-    pub fn rightkey(&mut self){
-        self.selection = TextSelect::Topic;
-    }
-
-    pub fn leftkey(&mut self){
-        self.selection = TextSelect::Question(false);
-    }
-
-    pub fn upkey(&mut self){
-        match self.selection{
-            TextSelect::Answer(_)         => self.selection = TextSelect::Question(false),
-            TextSelect::SubmitFinished   => self.selection = TextSelect::Answer(false),
-            TextSelect::SubmitUnfinished => self.selection = TextSelect::SubmitFinished,
-            _ => {},
-
-            }
-    }
-    pub fn downkey(&mut self){
-        match self.selection{
-            TextSelect::Question(_)       => self.selection = TextSelect::Answer(false),
-            TextSelect::Answer(_)         => self.selection = TextSelect::SubmitFinished,
-            TextSelect::SubmitFinished   => self.selection = TextSelect::SubmitUnfinished,
-            _ => {},
-        }
-    }
 }
-

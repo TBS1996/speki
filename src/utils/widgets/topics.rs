@@ -465,7 +465,7 @@ pub fn keyhandler(&mut self, key: MyKey, conn: &Connection){
                     self.writing = Some(NewTopic::new(topic.id));
                 }
                 MyKey::Char('j') => self.next(),
-                MyKey::Char('n') => {
+                MyKey::Char('a') => {
                     let parent = self.get_selected_id().unwrap();
                     let parent_index = self.state.selected().unwrap();
                     let name = String::new();

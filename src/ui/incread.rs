@@ -21,7 +21,7 @@ where
     let (topright, middleright, bottomright) = (right[0], right[1], right[2]);
 
     if let Some(inc) = &mut app.incread.focused{
-        inc.source.set_rowlen(left.width - 2);
+        inc.source.set_rowlen(left.width);
     }
 
 
@@ -30,7 +30,7 @@ where
     match app.incread.selection{
         Selection::List => listselected = true,
         Selection::Extracts =>  ex_select = true,
-        Selection::Incread(_) => field_select = true,
+        Selection::Incread => field_select = true,
         Selection::Topics => topic_select = true,
     }
     

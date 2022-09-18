@@ -18,10 +18,11 @@ use tui::backend::Backend;
 
 
 pub enum ReviewSelection{
-    Question(bool),
-    Answer(bool),
-    Dependencies(bool),
-    Dependents(bool),
+    Question,
+    Answer,
+    Dependencies,
+    Dependents,
+    RevealButton,
 }
 
 
@@ -44,12 +45,10 @@ pub struct UnfCard{
 }
 
 pub enum UnfSelection{
-    Question(bool),
-    Answer(bool),
-    Dependencies(bool),
-    Dependents(bool),
-    Skip,
-    Complete,
+    Question,
+    Answer,
+    Dependencies,
+    Dependents,
 }
 
 
@@ -57,15 +56,12 @@ pub struct IncMode{
     pub id: IncID,
     pub source: IncRead,
     pub selection: IncSelection,
-    
 }
 
 pub enum IncSelection{
     Source,
     Clozes,
     Extracts,
-    Skip,
-    Complete,
 }
 
 
@@ -182,14 +178,6 @@ impl ReviewList {
         myself
         }
 
-
-
-
-
-
-
-
-
     pub fn random_mode(&mut self, conn: &Connection){
 
         let  act: u32 = self.for_review.review_cards.len() as u32;
@@ -234,7 +222,7 @@ impl ReviewList {
     }
     pub fn new_unfinished_mode(&mut self, conn: &Connection){
         let id = self.for_review.unfinished_cards.remove(0);
-        let selection = UnfSelection::Question(false);
+        let selection = UnfSelection::Question;
         let mut question = Field::new();
         let mut answer = Field::new();
         let card = fetch_card(conn, id);
@@ -253,7 +241,7 @@ impl ReviewList {
     pub fn new_pending_mode(&mut self, conn: &Connection){
         let id = self.for_review.pending_cards.remove(0);
         let reveal = false;
-        let selection = ReviewSelection::Question(false);
+        let selection = ReviewSelection::Question;
         let mut question = Field::new();
         let mut answer = Field::new();
         let card = fetch_card(conn, id);
@@ -272,7 +260,7 @@ impl ReviewList {
     pub fn new_review_mode(&mut self, conn: &Connection){
         let id = self.for_review.review_cards.remove(0);
         let reveal = false;
-        let selection = ReviewSelection::Question(false);
+        let selection = ReviewSelection::RevealButton;
         let mut question = Field::new();
         let mut answer = Field::new();
         let card = fetch_card(conn, id);
@@ -288,7 +276,6 @@ impl ReviewList {
 
         self.mode = ReviewMode::Review(cardreview);
     }
-
 
     pub fn inc_next(&mut self, conn: &Connection){
         self.random_mode(conn);
@@ -310,21 +297,3 @@ impl ReviewList {
 
 
 
-use crate::MyKey;
-use crate::app::App;
-use crate::app::Tab;
-use tui::layout::Rect;
-
-/*
-impl Tab for ReviewList{
-    fn keyhandler(app: &mut App, key: MyKey){
-        crate::events::review::review_event(app, key);
-    }
-    fn render<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect){
-        crate::ui::review::main_review(f, app, area);
-
-    }
-
-}
-
-*/

@@ -1,5 +1,6 @@
 use crate::MyKey;
-use queues::CircularBuffer;
+use webbrowser;
+
 
 use tui::{
     backend::Backend,
@@ -90,19 +91,22 @@ impl Field{
     }
 
 
-
     pub fn set_normal_mode(&mut self){
         self.title = "normal mode".to_string();
         self.startselect = None;
         self.mode = Mode::Normal;
     }
 
-    pub fn set_rowlen(&mut self, rowlen: u16){
-        self.rowlen = rowlen;
+    pub fn set_rowlen(&mut self, win_width: u16){
+        self.rowlen = win_width - 2;
     }
 
     pub fn set_win_height(&mut self, winheight: u16){
         self.window_height = winheight;
+    }
+
+    fn is_last_visual_row(&self) -> bool {
+        false
     }
 
 
@@ -119,14 +123,12 @@ impl Field{
 
     fn add_key(&mut self, key: MyKey){
         self.keyvec.push(key);
-        self.keyvec.remove(0);
     }
 
     fn visual_row_start(&self, row: usize) -> Vec<usize>{
         if self.text[row].len() < self.rowlen as usize{
             return vec![0];
         }
-        
         let mut cons_non_space = 0;
         let mut linestartvec: Vec<usize> = vec![0];
         let mut linestart = 0;
@@ -137,11 +139,16 @@ impl Field{
                 cons_non_space = 0;
             }
             if (idx as u16 - linestart as u16) > self.rowlen{
-                linestart = (linestart as u16 + self.rowlen - cons_non_space as u16) as usize;
-                linestartvec.push(linestart + 1);
+                linestart = (linestart as u16 + self.rowlen - cons_non_space as u16) as usize + 1;
+                linestartvec.push(linestart + 0);
             }
         }
         return linestartvec;
+    }
+
+    pub fn debug_vis_row(&mut self){
+        let lines = self.visual_row_start(self.cursor.row);
+        dbg!(&self.cursor.column, lines);
     }
 
 
@@ -180,14 +187,42 @@ impl Field{
     }
 
     fn visual_up(&mut self){
-        if self.cursor.column as u16 > self.rowlen{
-            self.cursor.column -= self.rowlen as usize;
-        } else if self.cursor.row == 0{
-            return;
-        } else {
-            self.cursor.column = std::cmp::min(self.text[self.cursor.row - 1].len(), self.cursor.column);
-            self.cursor.row -= 1;
+        let lines = self.visual_row_start(self.cursor.row);
+        let mut offset = 0;
+        let mut relative_line = 0;
+
+        for i in (0..lines.len()).rev(){
+            if lines[i] <= self.cursor.column{
+                relative_line = i;
+                offset = self.cursor.column - lines[i];
+                break;
+            }
         }
+
+        if relative_line > 0{
+//            dbg!(&relative_line, &offset, &lines, &self.cursor);
+            
+            self.cursor.column = std::cmp::min(
+                lines[relative_line - 1] + offset,
+                lines[relative_line] - 2 
+                );
+
+        } else {
+            if self.cursor.row == 0{return}
+            let above_lines = self.visual_row_start(self.cursor.row - 1);
+            let thelen = above_lines.len();
+            let last_line_start = above_lines[thelen - 1];
+            let maxcol = self.text[self.cursor.row-1].len();
+            self.cursor.column = std::cmp::min(
+                last_line_start + offset,
+                maxcol,
+                );
+            self.cursor.row -= 1;
+
+        }
+
+
+
     }
 
     pub fn addchar(&mut self, c: char){
@@ -271,6 +306,7 @@ impl Field{
         }
     }
 
+    // first 
     pub fn delete_previous_word(&mut self){
         let mut char_found = false;
         
@@ -286,7 +322,6 @@ impl Field{
                     break;
                 }
             }
-
         }
     }
 
@@ -300,6 +335,7 @@ impl Field{
     }
 
     pub fn replace_text(&mut self, newtext: String){
+
         self.text = newtext.split('\n').map(|s| s.to_string()).collect();
     }
 
@@ -308,6 +344,14 @@ impl Field{
         for i in (0..foo.len()).rev(){
             self.text.insert(self.cursor.row, foo[i].clone());
         }
+    }
+
+    pub fn push(&mut self, text: String){
+        let foo: Vec<String> = text.split('\n').map(|s| s.to_string()).collect();
+        for i in (0..foo.len()).rev(){
+            self.text.push(foo[i].clone());
+        }
+
     }
 
 
@@ -331,20 +375,18 @@ impl Field{
         } else {
             self.scroll -= godown;
         }
-        
     }
 
 
     fn goto_start_visual_line(&mut self){
         let linevec = self.visual_row_start(self.cursor.row);
-
         for i in (0..linevec.len()).rev(){
             if linevec[i] <= self.cursor.column{
                 if i == 0 {
                     self.cursor.column = 0;
                     return;
                 }
-                self.cursor.column = linevec[i] + 1;
+                self.cursor.column = linevec[i];
                 return
             }
         }
@@ -355,11 +397,19 @@ impl Field{
         
         for i in 0..linevec.len(){
             if linevec[i] > self.cursor.column{
-                self.cursor.column = linevec[i] - 1;
+                self.cursor.column = linevec[i] - 2;
                 return;
             }
         }
         self.cursor.column = self.text[self.cursor.row].len();
+    }
+
+    fn google_it(&self){
+        let text = self.return_text();
+        let mut text = text.replace(" ", "+");
+        let base_url = "http://www.google.com/search?q=";
+        text.push_str(base_url);
+        webbrowser::open(&text);
     }
 
 
@@ -367,88 +417,50 @@ impl Field{
         self.scroll += self.window_height / 2;
     }
 
-    pub fn keyhandler(&mut self, key: MyKey){
-        self.add_key(key.clone());
-
-        
-
-        match self.mode{
-            Mode::Normal => self.normal_keyhandler(key),
-            Mode::Insert => self.insert_keyhandler(key),
-            Mode::Visual => self.visual_keyhandler(key),
-        }
-       }
-
-    fn insert_keyhandler(&mut self, key: MyKey){
-        match key {
-            MyKey::Ctrl('w') => self.delete_previous_word(),
-            MyKey::Backspace => self.backspace(),
-            MyKey::End => self.goto_end_visual_line(),
-            MyKey::Home => self.goto_start_visual_line(),
-            MyKey::Delete => self.delete(),
-            MyKey::Right => self.next(),
-            MyKey::Left => self.prev(),
-            MyKey::Down => self.visual_down(),
-            MyKey::Up => self.visual_up(),
-            MyKey::Ctrl('c') => self.set_normal_mode(),
-            MyKey::Char(c) => self.addchar(c),
-            MyKey::Enter => self.newline(),
-            MyKey::Paste(paste) => self.paste(paste),
-            _ => {},
-        }
-    }
-    fn normal_keyhandler(&mut self, key: MyKey){
-        use MyKey::*;
-        match key{
-            Char('i') => self.set_insert_mode(),
-            End => self.goto_end_visual_line(),
-            Home => self.goto_start_visual_line(),
-            Char('e') => self.jump_forward(5),
-            Char('b') => self.jump_backward(5),
-            Char('Y') => self.copy_right(),
-            Char('D') => self.delete_right_of_cursor(),
-            Char('p') => self.paste_buffer(),
-            Char('k') => self.visual_up(),
-            Char('j') => self.visual_down(),
-            Char('h') => self.prev(),
-            Char('l') => self.next(),
-            Char('w') => self.start_of_next_word(),
-            Char('v') => self.set_visual_mode(),
-            Ctrl('u') => self.scroll_half_up(),
-            Ctrl('d') => self.scroll_half_down(),
-            Char('O') => self.insert_newline_above(),
-            Char('o') => self.insert_newline_below(),
-            _ => {}
-        }
-    }
-    fn visual_keyhandler(&mut self, key: MyKey){
-        use MyKey::*;
-        match key{
-            Char('e') => self.jump_forward(5),
-            Char('b') => self.jump_backward(5),
-            Ctrl('c') => self.set_normal_mode(),
-            End => self.goto_end_visual_line(),
-            Home => self.goto_start_visual_line(),
-            Char('k') => self.visual_up(),
-            Char('j') => self.visual_down(),
-            Char('h') => self.prev(),
-            Char('l') => self.next(),
-            Ctrl('u') => self.scroll_half_up(),
-            Ctrl('d') => self.scroll_half_down(),
-            _ => {},
-        }
-    }
-
 
     
     fn start_of_next_word(&mut self){
-        let mut prev_char = 'a';
-        let mut curr_char = 'b';
-        while !((prev_char == ' ' || prev_char == '.') && (curr_char != ' ' || curr_char != '.')){
-            self.next();
+        let mut found_whitespace = false;
+        for (col, chr) in self.text[self.cursor.row].chars().enumerate(){
+            if chr.is_ascii_whitespace() && col >= self.cursor.column{
+                found_whitespace = true;
+            }
+            if col > self.cursor.column && !chr.is_ascii_whitespace() && found_whitespace {
+                self.cursor.column = col;
+                return;
+            }
         }
     }
 
+
+    fn start_of_previous_word(&mut self){
+        let mut is_prev_white = true;
+        let startcol = self.cursor.column;
+        if startcol == 0 {return}
+        self.cursor.column = 0;
+        
+        for (col, chr) in self.text[self.cursor.row].chars().enumerate(){
+            if !is_prev_white && chr.is_ascii_whitespace() && col  < startcol - 1{
+                self.cursor.column = col + 1;
+            }
+            is_prev_white = chr.is_ascii_whitespace();
+        }
+    }
+
+
+    fn end_of_next_word(&mut self){
+        let mut found_nonwhite = false;
+
+        for (col, chr) in self.text[self.cursor.row].chars().enumerate(){
+            if !chr.is_ascii_whitespace() && col > self.cursor.column {
+                found_nonwhite = true;
+            }
+            if chr.is_ascii_whitespace() && col > self.cursor.column && found_nonwhite{
+                self.cursor.column = col - 1;
+                return;
+            }
+        }
+    }
     fn paste_buffer(&mut self){
         self.text[self.cursor.row].insert_str(self.cursor.column, &self.buffer.clone());
     }
@@ -522,15 +534,46 @@ impl Field{
     }
 
 
+    fn right_char_match(&mut self, c: char){
+        for (col, chr) in self.text[self.cursor.row].chars().enumerate(){
+            if col > self.cursor.column && chr == c {
+                self.cursor.column = col;
+                return;
+            }
+        }
+    }
+   fn left_char_match(&mut self, c: char){
+       let cursorpos = self.cursor.column;
+        for (col, chr) in self.text[self.cursor.row].chars().enumerate(){
+            if chr == c  && col < cursorpos{
+                self.cursor.column = col;
+            }
+        }
+    }
 
+
+
+
+
+    // TODO make this function suck less
     fn cursorsplit(&self, selected: bool) -> Vec<Spans>{
         let mut onemore = self.cursor.clone();
+        let mut splitvec: Vec<CursorPos> = vec![];
         onemore.column += 1;
+        if self.cursor.column != self.text[self.cursor.row].len() {
+        }
 
-        let mut splitvec: Vec<CursorPos> = vec![self.cursor.clone()];
         if self.selection_exists(){
             splitvec.push(self.startselect.clone().unwrap());
+            if self.cursor.column != self.text[self.cursor.row].len() {
+                splitvec.push(onemore);
+            } else {
+                onemore.column = self.text[onemore.row].len();
+                splitvec.push(self.cursor.clone());
+                //dbg!("heyy");
+            }
         } else {
+            splitvec.push(self.cursor.clone());
             splitvec.push(onemore);
         }
 
@@ -553,7 +596,10 @@ impl Field{
                 emptyline = false;
                 let column = splitvec[splitdex].column;
                 let offset = if splitdex == 0 || splitvec[splitdex - 1].row != idx  {0} else {splitvec[splitdex - 1].column};
-                let (left, right) = bar.split_at(column  - offset);
+
+                //let splitat = std::cmp::min(column - offset, bar.len() - 1);
+                let splitat = column - offset;
+                let (left, right) = bar.split_at(splitat);
                 foo = right.to_string().clone();
                 let left = left.to_string();
                 if styled {
@@ -567,9 +613,11 @@ impl Field{
             }
             if selected && idx == self.cursor.row && ((foo.len() == 0 && emptyline) || self.cursor.column == self.text[self.cursor.row].len() ){
                     spanvec.push(Span::styled("_".to_string(), Style::default().add_modifier(Modifier::REVERSED)));
-
-                    if self.cursor.column != 0{
+                    if self.cursor.column != 0 || self.selection_exists(){
                         styled = !styled;
+                    }
+                    if self.cursor.column == self.text[self.cursor.row].len() && self.cursor.column != 0{
+                       // styled = !styled;
                     }
             }
 
@@ -586,7 +634,28 @@ impl Field{
 
 
     
+    fn cursor_after(&mut self){
+        self.cursor.column += 1;
+        self.set_insert_mode();
+    }
 
+
+    fn replace_one_char(&mut self, chr: char){
+        self.text[self.cursor.row] = self.text[self.cursor.row]
+            .chars()
+            .enumerate()
+            .map(|(i,c)| if i == self.cursor.column { chr } else { c })
+            .collect(); 
+    }
+
+    
+    fn start_of_line(&mut self){
+        self.cursor.column = 0;
+    }
+
+    fn end_of_line(&mut self){
+        self.cursor.column = self.text[self.cursor.row].len() -1;
+    }
 
 
 pub fn draw_field<B>(& self, f: &mut Frame<B>, area: Rect, selected: bool)
@@ -596,9 +665,15 @@ where
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);
 
+    let title = if selected{
+        &self.title
+    } else {
+        ""
+    };
+
     
     let block = Block::default().borders(Borders::ALL).border_style(style).title(Span::styled(
-        &self.title,
+        title,
         Style::default()
             .fg(Color::Magenta)
             .add_modifier(Modifier::BOLD),
@@ -610,11 +685,92 @@ where
         .block(block)
         .alignment(self.text_alignment)
         .scroll((self.scroll, 0))
-        .wrap(Wrap { trim: false });
+        .wrap(Wrap { trim: true });
     f.render_widget(paragraph, area);
 }
 
+
+
+
+
+    pub fn keyhandler(&mut self, key: MyKey){
+        self.add_key(key.clone());
+
+        
+
+        match self.mode{
+            Mode::Normal => self.normal_keyhandler(key),
+            Mode::Insert => self.insert_keyhandler(key),
+            Mode::Visual => self.visual_keyhandler(key),
+        }
+       }
+
+    fn insert_keyhandler(&mut self, key: MyKey){
+        use MyKey::*;
+        match key {
+            Alt('g') => self.google_it(),
+            Alt('p') => self.debug_vis_row(),
+            Ctrl('w') => self.delete_previous_word(),
+            Backspace => self.backspace(),
+            End => self.goto_end_visual_line(),
+            Home => self.goto_start_visual_line(),
+            Delete => self.delete(),
+            Right => self.next(),
+            Left => self.prev(),
+            Down => self.visual_down(),
+            Up => self.visual_up(),
+            Ctrl('c') => self.set_normal_mode(),
+            Char(c) => self.addchar(c),
+            Enter => self.newline(),
+            Paste(paste) => self.paste(paste),
+            _ => {},
+        }
+    }
+    fn normal_keyhandler(&mut self, key: MyKey){
+        use MyKey::*;
+        match key{
+            Char('i') => self.set_insert_mode(),
+            Char('a') => self.cursor_after(),
+            End => self.goto_end_visual_line(),
+            Home => self.goto_start_visual_line(),
+            Char('e') => self.end_of_next_word(),
+            Char('b') => self.start_of_previous_word(),
+            Char('Y') => self.copy_right(),
+            Char('D') => self.delete_right_of_cursor(),
+            Char('p') => self.paste_buffer(),
+            Char('k') | Up    => self.visual_up(),
+            Char('j') | Down  => self.visual_down(),
+            Char('h') | Left  => self.prev(),
+            Char('l') | Right => self.next(),
+            Char('w') => self.start_of_next_word(),
+            Char('v') => self.set_visual_mode(),
+            Ctrl('u') => self.scroll_half_up(),
+            Ctrl('d') => self.scroll_half_down(),
+            Char('O') => self.insert_newline_above(),
+            Char('o') => self.insert_newline_below(),
+            Char('^') => self.start_of_line(),
+            Char('$') => self.end_of_line(),
+            Char('x') => self.delete(),
+       //     Char('m') => self.replace_one_char('n'),
+            Ctrl(c) => self.left_char_match(c),
+            _ => {}
+        }
+    }
+    fn visual_keyhandler(&mut self, key: MyKey){
+        use MyKey::*;
+        match key{
+            Char('e') => self.jump_forward(5),
+            Char('b') => self.jump_backward(5),
+            Ctrl('c') => self.set_normal_mode(),
+            End => self.goto_end_visual_line(),
+            Home => self.goto_start_visual_line(),
+            Char('k') | Up    => self.visual_up(),
+            Char('j') | Down  => self.visual_down(),
+            Char('h') | Left  => self.prev(),
+            Char('l') | Right => self.next(),
+            Ctrl('u') => self.scroll_half_up(),
+            Ctrl('d') => self.scroll_half_down(),
+            _ => {},
+        }
+    }
 }
-
-
-

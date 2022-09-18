@@ -2,71 +2,63 @@ use crate::app::App;
 use crate::logic::incread::Selection;
 use crate::MyKey;
 use crate::utils::widgets::textinput::Mode;
+use crate::Direction;
 
 
 
 
 pub fn main_inc(app: &mut App, key: MyKey) {
+
+    
+    if let MyKey::Nav(dir) = &key{
+        nav_inc(app, dir);
+        return;
+    } else if let MyKey::Alt('a') = &key {
+        app.incread.create_source(&app.conn);
+    }
+
+
     match app.incread.selection{
        Selection::List => list_events(app, key),
-       Selection::Incread(false) => inc_events(app, key),
-       Selection::Incread(true) => inc_focus_events(app, key),
+       Selection::Incread => inc_events(app, key),
        Selection::Extracts => extracts_events(app, key),
        Selection::Topics => topic_events(app, key),
     }
 }
 
 
+fn nav_inc(app: &mut App, dir: &Direction) {
+    use Direction::*;
+    use Selection::*;
 
-pub fn topic_events(app: &mut App, key: MyKey) {
-            if let MyKey::Char('a') = key{
-                app.incread.selection = Selection::Incread(false);
-            }
-            else if let MyKey::F(3) = key {
-                app.incread.create_source(&app.conn);
-            }else if let MyKey::Char('s') = key {
-                app.incread.selection = Selection::List;
-            }else {
+    let focused = if let Some(_) = app.incread.focused {true} else {false};
 
-                app.incread.topics.keyhandler(key, &app.conn);
-                app.incread.reload_inc_list(&app.conn);
-            }
-}
-
-
-pub fn inc_events(app: &mut App, key: MyKey) {
-    match key {
-        MyKey::Enter => app.incread.selection = Selection::Incread(true),
-        MyKey::Char('d') => app.incread.selection = Selection::List,
-        MyKey::Char('q') => app.should_quit = true,
-        _ => {},
+    match (&app.incread.selection, dir){
+       (Incread, Right) => app.incread.selection = Topics,
+       (Topics, Down) => app.incread.selection = List,
+       (List, Up) => app.incread.selection = Topics,
+       (List, Down) => app.incread.selection = Extracts,
+       (Extracts, Up) => app.incread.selection = List,
+       (_, Left) if focused => app.incread.selection = Incread,
+       _ => {},
     }
 }
 
 
 
-pub fn inc_focus_events(app: &mut App, key: MyKey) {
-    if let Some(focused) = &mut app.incread.focused{
-        match key{
-            MyKey::F(1) => {
-                if let Some(inc) = &mut app.incread.focused{
-                    inc.extract(&app.conn);
-                    inc.source.set_normal_mode();
-                    app.incread.reload_inc_list(&app.conn);
-                }
-            },
-            MyKey::F(2) => {
-                if let Some(inc) = &mut app.incread.focused{
-                    inc.cloze(&app.conn);
-                    inc.source.set_normal_mode();
-                }
-            },
-            MyKey::Esc => {
-                app.incread.selection = Selection::Incread(false);
-                app.incread.update_text(&app.conn);
-            },
+pub fn topic_events(app: &mut App, key: MyKey) {
+    app.incread.topics.keyhandler(key, &app.conn);
+    app.incread.reload_inc_list(&app.conn);
+}
 
-            key => focused.source.keyhandler(key),
+
+
+pub fn inc_events(app: &mut App, key: MyKey) {
+    if let Some(focused) = &mut app.incread.focused{
+        let incid = focused.id;
+        focused.keyhandler(&app.conn, key.clone());
+        if let MyKey::Alt('x') = &key{
+            app.incread.reload_extracts(&app.conn, incid)
         }
     }
 }
@@ -76,8 +68,6 @@ pub fn extracts_events(app: &mut App, key: MyKey) {
         MyKey::Enter => app.incread.new_focus(&app.conn),
         MyKey::Char('k') => app.incread.extracts.previous(),
         MyKey::Char('j') => app.incread.extracts.next(),
-        MyKey::Char('a') => app.incread.selection = Selection::Incread(false),
-        MyKey::Char('w') => app.incread.selection = Selection::List,
         _ => {},
     }
 
@@ -87,9 +77,6 @@ pub fn list_events(app: &mut App, key: MyKey) {
         MyKey::Enter => app.incread.new_focus(&app.conn),
         MyKey::Char('k') => app.incread.inclist.previous(),
         MyKey::Char('j') => app.incread.inclist.next(),
-        MyKey::Char('w') => app.incread.selection = Selection::Topics,
-        MyKey::Char('a') => app.incread.selection = Selection::Incread(false),
-        MyKey::Char('s') => app.incread.selection = Selection::Extracts,
         _ => {},
     }
 }

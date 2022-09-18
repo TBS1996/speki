@@ -7,7 +7,7 @@ use crate::{
         browse::Browse,
         add_card::{NewCard, DepState}, incread::MainInc,
     }, 
-    utils::widgets::find_card::{FindCardWidget}};
+    utils::widgets::find_card::{FindCardWidget}, tabs::Widget};
 use crate::events::{
     review::review_event,
     browse::browse_event,
@@ -72,6 +72,7 @@ it can also handle popups, so that you can have  a popup on one tab but able to 
 
 
 maybe widgets like topiclist and stuff should be mutable references so that they'll stay in sync
+wait that would fuck up selection lol
 
   */
 
@@ -79,11 +80,7 @@ use tui::layout::Rect;
 use tui::Frame;
 use tui::backend::Backend;
 use crate::utils::widgets::newchild::AddChildWidget;
-
-pub trait Tab {
-    fn keyhandler(&mut self, app: &mut App, key: MyKey);
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, app: &mut App, area: Rect); 
-}
+use crate::utils::widgets::filepicker::Directory;
 
 
 
@@ -103,6 +100,7 @@ pub struct App<'a> {
     pub add_card: NewCard,
     pub browse: Browse,
     pub incread: MainInc,
+    pub debug: Directory,
     pub popup: PopUp,
 }
 
@@ -117,16 +115,18 @@ impl<'a> App<'a> {
         addcards.topics.next();
         let incread = MainInc::new(&conn);
         let popup = PopUp::None;
+        let debug = Directory::new();
 
 
         App {
             should_quit: false,
-            tabs: TabsState::new(vec!["Review", "Add card", "Browse cards 🦀", "Incremental reading"]),
+            tabs: TabsState::new(vec!["Review", "Add card", "Incremental reading"]),  //"Browse cards 🦀", "Incremental reading", "debug"]),
             conn,
             review: revlist,
             add_card: addcards,
             browse,
             incread,
+            debug, 
             popup,
         }
     }
@@ -140,10 +140,15 @@ impl<'a> App<'a> {
         self.tabs.previous();
     }
 
-    pub fn on_tick(&mut self) {}
 
     pub fn handle_key(&mut self, key: MyKey) {
         use PopUp::*;
+
+
+        if let MyKey::Alt('q') = key{
+            self.should_quit = true;
+            return;
+        }
 
         match &mut self.popup{
             None => {
@@ -157,9 +162,11 @@ impl<'a> App<'a> {
                 match self.tabs.index {
                     0 => review_event(self,   key),
                     1 => add_card_event(self, key),
-                    2 => browse_event(self,   key),
-                    4 => main_port(self,      key),
-                    3 => main_inc(self,       key),
+                    3 => browse_event(self,   key),
+                    2 => main_inc(self,       key),
+                    4 => {
+                        self.debug.keyhandler(key);
+                    },
                     _ => {},
                 }
             },
@@ -177,12 +184,8 @@ impl<'a> App<'a> {
                     return;
                 }
             },
-            
         }
-
     }
-
-
 }
 use crossterm::event::Event;
 

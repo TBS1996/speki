@@ -205,11 +205,9 @@ impl Card {
         revlog_new(conn, card_id , Review::from(&RecallGrade::Decent)).unwrap();
         card_id
     }
-
 }
 
 
 use crate::utils::aliases::*;
-
 use super::sql::insert::save_card;
 use super::sql::insert::revlog_new;

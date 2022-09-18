@@ -85,5 +85,22 @@ impl<T> StatefulList<T> {
 }
 
 
+impl<T: Clone> StatefulList<T>{
+    pub fn clone_selected(&mut self) -> Option<T> {
+        if let Some(index) = self.state.selected(){
+            return Some(self.items[index].clone());
+        }
+        None
+    }
+}
+
+impl<T: Copy> StatefulList<T>{
+    pub fn copy_selected(&mut self) -> Option<T> {
+        if let Some(index) = self.state.selected(){
+            return Some(self.items[index]);
+        }
+        None
+    }
+}
 
 

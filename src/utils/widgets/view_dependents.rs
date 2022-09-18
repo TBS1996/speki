@@ -24,8 +24,9 @@ use rusqlite::Connection;
 use crate::utils::widgets::list::list_widget;
 use tui::text::Spans;
 use tui::style::Modifier;
+use crate::utils::aliases::*;
 
-pub fn view_dependents<B>(f: &mut Frame<B>, id: u32, conn: &Connection, area: Rect, selected: bool)
+pub fn view_dependents<B>(f: &mut Frame<B>, id: CardID, conn: &Connection, area: Rect, selected: bool)
 where
     B: Backend,
 {

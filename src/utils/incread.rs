@@ -51,8 +51,6 @@ impl IncRead{
             self.clozes = StatefulList::with_items(load_cloze_cards(conn, self.id).unwrap());
         }
     }
-
-
     pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
         match key {
             MyKey::Alt('x') => {
@@ -64,7 +62,7 @@ impl IncRead{
                 self.source.set_normal_mode();
             },
             MyKey::Esc => {
-        //        self
+                self.update_text(conn);
             },
             key => self.source.keyhandler(key),
 

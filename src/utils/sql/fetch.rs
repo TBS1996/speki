@@ -3,6 +3,7 @@ use crate::utils::card::{Card, RecallGrade, Review, Status}; //, Topic, Review}
 use crate::utils::widgets::topics::Topic;
 use crate::utils::aliases::*;
 
+
 #[derive(Clone)]
 pub struct DepPair{
     dependent: u32,
@@ -18,8 +19,17 @@ pub fn prev_id(conn: &Connection) -> Result<u32>{
 }
 
 
+pub fn fetch_question(conn: &Connection, cid: CardID) -> String {
+    fetch_card(conn, cid).question
+}
+
+
+pub fn get_topic_of_card(conn: &Connection, cid: CardID) -> TopicID {
+    fetch_card(conn, cid).topic
+}
 
 pub fn fetch_card(conn: &Connection, cid: u32) -> Card {
+    //dbg!(&cid);
     conn.query_row(
         "SELECT * FROM cards WHERE id=?",
         [cid],
@@ -44,7 +54,6 @@ pub fn highest_id(conn: &Connection) -> Result<u32> {
                 maxid = temp;
             }
         }
-    
     Ok(maxid)
 }
 
@@ -101,8 +110,6 @@ pub fn get_history(conn: &Connection, id: u32) -> Result<Vec<Review>>{
 pub fn load_cards(conn: &Connection) -> Result<Vec<Card>> {
     let mut cardvec = Vec::<Card>::new();
     let mut stmt = conn.prepare("SELECT * FROM cards")?;
-
-    
 
     let card_iter = stmt.query_map([], |row| row2card(conn, &row))?;
 

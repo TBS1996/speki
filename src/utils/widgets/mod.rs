@@ -11,6 +11,8 @@ pub mod progress_bar;
 pub mod cardlist;
 pub mod mode_status;
 pub mod newchild;
+pub mod filepicker;
+//pub mod submit_finished;
 
 
 

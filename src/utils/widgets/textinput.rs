@@ -139,16 +139,27 @@ impl Field{
                 cons_non_space = 0;
             }
             if (idx as u16 - linestart as u16) > self.rowlen{
-                linestart = (linestart as u16 + self.rowlen - cons_non_space as u16) as usize + 2 - (linestartvec.len() - 1);
+                linestart = (linestart as u16 + self.rowlen - cons_non_space as u16) as usize + 1;
                 linestartvec.push(linestart + 0);
             }
+        }
+        for i in 1..linestartvec.len(){
+            linestartvec[i] += 1;
         }
         return linestartvec;
     }
 
     pub fn debug_vis_row(&mut self){
         let  lines = self.visual_row_start(self.cursor.row);
-        dbg!(&self.cursor.column, lines);
+        let mut currentline = self.text[self.cursor.row].clone();
+
+        for line in lines{
+            currentline = currentline.chars().enumerate().map(|(i,c)| if i == line && !c.is_ascii_whitespace(){ '@' } else { c }).collect::<String>();
+        }
+
+        
+
+        self.text[self.cursor.row] = currentline;
     }
 
 
@@ -220,21 +231,26 @@ impl Field{
             self.cursor.row -= 1;
 
         }
-
-
-
+    }
+    
+    fn current_bytepos(&self) -> usize{
+        self.text[self.cursor.row].char_indices().nth(self.cursor.column).unwrap().0
     }
 
     pub fn addchar(&mut self, c: char){
-        self.text[self.cursor.row].insert_str(self.cursor.column, c.to_string().as_str());
-        self.cursor.column += 1;
+        let bytepos = self.current_bytepos();
+        self.text[self.cursor.row].insert(bytepos, c);
+        self.cursor.column +=  1;
     }
 
 
     pub fn backspace(&mut self){
         if self.cursor.column > 0 { //&& self.text[self.cursor.row].len() > 0{
-            self.text[self.cursor.row].remove(self.cursor.column - 1);
+
+
             self.cursor.column -= 1;
+            let bytepos = self.current_bytepos();
+            self.text[self.cursor.row].remove(bytepos);
         } else if self.cursor.row == 0 {
             return;
         } else {
@@ -248,7 +264,8 @@ impl Field{
     }
     pub fn delete(&mut self){
         if self.text[self.cursor.row].len() > 1 && self.cursor.column != self.text[self.cursor.row].len() - 1{
-            self.text[self.cursor.row].remove(self.cursor.column);
+            let bytepos = self.current_bytepos();
+            self.text[self.cursor.row].remove(bytepos);
         }
     }
 
@@ -428,7 +445,7 @@ impl Field{
             if chr.is_ascii_whitespace() && col >= self.cursor.column{
                 found_whitespace = true;
             }
-            if col > self.cursor.column && !chr.is_ascii_whitespace() && found_whitespace {
+            if col >self.cursor.column && !chr.is_ascii_whitespace() && found_whitespace {
                 self.cursor.column = col;
                 return;
             }

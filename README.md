@@ -21,7 +21,7 @@ Mark unfinished card as finished: **Alt+f**
 On a text, make a new card with text as source: **Alt+a**  
 Add existing card as dependency: **Alt+y**  
 Add existing card as dependent: **Alt+t**  
-Add new card as dependency: **Alt+Y** 
+Add new card as dependency: **Alt+Y**  
 Add new card as dependent: **Alt+T**  
 Rate your recall grade: **1-4**   
     	1. No recall even after you see the answer  

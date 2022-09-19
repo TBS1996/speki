@@ -1,11 +1,11 @@
-use crate::{utils::{aliases::*, sql::insert::update_both, card::Card}, app::PopUp};
+use crate::utils::{aliases::*, sql::insert::update_both, card::Card};
 use rusqlite::Connection;
 use crate::utils::sql::fetch::load_cards;
 use crate::utils::statelist::StatefulList;
 use crate::utils::widgets::textinput::Field;
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction::Vertical, Layout, Rect},
+    layout::{Constraint, Direction::Vertical, Layout, Rect},
     Frame,
 };
 

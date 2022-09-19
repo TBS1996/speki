@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction::{Vertical, Horizontal}, Layout, Rect},
+    layout::{Constraint, Direction::{Vertical, Horizontal}, Layout, Rect},
     style::{Color, Style, Modifier},
     widgets::{Block, Borders, ListItem, List},
     text::Spans,
@@ -268,8 +268,6 @@ struct IncSelect{
     source:   bool,
     extracts: bool,
     clozes:   bool,
-    skip:     bool,
-    complete: bool,
 }
 
 impl IncSelect{
@@ -280,16 +278,12 @@ impl IncSelect{
             source: false,
             extracts: false,
             clozes: false,
-            skip: false,
-            complete: false,
         };
 
         match choice{
             Source => sel.source = true,
             Extracts => sel.extracts = true,
             Clozes   => sel.clozes = true,
-            Skip     => sel.skip = true,
-            Complete => sel.complete = true,
         }
         sel
     }
@@ -354,8 +348,6 @@ impl UnfSelect{
             Answer       => sel.answer = true,
             Dependencies => sel.dependencies = true,
             Dependents   => sel.dependents = true,
-            Skip            => sel.skip = true,
-            Complete        => sel.finish = true,
         }
         sel
     }

@@ -15,13 +15,11 @@ use crate::ui::{
     review::main_review,
     add_card::draw_add_card,
     browse::draw_browse,
-    import::draw_import,
     incread::draw_incread,
 };
 
 use crate::tabs::MyType;
 use tui::{
-    backend::Backend,
     layout::{Constraint, Layout},
     style::{Color, Style},
     text::{Span, Spans},

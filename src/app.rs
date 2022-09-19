@@ -7,12 +7,11 @@ use crate::{
         browse::Browse,
         add_card::{NewCard, DepState}, incread::MainInc,
     }, 
-    utils::widgets::find_card::{FindCardWidget}, tabs::Widget};
+    utils::widgets::find_card::FindCardWidget, tabs::Widget};
 use crate::events::{
     review::review_event,
     browse::browse_event,
     add_card::add_card_event,
-    import::main_port,
     incread::main_inc,
 };
 
@@ -76,9 +75,6 @@ wait that would fuck up selection lol
 
   */
 
-use tui::layout::Rect;
-use tui::Frame;
-use tui::backend::Backend;
 use crate::utils::widgets::newchild::AddChildWidget;
 use crate::utils::widgets::filepicker::Directory;
 
@@ -187,6 +183,5 @@ impl<'a> App<'a> {
         }
     }
 }
-use crossterm::event::Event;
 
 use crate::MyKey;

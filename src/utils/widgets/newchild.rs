@@ -1,18 +1,14 @@
-use crate::utils::card;
 use crate::utils::{aliases::*, sql::insert::update_both, card::Card};
 use rusqlite::Connection;
-use crate::utils::sql::fetch::{load_cards, fetch_question, prev_id, get_topic_of_card};
-use crate::utils::statelist::StatefulList;
+use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};
 use crate::utils::widgets::textinput::Field;
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction::Vertical, Layout, Rect},
+    layout::{Constraint, Direction::Vertical, Layout, Rect},
     Frame,
 };
 
 use crate::utils::sql::fetch::{load_inc_text, get_topic_of_inc};
-use crate::utils::widgets::list::list_widget;
-use super::message_box::draw_message;
 use crate::MyKey;
 use crate::utils::misc::PopUpStatus;
 use crate::Direction;

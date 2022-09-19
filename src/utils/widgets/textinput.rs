@@ -139,7 +139,7 @@ impl Field{
                 cons_non_space = 0;
             }
             if (idx as u16 - linestart as u16) > self.rowlen{
-                linestart = (linestart as u16 + self.rowlen - cons_non_space as u16) as usize + 1;
+                linestart = (linestart as u16 + self.rowlen - cons_non_space as u16) as usize + 2 - (linestartvec.len() - 1);
                 linestartvec.push(linestart + 0);
             }
         }
@@ -147,7 +147,7 @@ impl Field{
     }
 
     pub fn debug_vis_row(&mut self){
-        let lines = self.visual_row_start(self.cursor.row);
+        let  lines = self.visual_row_start(self.cursor.row);
         dbg!(&self.cursor.column, lines);
     }
 
@@ -409,10 +409,10 @@ impl Field{
 
     fn google_it(&self){
         let text = self.return_text();
-        let mut text = text.replace(" ", "+");
+        let text = text.replace(" ", "+");
         let mut base_url = "http://www.google.com/search?q=".to_string();
         base_url.push_str(&text);
-        webbrowser::open(&base_url);
+        webbrowser::open(&base_url).unwrap_or_else(|_|{});
     }
 
 
@@ -600,9 +600,11 @@ impl Field{
                 let column = splitvec[splitdex].column;
                 let offset = if splitdex == 0 || splitvec[splitdex - 1].row != idx  {0} else {splitvec[splitdex - 1].column};
 
-                //let splitat = std::cmp::min(column - offset, bar.len() - 1);
-                let splitat = column - offset;
-                let (left, right) = bar.split_at(splitat);
+                let splitat = std::cmp::min(column - offset, bar.len() - 1);
+                //let splitat = column - offset;
+                //let (left, right) = bar.split_at(splitat);
+                let (left, right) = bar.split_at(bar.char_indices().nth(splitat).unwrap().0);
+                // let (first, last) = s.split_at(s.char_indices().nth(2).unwrap().0);
                 foo = right.to_string().clone();
                 let left = left.to_string();
                 if styled {

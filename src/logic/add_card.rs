@@ -1,13 +1,11 @@
-use std::time::{UNIX_EPOCH, SystemTime};
-use crate::utils::{aliases::*, sql::{fetch::load_inc_title, update::update_card_source}};
+use crate::utils::{aliases::*, sql::fetch::load_inc_title};
 use rusqlite::Connection;
-use crossterm::event::KeyCode;
 use crate::utils::{
     sql::{
         fetch::{highest_id, fetch_card},
-        insert::{update_both, save_card, revlog_new},
+        insert::update_both,
     },
-    card::{Status, RecallGrade, Review, Card},
+    card::Card,
     widgets::textinput::Field,
     widgets::find_card::FindCardWidget,
 };
@@ -128,7 +126,7 @@ impl NewCard{
                 update_both(conn, last_id, id).unwrap();
                 Card::check_resolved(id, conn);
             },  
-            DepState::NewChild(id) => {
+            DepState::NewChild(_id) => {
             }
         }
         self.reset(DepState::None, conn);

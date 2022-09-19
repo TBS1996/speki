@@ -35,7 +35,7 @@ where
                           target.unf_qty - current.unfinished_cards.len() as u16,
                           target.unf_qty, 
                           );
-    let pending = format!("Pending: {}/{}  ", 
+    let _pending = format!("Pending: {}/{}  ", 
                           target.pending_qty - current.pending_cards.len() as u16,
                           target.pending_qty,
                           );

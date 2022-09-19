@@ -10,9 +10,9 @@ use crate::app::App;
 
 
 
-use crate::utils::widgets::find_card::draw_find_card;
+//use crate::utils::widgets::find_card::draw_find_card;
 
-pub fn draw_import<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
+pub fn draw_import<B>(_f: &mut Frame<B>, _app: &mut App, _area: Rect)
 where
     B: Backend,
 {

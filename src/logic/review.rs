@@ -3,7 +3,7 @@ use std::time::{UNIX_EPOCH, SystemTime};
 use crate::utils::{
     card::{Card, RecallGrade},
     sql::fetch::load_cards,
-    interval, widgets::find_card::FindCardWidget,
+    interval, 
 };
 
 use rusqlite::Connection;
@@ -13,8 +13,6 @@ use crate::utils::incread::IncRead;
 use rand::prelude::*;
 use crate::utils::sql::update::update_inc_active;
 
-use tui::Frame;
-use tui::backend::Backend;
 
 
 pub enum ReviewSelection{

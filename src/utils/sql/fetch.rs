@@ -371,7 +371,7 @@ pub fn get_topic_of_inc(conn: &Connection, incid: IncID) -> Result<TopicID> {
         topicvec.push(inc.unwrap());
     }
 
-    let mut topic = topicvec[0].clone();
+    let topic = topicvec[0].clone();
 
     Ok(topic)
 }

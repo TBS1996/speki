@@ -1,7 +1,6 @@
 use crate::app::App;
 use crate::logic::add_card::{TextSelect, DepState} ;
 use crate::utils::sql::fetch::highest_id;
-use crossterm::event::Event;
 use crate::MyKey;
 
 

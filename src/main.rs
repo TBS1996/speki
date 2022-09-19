@@ -12,12 +12,11 @@ pub mod tabs;
 use std::env;
 use chrono::prelude::*;
 use tabs::MyType;
-use utils::aliases::*;
 use crate::app::App;
 use crate::utils::sql::init_db;
 use crossterm::{
     event::{self, DisableMouseCapture, 
-        EnableMouseCapture, Event, EnableBracketedPaste, DisableBracketedPaste}, //EnableBracketedPaste},
+        EnableMouseCapture, EnableBracketedPaste, DisableBracketedPaste}, //EnableBracketedPaste},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, 
         EnterAlternateScreen, LeaveAlternateScreen},
@@ -25,10 +24,9 @@ use crossterm::{
 use std::{
     error::Error,
     io,
-    time::{Duration, Instant},
 };
 use tui::{
-    backend::{Backend, CrosstermBackend},
+    backend::CrosstermBackend,
     Terminal,
 };
 
@@ -144,12 +142,13 @@ impl MyKey{
             let modifiers = key.modifiers;
 
             if modifiers == event::KeyModifiers::ALT{
-                if let KeyCode::Char(c) = key.code{
-                    if c == 'h' {return Some(MyKey::Nav(Direction::Left))}
-                    if c == 'j' {return Some(MyKey::Nav(Direction::Down))}
-                    if c == 'k' {return Some(MyKey::Nav(Direction::Up))}
-                    if c == 'l' {return Some(MyKey::Nav(Direction::Right))}
-                    return Some(MyKey::Alt(c));
+                match key.code{
+                    KeyCode::Char('h') | KeyCode::Left => {return Some(MyKey::Nav(Direction::Left))},
+                    KeyCode::Char('j') | KeyCode::Down =>  {return Some(MyKey::Nav(Direction::Down))},
+                    KeyCode::Char('k') | KeyCode::Up   =>  {return Some(MyKey::Nav(Direction::Up))},
+                    KeyCode::Char('l') | KeyCode::Right=>  {return Some(MyKey::Nav(Direction::Right))},
+                    KeyCode::Char(c) => return Some(MyKey::Alt(c)),
+                    _ => {},
                 }
                 
             } 

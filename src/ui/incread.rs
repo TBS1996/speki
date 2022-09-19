@@ -1,7 +1,7 @@
 use crate::app::App;
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     Frame,
 };
 

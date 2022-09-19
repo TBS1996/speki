@@ -1,19 +1,14 @@
 use std::path::PathBuf;
 use crate::tabs::Widget;
 use crate::utils::statelist::StatefulList;
-use crate::utils::widgets::list::StraitList;
 use tui::widgets::ListItem;
-use tui::widgets::ListState;
 use tui::widgets::List;
 
 use tui::{
-    backend::Backend,
-    layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Spans, Span},
+    text::Span,
     widgets::{
         Block, Borders},
-    Frame,
 };
 
 enum ChosenFile{
@@ -39,7 +34,6 @@ pub struct Directory{
 
 impl Directory{
     pub fn new()-> Self{
-        let path = PathBuf::from(".");
         let path = std::env::current_dir().unwrap();
         let files = Self::fill_vec(&path);
         let contents = StatefulList::with_items(files);
@@ -106,7 +100,6 @@ impl Directory{
 
 
 }
-use crate::utils::widgets::list::list_widget;
 use crate::tabs::MyType;
 impl Widget for Directory{
     fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
@@ -136,7 +129,6 @@ fn main() {
 }
 
 
-use crate::Direction;
 
 impl Widget for StatefulList<PathBuf>{
     fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
@@ -165,7 +157,7 @@ impl Widget for StatefulList<PathBuf>{
         f.render_stateful_widget(mylist, area, &mut self.state);
                     
     }
-    fn keyhandler(&mut self, key: crate::MyKey) {
+    fn keyhandler(&mut self, _key: crate::MyKey) {
         panic!();
     }
 

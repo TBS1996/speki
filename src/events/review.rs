@@ -1,7 +1,6 @@
 
 use crate::{MyKey, Direction};
 
-use crate::logic::add_card::NewCard;
 use crate::logic::review::{UnfCard, UnfSelection, CardReview};
 use crate::utils::sql::update::{update_inc_text,  update_card_question, update_card_answer, double_skip_duration};
 use crate::utils::widgets::find_card::{FindCardWidget, CardPurpose};

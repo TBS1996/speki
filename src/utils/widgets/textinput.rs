@@ -232,12 +232,27 @@ impl Field{
 
         }
     }
-    
+
     fn current_bytepos(&self) -> usize{
-        self.text[self.cursor.row].char_indices().nth(self.cursor.column).unwrap().0
+        self.relative_bytepos(0)
+    }
+
+    
+    fn relative_bytepos(&self, offset: i32) -> usize{
+        if self.cursor.column == 0 {return 0}
+        let pos = self.text[self.cursor.row]
+            .char_indices()
+            .nth((self.cursor.column as i32 + offset) as usize)
+            .unwrap().0;
+        pos
     }
 
     pub fn addchar(&mut self, c: char){
+        if self.cursor.column == self.text[self.cursor.row].len() {
+            self.text[self.cursor.row].push(c);
+            self.cursor.column += 1;
+            return;
+        }
         let bytepos = self.current_bytepos();
         self.text[self.cursor.row].insert(bytepos, c);
         self.cursor.column +=  1;

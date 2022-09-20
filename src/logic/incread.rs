@@ -64,7 +64,7 @@ impl MainInc{
 
     pub fn create_source(&mut self, conn: &Connection){
         let topic: TopicID = self.topics.get_selected_id().unwrap();
-        new_incread(conn, 0, topic, "new source".to_string() , true).unwrap();
+        new_incread(conn, 0, topic, "".to_string() , true).unwrap();
         self.reload_inc_list(conn);
     }
 

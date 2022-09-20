@@ -46,6 +46,7 @@ pub struct Field {
     keyvec: Vec<MyKey>,
     text_alignment: Alignment,
     title: String,
+    preferredcol: Option<usize>,
 }
 
 
@@ -72,6 +73,7 @@ impl Field{
             keyvec: vec![MyKey::Null; 5],
             text_alignment: Alignment::Left,
             title: "my title".to_string(),
+            preferredcol: None,
         };
         myfield.set_insert_mode();
         myfield
@@ -150,16 +152,7 @@ impl Field{
     }
 
     pub fn debug_vis_row(&mut self){
-        let  lines = self.visual_row_start(self.cursor.row);
-        let mut currentline = self.text[self.cursor.row].clone();
-
-        for line in lines{
-            currentline = currentline.chars().enumerate().map(|(i,c)| if i == line && !c.is_ascii_whitespace(){ '@' } else { c }).collect::<String>();
-        }
-
-        
-
-        self.text[self.cursor.row] = currentline;
+        dbg!(&self.preferredcol);
     }
 
 
@@ -172,6 +165,26 @@ impl Field{
             self.cursor.column -= jmp;
         } else {
             self.cursor.column = 0;
+        }
+    }
+
+    fn current_visual_col(&self) -> usize {
+        let rowstarts = self.visual_row_start(self.cursor.row);
+        for i in (0..rowstarts.len()).rev(){
+            if rowstarts[i] <= self.cursor.column{
+                return self.cursor.column - rowstarts[i];
+            }
+        }
+        panic!("Oops");
+    }
+
+    fn end_of_first_visual_line(&self, row: usize) -> usize{
+        let lines = self.visual_row_start(row);
+        if lines.len() == 1 {
+            return self.text[row].len();
+        } else {
+            return lines[1] - 2
+
         }
     }
 
@@ -189,11 +202,39 @@ impl Field{
         if next == -1{
             if self.cursor.row == self.text.len() - 1{return}
 
-            self.cursor.column = std::cmp::min(self.text[self.cursor.row + 1].len(), self.cursor.column);
+            let mut target = self.current_visual_col();
+            if let Some(col) = self.preferredcol {
+                if col > target{
+                    target = col;
+                }
+            }
+            let maxcol = self.end_of_first_visual_line(self.cursor.row + 1);
+
+            if target > maxcol{
+                self.cursor.column = maxcol;
+                self.preferredcol = Some(target);
+            } else {
+                self.cursor.column = target;
+            } 
             self.cursor.row += 1;
         } else{
-            let offset = self.cursor.column - foovec[next as usize - 1];
-            self.cursor.column = std::cmp::min(foovec[next as usize] + offset, self.text[self.cursor.row].len());
+           //let offset = self.cursor.column - foovec[next as usize - 1];
+            let offset = self.current_visual_col();
+            let mut target = foovec[next as usize] + offset;
+            let maxcol = self.text[self.cursor.row].len();
+
+            if let Some(col) = self.preferredcol{
+                if col > target{
+                    target = col;
+                }
+            }
+
+            if target > maxcol{
+                self.cursor.column = maxcol;
+                self.preferredcol = Some(offset);
+            } else {
+                self.cursor.column = target;
+            }
         }
     }
 
@@ -224,10 +265,20 @@ impl Field{
             let thelen = above_lines.len();
             let last_line_start = above_lines[thelen - 1];
             let maxcol = self.text[self.cursor.row-1].len();
-            self.cursor.column = std::cmp::min(
-                last_line_start + offset,
-                maxcol,
-                );
+            let target = last_line_start + offset;
+
+            if target > maxcol{
+                self.cursor.column = maxcol;
+                self.preferredcol = Some(target);
+            } else {
+                let target = if let Some(col) = self.preferredcol {
+                    last_line_start + col
+                } else {
+                    target
+                };
+                self.cursor.column = target;
+
+            }
             self.cursor.row -= 1;
 
         }
@@ -288,7 +339,6 @@ impl Field{
         self.text.insert(self.cursor.row, String::new());
         self.cursor.column = 0;
         self.set_insert_mode();
-//        panic!();
     }
 
 
@@ -330,6 +380,7 @@ impl Field{
 
 
     pub fn prev(&mut self) {
+        self.preferredcol = None;
         if self.cursor.column > 0 {
             self.cursor.column -= 1;
         } else if self.cursor.row != 0{
@@ -627,13 +678,19 @@ impl Field{
             let mut emptyline = true;
             let mut spanvec = Vec::<Span>::new();
             while foo.len() != 0 && splitdex != splitvec.len() && splitvec[splitdex].row == idx{
-                let bar = foo.clone();
+                let mut bar = foo.clone();
                 emptyline = false;
                 let column = splitvec[splitdex].column;
                 let offset = if splitdex == 0 || splitvec[splitdex - 1].row != idx  {0} else {splitvec[splitdex - 1].column};
 
-                let splitat = std::cmp::min(column - offset, bar.len() - 1);
-                //let splitat = column - offset;
+                let splitat = column - offset;
+                if splitat == bar.len() - 1 {
+                    bar.push(' ');
+                } else if splitat == bar.len(){
+                    bar.push('_');
+                    bar.push(' ');
+                } 
+                let splitat = std::cmp::min(splitat, bar.len() - 1);
                 //let (left, right) = bar.split_at(splitat);
                 let (left, right) = bar.split_at(bar.char_indices().nth(splitat).unwrap().0);
                 // let (first, last) = s.split_at(s.char_indices().nth(2).unwrap().0);
@@ -648,7 +705,7 @@ impl Field{
                 styled = !styled;
                 if splitdex == splitvec.len(){break}
             }
-            if selected && idx == self.cursor.row && ((foo.len() == 0 && emptyline) || self.cursor.column == self.text[self.cursor.row].len() ){
+            if selected && idx == self.cursor.row && ((foo.len() == 0 && emptyline)){ // self.cursor.column == self.text[self.cursor.row].len() {
                     spanvec.push(Span::styled("_".to_string(), Style::default().add_modifier(Modifier::REVERSED)));
                     if self.cursor.column != 0 || self.selection_exists(){
                         styled = !styled;
@@ -672,7 +729,10 @@ impl Field{
 
     
     fn cursor_after(&mut self){
-        self.cursor.column += 1;
+        self.cursor.column = std::cmp::min(
+            self.cursor.column + 1,
+            self.text[self.cursor.row].len(),
+            );
         self.set_insert_mode();
     }
 
@@ -789,7 +849,7 @@ where
             Char('$') => self.end_of_line(),
             Char('x') => self.delete(),
        //     Char('m') => self.replace_one_char('n'),
-            Ctrl(c) => self.left_char_match(c),
+          //  Ctrl(c) => self.left_char_match(c),
             _ => {}
         }
     }

@@ -290,7 +290,13 @@ pub fn load_inc_items(conn: &Connection, topic: TopicID) -> Result<Vec<IncListIt
 
     for inc in inc_iter {
         incvec.push(inc.unwrap().clone());}
-    
+
+     for inc in &mut incvec{
+    //    dbg!(&inc.text);
+        if inc.text.len() < 2{
+            inc.text = "New source".to_string();
+        }
+    }
     Ok(incvec)
 }
 
@@ -314,6 +320,8 @@ pub fn load_extracts(conn: &Connection, parent: IncID) -> Result<Vec<IncListItem
 
     for inc in inc_iter {
         incvec.push(inc.unwrap().clone());}
+
+   
     
     Ok(incvec)
 }

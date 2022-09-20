@@ -5,6 +5,18 @@ flashcard app in your terminal
 [![Watch the video](https://i.imgur.com/njEoYNL.png)](https://youtu.be/hV1iETM6T8g)
 
 
+## Installation  
+ 
+I'll add this to various linux package databases once I've figured out what name I wanna give to this project. But for now, if you wanna use it you can do the following:  
+ 
+- make sure rust and git is installed
+- in your terminal, navigate to where you wanna download this project 
+- enter following command: "git clone https://github.com/TBS1996/flash-tui"
+- in the flash-tui directory, enter "cargo run"
+
+If you have any questions, feel free to open up an issue!
+
+
 ## Keybindings
 
 ### General
@@ -61,7 +73,9 @@ scroll up: **Ctrl+u**
 
 
 
-
+## Known issues  
+ 
+Text editing can be a bit buggy, especially when non-ascii characters are involved. The library I'm using doesn't include a way to edit text so I had to do it all manually.  
 
 
 

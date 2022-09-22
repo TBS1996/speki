@@ -104,7 +104,7 @@ impl Field{
     }
 
     pub fn set_win_height(&mut self, winheight: u16){
-        self.window_height = winheight;
+        self.window_height = winheight - 2;
     }
 
     fn is_last_visual_row(&self) -> bool {
@@ -151,8 +151,13 @@ impl Field{
         return linestartvec;
     }
 
-    pub fn debug_vis_row(&mut self){
-        dbg!(&self.preferredcol);
+    pub fn debug(&mut self){
+        //dbg!(&self.preferredcol);
+        
+
+        dbg!(&self.current_abs_visual_line(), &self.window_height, &self.scroll);
+
+       // dbg!(&self.current_abs_visual_line());
     }
 
 
@@ -236,6 +241,10 @@ impl Field{
                 self.cursor.column = target;
             }
         }
+
+        if self.current_abs_visual_line() as u16  + 1> self.window_height + self.scroll{
+            self.scroll_half_down();
+        }
     }
 
     fn visual_up(&mut self){
@@ -281,6 +290,10 @@ impl Field{
             }
             self.cursor.row -= 1;
 
+        }
+
+        if (self.current_abs_visual_line() as u16)  < self.scroll{
+            self.scroll_half_up();
         }
     }
 
@@ -376,6 +389,8 @@ impl Field{
         let line_below_max_col = self.text[self.cursor.row].len();
         let current_col = self.cursor.column;
         self.cursor.column = std::cmp::min(current_col, line_below_max_col);
+
+
     }
 
 
@@ -637,7 +652,30 @@ impl Field{
         }
     }
 
+   fn current_rel_visual_line(&self) -> usize{
+       let vislines = self.visual_row_start(self.cursor.row);
+       if vislines.len() == 1 {
+           return 0
+       }
+        for i in 0..vislines.len(){
+            if vislines[i] > self.cursor.column{
+                return i - 1
+            }
+        }
+        return vislines.len() - 1;
+   }
 
+   fn current_abs_visual_line(&self) -> usize {
+       let mut lines = 0;
+
+       for i in 0..self.text.len(){
+           if i == self.cursor.row{
+               return self.current_rel_visual_line() + lines;
+           }
+           lines += self.visual_row_start(i).len();
+       }
+       panic!();
+   }
 
 
 
@@ -806,7 +844,7 @@ where
         use MyKey::*;
         match key {
             Alt('g') => self.google_it(),
-            Alt('p') => self.debug_vis_row(),
+            Alt('p') => self.debug(),
             Ctrl('w') => self.delete_previous_word(),
             Backspace => self.backspace(),
             End => self.goto_end_visual_line(),
@@ -819,6 +857,8 @@ where
             Ctrl('c') => self.set_normal_mode(),
             Char(c) => self.addchar(c),
             Enter => self.newline(),
+            Ctrl('u') => self.scroll_half_up(),
+            Ctrl('d') => self.scroll_half_down(),
             Paste(paste) => self.paste(paste),
             _ => {},
         }

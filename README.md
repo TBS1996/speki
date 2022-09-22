@@ -54,6 +54,7 @@ Add new text under selected topic: **Alt+a**
 #### Topic list  
 
 
+Add new topic: **a**  
 up/down: **k/j**    
 Place topic below topic beneath: **l**  
 Put topic one step up: **h**  

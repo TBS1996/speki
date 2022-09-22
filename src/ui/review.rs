@@ -94,8 +94,10 @@ where
 
     let area = unfinished_layout(area);
     let selected = UnfSelect::new(&unfinished.selection);
-    unfinished.question.set_rowlen(area.question.width - 4);
-    unfinished.answer.set_rowlen(area.answer.width - 4);
+    unfinished.question.set_rowlen(area.question.width);
+    unfinished.answer.set_rowlen(area.answer.width);
+    unfinished.question.set_win_height(area.question.height);
+    unfinished.answer.set_win_height(area.answer.height);
     view_dependencies(f, unfinished.id, conn, area.dependencies,selected.dependencies); 
     view_dependents(f,   unfinished.id, conn, area.dependents, selected.dependents);
     unfinished.question.draw_field(f, area.question,  selected.question);
@@ -124,8 +126,8 @@ where
 //    _app.review.incread.unwrap().source.draw_field(f, editing, "hey", Alignment::Left, false);
 
 
-    inc.source.source.set_rowlen(area.source.width - 2);
-    inc.source.source.set_win_height(area.source.height - 2);
+    inc.source.source.set_rowlen(area.source.width);
+    inc.source.source.set_win_height(area.source.height);
 
 
     inc.source.source.draw_field(f, area.source, selected.source);
@@ -247,10 +249,11 @@ where
     let area = review_layout(area);
     let selected = RevSelect::new(&review.selection);
 
-    review.question.set_rowlen(area.question.width - 4);
-    review.answer.set_rowlen(area.answer.width - 4);
+    review.question.set_rowlen(area.question.width);
+    review.answer.set_rowlen(area.answer.width);
+    review.question.set_win_height(area.question.height);
+    review.answer.set_win_height(area.answer.height);
 
-   // card_status(f, app, area.status, false);
     review.question.draw_field(f, area.question, selected.question);
     if review.reveal{
         review.answer.draw_field(f, area.answer, selected.answer);
@@ -326,8 +329,6 @@ struct UnfSelect{
     answer: bool,
     dependents: bool,
     dependencies: bool,
-    skip: bool,
-    finish: bool,
 }
 
 impl UnfSelect{
@@ -339,8 +340,6 @@ impl UnfSelect{
             answer:    false, 
             dependents:   false,
             dependencies: false, 
-            skip:   false,
-            finish: false,
         };
 
         match choice{

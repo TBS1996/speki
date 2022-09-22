@@ -144,13 +144,12 @@ impl MyKey{
             if modifiers == event::KeyModifiers::ALT{
                 match key.code{
                     KeyCode::Char('h') | KeyCode::Left => {return Some(MyKey::Nav(Direction::Left))},
-                    KeyCode::Char('j') | KeyCode::Down =>  {return Some(MyKey::Nav(Direction::Down))},
-                    KeyCode::Char('k') | KeyCode::Up   =>  {return Some(MyKey::Nav(Direction::Up))},
-                    KeyCode::Char('l') | KeyCode::Right=>  {return Some(MyKey::Nav(Direction::Right))},
+                    KeyCode::Char('j') | KeyCode::Down => {return Some(MyKey::Nav(Direction::Down))},
+                    KeyCode::Char('k') | KeyCode::Up   => {return Some(MyKey::Nav(Direction::Up))},
+                    KeyCode::Char('l') | KeyCode::Right=> {return Some(MyKey::Nav(Direction::Right))},
                     KeyCode::Char(c) => return Some(MyKey::Alt(c)),
                     _ => {},
                 }
-                
             } 
             if modifiers == (event::KeyModifiers::ALT | event::KeyModifiers::SHIFT){
                 if let KeyCode::Char(c) = key.code{

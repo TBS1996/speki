@@ -22,6 +22,7 @@ where
 
     if let Some(inc) = &mut app.incread.focused{
         inc.source.set_rowlen(left.width);
+        inc.source.set_win_height(left.height);
     }
 
 

@@ -17,10 +17,6 @@ use crate::events::{
 
 use crate::utils::misc::PopUpStatus;
 
-
-
-
-
 pub struct TabsState<'a> {
     pub titles: Vec<&'a str>,
     pub index: usize,
@@ -43,8 +39,6 @@ impl<'a> TabsState<'a> {
         }
     }
 }
-
-
 
 /* 
 
@@ -70,10 +64,12 @@ and tab-specific functions
 it can also handle popups, so that you can have  a popup on one tab but able to switch to other tabs
 
 
+
+
 maybe widgets like topiclist and stuff should be mutable references so that they'll stay in sync
 wait that would fuck up selection lol
 
-  */
+*/
 
 use crate::utils::widgets::newchild::AddChildWidget;
 use crate::utils::widgets::filepicker::Directory;
@@ -100,7 +96,6 @@ pub struct App<'a> {
     pub popup: PopUp,
 }
 
-//use crate::logic::incread::MainInc;
 
 impl<'a> App<'a> {
     pub fn new() -> App<'a> {

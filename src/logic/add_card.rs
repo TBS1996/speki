@@ -1,4 +1,4 @@
-use crate::utils::card::Status;
+use crate::utils::card::CardType;
 use crate::utils::{aliases::*, sql::fetch::load_inc_title};
 use rusqlite::Connection;
 use crate::utils::{
@@ -111,9 +111,9 @@ impl NewCard{
             0
         };
         let status = if iscompleted{
-            Status::new_complete()
+            CardType::Finished
         } else {
-            Status::new_incomplete()
+            CardType::Unfinished
         };
 
 

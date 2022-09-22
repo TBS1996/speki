@@ -185,34 +185,33 @@ pub fn get_dependents(conn: &Connection, dependency: u32) -> Result<Vec<u32>>{
     
 }
 
-
+use crate::utils::card::CardType;
 
 pub fn row2card(conn: &Connection, row: &Row) -> Result<Card>{
-        let stat = Status{
-            initiated: row.get(6)?,
-            complete: row.get(7)?,
-            resolved: row.get(8)?,
-            suspended: row.get(9)?,
-        };
+    let cardtype = match row.get::<usize, u32>(3)?{
+        0 => CardType::Pending,
+        1 => CardType::Unfinished,
+        2 => CardType::Finished,
+        _ => panic!(),
+    };
+    let id = row.get(0)?;
+
+    let dependencies = get_dependencies(conn, id).unwrap();
+    let dependents = get_dependents(conn, id).unwrap();
 
 
 
         Ok(Card {
+            id,
             question:      row.get(1)?,
             answer:        row.get(2)?,
-            status:        stat,
-            strength:      row.get(3)?,
-            stability:     row.get(4)?,
-            dependencies:  get_dependencies(conn, row.get(0).unwrap()).unwrap(),
-            dependents:    get_dependents(conn, row.get(0).unwrap()).unwrap(),
-            history:       get_history(conn, row.get(0).unwrap()).unwrap(),  
-            topic:         row.get(5)?,
-            future:        String::from("[]"),
-            integrated: 1f32,
-            card_id: row.get(0)?,
-            source: row.get(11)?,
-            skiptime: row.get(12)?,
-            skipduration: row.get(13)?,
+            cardtype,
+            suspended:     row.get(4)?,
+            resolved:      row.get(5)?,
+            dependents,
+            dependencies,
+            topic:         row.get(6)?,
+            source:        row.get(7)?,
         })
 }
 
@@ -404,6 +403,66 @@ pub fn load_cloze_cards(conn: &Connection, source: IncID) -> Result<Vec<CardItem
     
     Ok(clozevec)
 }
+
+
+
+pub fn get_skipduration(conn: &Connection, id: CardID) -> Result<u32> {
+    conn.query_row(
+    "select skipduration FROM unfinished_cards WHERE id=?",
+    [id],
+    |row| row.get(0),
+    )
+}
+
+
+
+pub fn get_skiptime(conn: &Connection, id: CardID) -> Result<u32> {
+    conn.query_row(
+    "select skiptime FROM unfinished_cards WHERE id=?",
+    [id],
+    |row| row.get(0),
+    )
+}
+
+
+pub fn get_stability(conn: &Connection, id: CardID) -> Result<f32> {
+    conn.query_row(
+    "select stability FROM finished_cards WHERE id=?",
+    [id],
+    |row| row.get(0),
+    )
+}
+
+
+pub fn get_strength(conn: &Connection, id: CardID) -> Result<f32> {
+    conn.query_row(
+    "select strength FROM finished_cards WHERE id=?",
+    [id],
+    |row| row.get(0),
+    )
+}
+
+
+/*
+pub fn get_skiptime(conn: &Connection, id: CardID) -> Result<u32> {
+    let mut stmt = conn.prepare("SELECT skiptime FROM unfinished_cards where id = ?")?;
+    let res = stmt.query_row([id], |nice| Ok(nice) )?;
+    Ok(res.get_unwrap(0))
+}
+
+
+pub fn get_stability(conn: &Connection, id: CardID) -> Result<f32> {
+    let mut stmt = conn.prepare("SELECT stability FROM finished_cards where id = ?")?;
+    let res = stmt.query_row([id], |nice| Ok(nice) )?;
+    Ok(res.get_unwrap(0))
+}
+
+pub fn get_strength(conn: &Connection, id: CardID) -> Result<f32> {
+    let mut stmt = conn.prepare("SELECT strength FROM finished_cards where id = ?")?;
+    let res = stmt.query_row([id], |nice| Ok(nice) )?;
+    Ok(res.get_unwrap(0))
+}
+*/
 
 
 

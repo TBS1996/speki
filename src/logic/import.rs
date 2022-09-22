@@ -14,6 +14,7 @@ use csv::StringRecord;
 
 
 pub fn import_cards(conn: &Connection){
+    /*
     // Get the file path
     let file_path = "newcards.csv";
 
@@ -58,7 +59,7 @@ pub fn import_cards(conn: &Connection){
         save_card(conn, card).unwrap();
         
     }
-
+*/
 }
 
 

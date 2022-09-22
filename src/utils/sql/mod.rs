@@ -30,24 +30,42 @@ pub fn init_db() -> Result<()>{
             id           integer primary key,
             question     text not null,
             answer       text not null,
-            strength     real not null,
-            stability    real not null,
-            topic        integer not null,
-            initiated    bool not null,
-            complete     bool not null,
-            resolved     bool not null,
+            cardtype     integer not null,
             suspended    bool not null,
-            gain         real not null,
-            source       integer not null,
-            skiptime     integer not null,
-            skipduration integer not null
+            resolved     bool not null,
+            topic        integer not null,
+            source       integer not null
+    )",
+        [],
+        )?;
 
-
+    conn.execute(
+        "create table if not exists finished_cards (
+            id           integer not null,
+            strength     real not null,
+            stability    real not null
     )",
         [],
         )?;
 
 
+    conn.execute(
+        "create table if not exists unfinished_cards (
+            id           integer not null,
+            skiptime     integer not null,
+            skipduration integer not null
+    )",
+        [],
+        )?;
+
+
+    conn.execute(
+        "create table if not exists pending_cards (
+            id           integer not null,
+            position     integer not null
+    )",
+        [],
+        )?;
 
     conn.execute(
         "create table if not exists topics ( 
@@ -101,52 +119,6 @@ pub fn init_db() -> Result<()>{
 
     Ok(())
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -111,7 +111,7 @@ impl<'a> App<'a> {
 
         App {
             should_quit: false,
-            tabs: TabsState::new(vec!["Review", "Add card", "Incremental reading"]),  //"Browse cards 🦀", "Incremental reading", "debug"]),
+            tabs: TabsState::new(vec!["Review", "Add card", "Incremental reading", "import"]),  //"Browse cards 🦀", "Incremental reading", "debug"]),
             conn,
             review: revlist,
             add_card: addcards,

@@ -26,6 +26,8 @@ where
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);
 
+    /*
+
     
     let rows = vec![
         Row::new(vec![Cell::from(Span::raw(format!("strength: {}, stability: {}, complete: {:?}, resolved: {:?}, suspended: {:?}, initiated: {:?}", 
@@ -42,5 +44,5 @@ where
             Constraint::Ratio(1, 1),
         ]);
     f.render_widget(table, area);
-
+*/
 }

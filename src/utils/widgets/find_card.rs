@@ -107,7 +107,7 @@ pub fn reset_filter(&mut self, conn: &Connection, mut searchterm: String){
             matching_cards.push(
                 CardMatch{
                     question: card.question,
-                    id: card.card_id,
+                    id: card.id,
                 }
             );
         };

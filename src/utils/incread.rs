@@ -47,12 +47,13 @@ impl IncRead{
             let mut question = self.source.return_text();
             question = question.replace(&cloze, "[...]");
             let answer = cloze;
+
             Card::new()
                 .question(question)
                 .answer(answer)
                 .topic(self.topic)
                 .source(self.id)
-                .status(Status::new_complete())
+                .status(super::card::CardType::Finished)
                 .save_card(conn);
                 
             self.clozes = StatefulList::with_items(load_cloze_cards(conn, self.id).unwrap());

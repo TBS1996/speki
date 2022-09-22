@@ -1,8 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::Connection;
 use crate::utils::sql::{
-    fetch::fetch_card,
-    update::{activate_card, update_status},
+    fetch::{fetch_card, get_skiptime},
 };
 
 
@@ -106,23 +105,28 @@ impl Review{
 }
 
 
+
+#[derive(Debug, Clone)]
+pub enum CardType{
+    Pending,
+    Unfinished,
+    Finished,
+
+
+}
+
 #[derive(Clone, Debug)]
 pub struct Card{
+    pub id: u32,
     pub question: String,
     pub answer: String,
-    pub status: Status,
-    pub strength: f32,
-    pub stability: f32,
+    pub cardtype: CardType,
+    pub suspended: bool,
+    pub resolved:  bool,
     pub dependencies: Vec<IncID>,
     pub dependents: Vec<IncID>,
-    pub history: Vec<Review>,
     pub topic: TopicID,
-    pub future: String,
-    pub integrated: f32,
-    pub card_id: CardID,
     pub source: IncID,
-    pub skiptime: u32,
-    pub skipduration: u32,
 }
 
 
@@ -133,21 +137,16 @@ impl Card {
 
     pub fn new() -> Card{
         Card{
+            id: 0,
             question: String::new(),
             answer: String::new(),
-            status: Status::new_complete(),
-            strength: 1.0,
-            stability: 1.0,
+            cardtype: CardType::Finished,
+            suspended: false,
+            resolved: false,
             dependencies: vec![],
             dependents: vec![],
-            history: Vec::<Review>::new(),
             topic: 0,
-            future: String::new(),
-            integrated: 1.0,
-            card_id: 0,
             source: 0,
-            skiptime: 0,
-            skipduration: 1,
         }
     }
 
@@ -159,8 +158,8 @@ impl Card {
         self.answer = answer;
         self
     }
-    pub fn status(mut self, status: Status)-> Self{
-        self.status = status;
+    pub fn status(mut self, cardtype: CardType)-> Self{
+        self.cardtype = cardtype;
         self
     }
     pub fn source(mut self, source: IncID) -> Self{
@@ -183,12 +182,51 @@ impl Card {
     }
 
 
+    pub fn is_complete(&self) -> bool {
+        if let CardType::Finished = self.cardtype {
+            return true
+        }
+        false
+    }
+    pub fn is_pending(&self) -> bool {
+        if let CardType::Pending = self.cardtype {
+            return true
+        }
+        false
+    }
+    pub fn is_unfinished(&self) -> bool {
+        if let CardType::Unfinished = self.cardtype {
+            return true
+        }
+        false
+    }
+
+
+    pub fn skiptime(&self, conn: &Connection) -> u32{
+        if let CardType::Unfinished = self.cardtype{
+            return get_skiptime(conn, self.id).unwrap();
+        } else {
+            panic!();
+        }
+    }
+  pub fn skipduration(&self, conn: &Connection) -> u32{
+        if let CardType::Unfinished = self.cardtype{
+            return get_skipduration(conn, self.id).unwrap();
+        } else {
+            panic!();
+        }
+    }
+
     pub fn save_card(self, conn: &Connection) -> CardID{
         let dependencies = self.dependencies.clone();
         let dependents = self.dependents.clone();
+        let finished = self.is_complete();
         save_card(conn, self).unwrap();
         let card_id = conn.last_insert_rowid() as CardID;
-        revlog_new(conn, card_id , Review::from(&RecallGrade::Decent)).unwrap();
+
+        if finished{
+            revlog_new(conn, card_id , Review::from(&RecallGrade::Decent)).unwrap();
+        }
 
         for dependency in dependencies{
             update_both(conn, card_id, dependency).unwrap();
@@ -210,15 +248,15 @@ impl Card {
 
         for dependency in &card.dependencies{
            let dep_card = fetch_card(conn, *dependency);
-           if  !dep_card.status.resolved  ||!dep_card.status.complete {
+           if  !dep_card.resolved  || !dep_card.is_complete() {
                is_resolved = false;
                break;
            };
        } 
-        if card.status.resolved != is_resolved{
+        if card.resolved != is_resolved{
             change_detected = true;
-            card.status.resolved = is_resolved;
-            update_status(conn, &card.clone()).unwrap();
+            card.resolved = is_resolved;
+            set_resolved(conn, card.id, card.resolved).unwrap();
 
             for dependent in card.dependents{
                 Card::check_resolved(dependent, conn);
@@ -233,22 +271,27 @@ impl Card {
     pub fn new_review(conn: &Connection, id: CardID, review: RecallGrade){
         revlog_new(conn, id, Review::from(&review)).unwrap();
         super::interval::calc_stability(conn, id);
-        activate_card(conn, id).unwrap();
     }
 
 
-    pub fn toggle_complete(id: CardID, conn: &Connection) {
-        //let card.status.complete = false;
-        let mut card = fetch_card(conn, id);
-        card.status.complete = !card.status.complete;
-        update_status(conn, &card).unwrap();
+
+    
+    pub fn complete_card(conn: &Connection, id: CardID){
+        let card = fetch_card(conn, id);
+        remove_unfinished(conn, id).unwrap();
+        new_finished(conn, id).unwrap();
+        revlog_new(conn, id, Review::from(&RecallGrade::Decent)).unwrap();
         for dependent in card.dependents{
             Card::check_resolved(dependent, conn);
         }
     }
+
+
 }
 
 
 use crate::utils::aliases::*;
-use super::sql::insert::{save_card, update_both};
+use super::sql::{insert::{save_card, update_both}, update::set_resolved, fetch::get_skipduration};
 use super::sql::insert::revlog_new;
+use super::sql::insert::new_finished;
+use super::sql::delete::remove_unfinished;

@@ -8,6 +8,9 @@ use tui::{
     layout::{Constraint, Direction::Vertical, Layout, Rect},
     Frame,
 };
+use crate::utils::card::CardType;
+
+
 
 use crate::utils::sql::fetch::{load_inc_text, get_topic_of_inc};
 use crate::MyKey;
@@ -104,9 +107,10 @@ impl AddChildWidget{
         let answer = self.answer.return_text();
         let source = if let Purpose::Source(id) = self.purpose {id} else {0};
         let status = if isfinished{
-            Status::new_complete()
+            CardType::Finished
+
         } else {
-            Status::new_incomplete()
+            CardType::Unfinished
         };
         
 

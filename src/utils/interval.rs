@@ -1,8 +1,8 @@
 use crate::utils::{
     card::{RecallGrade, Review},
     sql::{
-        update::{update_strength, update_stability},
-        fetch::load_cards,
+        update::{update_strength},
+        fetch::{load_cards, get_history, get_stability},
     }    
 };
 
@@ -10,7 +10,7 @@ use crate::utils::aliases::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::Connection;
 
-use super::sql::fetch::fetch_card;
+use super::sql::{fetch::fetch_card, update::set_stability};
 
 
 
@@ -35,14 +35,16 @@ pub fn calc_strength(conn: &Connection) {
     let mut passed;
 
     for card in cards.iter(){
-        if card.status.isactive() {
-            let hislen = card.history.len();
+        let history = get_history(conn, card.id).unwrap();
+        if card.is_complete() {
+            let hislen = history.len();
             if hislen == 0 as usize{
                 panic!{"wtf {}", &card.question};
             }
-            passed = time_passed_since_review(&card.history[(card.history.len() - 1) as usize]);
-            strength = func(passed, card.stability);
-            update_strength(conn, &card, strength).unwrap();
+            let stability = get_stability(conn, card.id).unwrap() as f32;
+            passed = time_passed_since_review(&history[(history.len() - 1) as usize]);
+            strength = func(passed, stability);
+            update_strength(conn, card.id, strength).unwrap();
         }
     }
 }
@@ -51,16 +53,16 @@ pub fn calc_strength(conn: &Connection) {
 
 pub fn calc_stability(conn: &Connection, id: CardID){
     let mut card = fetch_card(conn, id);
-
-    let hislen         = (&card.history).len();
+    let history = get_history(conn, id).unwrap();
+    let hislen = history.len();
     
     if hislen < 2{
         panic!("too small {}, {}", hislen, card.question.clone());
     }
 
-    let prev_stability =   card.stability.clone();
-    let grade          =  &card.history[hislen - 1 as usize].grade;
-    let time_passed    = time_passed_since_review(&card.history[(hislen - 2) as usize]);
+    let prev_stability = get_stability(conn, id).unwrap() as f32;
+    let grade          =  &history[hislen - 1 as usize].grade;
+    let time_passed    = time_passed_since_review(&history[(hislen - 2) as usize]);
     
     let gradefactor = match grade {
          RecallGrade::None   => 0.25,
@@ -79,10 +81,7 @@ pub fn calc_stability(conn: &Connection, id: CardID){
         }
     };
 
-
-    card.stability = new_stability;
-
-    update_stability(conn, card.clone()).unwrap();
+    set_stability(conn, card.id, new_stability).unwrap();
 }
 
 

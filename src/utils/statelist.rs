@@ -34,7 +34,7 @@ impl<T> StatefulList<T> {
         let cardvec = load_cards(conn).unwrap();
         let mut items = Vec::<u32>::new();
         for card in cardvec{
-            items.push(card.card_id);
+            items.push(card.id);
         }
         
         StatefulList {

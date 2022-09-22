@@ -96,7 +96,7 @@ pub fn review_event(app: &mut App, key: MyKey) {
             update_card_answer(&app.conn, id, answer).unwrap();
         },
         Action::CompleteUnf(question, answer, id) => {
-            Card::toggle_complete(id, &app.conn);
+            Card::complete_card(&app.conn, id);
             app.review.random_mode(&app.conn);
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();

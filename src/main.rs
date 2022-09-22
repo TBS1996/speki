@@ -38,7 +38,7 @@ use tui::{
 
 fn main() -> Result<(), Box<dyn Error>> {
     env::set_var("RUST_BACKTRACE", "1");
-    init_db().expect("Failed to create sqlite database");
+    init_db().unwrap();  //.expect("Failed to create sqlite database");
 
 
     // setup terminal

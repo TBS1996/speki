@@ -2,7 +2,7 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 use crate::utils::{
     card::{Card, RecallGrade},
-    sql::fetch::load_cards,
+    sql::fetch::{load_cards, get_strength},
     interval, 
 };
 
@@ -94,19 +94,17 @@ impl ForReview{
         let active_increads  = load_active_inc(conn).unwrap();
 
         for card in thecards{
-            if card.status.isactive(){
-                if card.strength < 0.999{
-                    review_cards.push(card.card_id);
+            if card.is_complete(){
+                if get_strength(conn, card.id).unwrap() < 0.999{
+                    review_cards.push(card.id);
                 }
-            } else if !card.status.initiated{
-                pending_cards.push(card.card_id);
-            } else if !card.status.complete{
+            } else if card.is_unfinished(){
                 let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
-
-                if current_time - card.skiptime > card.skipduration * 84_600{
-                    unfinished_cards.push(card.card_id);
+                if current_time - card.skiptime(conn) > card.skipduration(conn) * 84_600{
+                    unfinished_cards.push(card.id);
                 }
-                
+            } else if card.is_pending(){
+                pending_cards.push(card.id);
             }
         }
 

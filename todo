@@ -4,6 +4,8 @@ add "learn new cards" mode on review tab
 add incremental reading mode
 make paste work
 fix cursor dissapearing when at end of sentence
+fix selection bug when cursor is at end of a line
+
 
 
 // todo
@@ -33,5 +35,4 @@ suspend until specified date
 list of which order to introduce pending cards, with new DB table
 add tags
 add priority to topics && tags
-fix selection bug when cursor is at end of a line
 add "source" for tiems added normally too, in case it came from a specific context

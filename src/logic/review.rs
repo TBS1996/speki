@@ -12,6 +12,7 @@ use crate::utils::widgets::textinput::Field;
 use crate::utils::incread::IncRead;
 use rand::prelude::*;
 use crate::utils::sql::update::update_inc_active;
+use crate::utils::widgets::cardrater::CardRater;
 
 
 
@@ -21,6 +22,7 @@ pub enum ReviewSelection{
     Dependencies,
     Dependents,
     RevealButton,
+    CardRater,
 }
 
 
@@ -30,6 +32,7 @@ pub struct CardReview{
     pub answer: Field,
     pub reveal: bool,
     pub selection: ReviewSelection,
+    pub cardrater: CardRater,
 //    pub select_card: FindCardWidget,
 }
 
@@ -246,12 +249,14 @@ impl ReviewList {
         let card = fetch_card(conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
+        let cardrater = CardRater::new();
         let cardreview = CardReview{
             id,
             question,
             answer,
             reveal,
             selection,
+            cardrater,
         };
 
         self.mode = ReviewMode::Review(cardreview);
@@ -265,12 +270,14 @@ impl ReviewList {
         let card = fetch_card(conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
+        let cardrater = CardRater::new();
         let cardreview = CardReview{
             id,
             question,
             answer,
             reveal,
             selection,
+            cardrater,
         };
 
         self.mode = ReviewMode::Review(cardreview);

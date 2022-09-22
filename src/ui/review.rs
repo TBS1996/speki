@@ -257,6 +257,7 @@ where
     review.question.draw_field(f, area.question, selected.question);
     if review.reveal{
         review.answer.draw_field(f, area.answer, selected.answer);
+        review.cardrater.render(f, area.cardrater, selected.cardrater);
     } else {
         draw_button(f, area.answer,   "Space to reaveal", selected.revealbutton);
     }
@@ -297,6 +298,7 @@ struct RevSelect{
     dependents: bool,
     dependencies: bool,
     revealbutton: bool,
+    cardrater: bool,
 
 }
 
@@ -310,6 +312,7 @@ impl RevSelect{
             dependents: false,
             dependencies: false, 
             revealbutton: false,
+            cardrater: false,
         };
 
         match choice{
@@ -318,6 +321,7 @@ impl RevSelect{
             Dependencies => sel.dependencies = true,
             Dependents   => sel.dependents = true,
             RevealButton => sel.revealbutton = true,
+            CardRater    => sel.cardrater = true,
         }
         sel
     }
@@ -367,6 +371,7 @@ struct DrawReview{
     answer: Rect,
     dependents: Rect,
     dependencies: Rect,
+    cardrater: Rect,
 }
 
 struct DrawInc{
@@ -457,6 +462,20 @@ fn unfinished_layout(area: Rect) -> DrawUnf {
 fn review_layout(area: Rect) -> DrawReview{
    
 
+
+    let updown = Layout::default()
+        .direction(Vertical)
+        .constraints(
+            [
+            Constraint::Ratio(9, 10),
+            Constraint::Min(5),
+            ]
+            .as_ref(),
+            )
+        .split(area);
+
+    let (up, down) = (updown[0], updown[1]);
+
     let leftright = Layout::default()
         .direction(Horizontal)
         .constraints(
@@ -466,7 +485,20 @@ fn review_layout(area: Rect) -> DrawReview{
             ]
             .as_ref(),
             )
-        .split(area);
+        .split(up);
+
+
+
+    let bottomleftright = Layout::default()
+        .direction(Horizontal)
+        .constraints(
+            [
+            Constraint::Ratio(2, 3),
+            Constraint::Ratio(1, 3),
+            ]
+            .as_ref(),
+            )
+        .split(down);
 
     let left = leftright[0];
     let right = leftright[1];
@@ -486,7 +518,7 @@ fn review_layout(area: Rect) -> DrawReview{
         .constraints(
             [
             Constraint::Ratio(1, 2),
-            Constraint::Ratio(1, 2)
+            Constraint::Ratio(1, 2),
             ]
             .as_ref(),
             )
@@ -497,6 +529,7 @@ fn review_layout(area: Rect) -> DrawReview{
         answer:   leftcolumn[1],
         dependents: rightcolumn[0],
         dependencies: rightcolumn[1],
+        cardrater: bottomleftright[0],
     }
 
 }

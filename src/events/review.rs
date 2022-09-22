@@ -162,6 +162,7 @@ fn rev_nav(rev: &mut CardReview, dir: &Direction){
         
         (Answer, Right)   => rev.selection = Dependencies,
         (Answer, Up)      => rev.selection = Question,
+        (Answer, Down) if rev.reveal => rev.selection = CardRater,
 
         (Dependencies, Left) if rev.reveal => rev.selection = Answer,
         (Dependencies, Left) => rev.selection = RevealButton,
@@ -172,6 +173,10 @@ fn rev_nav(rev: &mut CardReview, dir: &Direction){
 
         (RevealButton, Right)   => rev.selection = Dependencies,
         (RevealButton, Up)   => rev.selection = Question,
+
+
+        (CardRater, Right) => rev.selection = Dependencies,
+        (CardRater, Up)    => rev.selection = Answer,
         _ => {},
     }
 }
@@ -219,14 +224,6 @@ fn mode_review(unf: &mut CardReview, key: MyKey, action: &mut Action) {
     }
     match (&unf.selection, key){
         (_, Alt('q')) => *action = Action::Quit,
-        (_, Char(num)) if num.is_digit(10) 
-            && (1..5).contains(&num.to_digit(10).unwrap()) =>  {
-                *action = Action::Review(
-                    unf.question.return_text(), 
-                    unf.answer.return_text(), 
-                    unf.id, 
-                    num,
-            )},
         (_, Alt('w')) => unf.reveal = true,
         (_, Alt('s'))     => *action = Action::SkipRev(unf.question.return_text(), unf.answer.return_text(), unf.id),
         (_, Alt('t')) => *action = Action::NewDependent(unf.id),
@@ -235,10 +232,34 @@ fn mode_review(unf: &mut CardReview, key: MyKey, action: &mut Action) {
         (_, Alt('Y')) => *action = Action::AddDependency(unf.id),
         (RevealButton, Char(' '))  => {
             unf.reveal = true;
-            unf.selection = Answer;
+            unf.selection = CardRater;
         },
         (Question, key) => unf.question.keyhandler(key),
         (Answer,   key) => unf.answer.keyhandler(key),
+
+        (CardRater, Char(num)) if num.is_digit(10) 
+            && (1..5).contains(&num.to_digit(10).unwrap()) =>  {
+                *action = Action::Review(
+                    unf.question.return_text(), 
+                    unf.answer.return_text(), 
+                    unf.id, 
+                    num,
+            )},
+        (CardRater, Char(' ')) | (CardRater, Enter) => {
+            let num =  match unf.cardrater.selection{
+                RecallGrade::None   => '1',
+                RecallGrade::Failed => '2',
+                RecallGrade::Decent => '3',
+                RecallGrade::Easy   => '4',
+            };
+            *action = Action::Review(
+                    unf.question.return_text(), 
+                    unf.answer.return_text(), 
+                    unf.id, 
+                    num,
+            )
+        },
+        (CardRater, key) => unf.cardrater.keyhandler(key),
         (_,_) => {},
     }
 }

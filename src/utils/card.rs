@@ -147,7 +147,7 @@ impl Card {
             card_id: 0,
             source: 0,
             skiptime: 0,
-            skipduration: 0,
+            skipduration: 1,
         }
     }
 

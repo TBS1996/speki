@@ -1,3 +1,4 @@
+use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{params, Connection, Result};
 use crate::utils::card::Card;
 use crate::utils::aliases::*;
@@ -90,12 +91,21 @@ pub fn update_inc_active(conn: &Connection, id: IncID, active: bool) -> Result<(
     Ok(())
 }
 
-pub fn double_skip_duration(conn: &Connection, id: IncID) -> Result<()>{
+pub fn double_skip_duration(conn: &Connection, id: CardID) -> Result<()>{
     let mut rng = rand::thread_rng();
     let mut y: f64 = rng.gen();
     y += 0.5; // y is now between 0.5 and 1.5
     let card = fetch_card(conn, id);
     let mut stmt = conn.prepare("UPDATE cards SET skipduration = ? WHERE id = ?")?;
-    stmt.execute(params![(card.skipduration as f64* 2 as f64 * y) as i32, id])?;
+    stmt.execute(params![(card.skipduration as f64* 2 as f64 * y) as i32 + 1, id])?;
+    update_skiptime(conn, id).unwrap();
+    Ok(())
+}
+
+
+pub fn update_skiptime(conn: &Connection, id: CardID) -> Result<()>{
+    let unix = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
+    let mut stmt = conn.prepare("UPDATE cards SET skiptime = ? WHERE id = ?")?;
+    stmt.execute(params![unix, id])?;
     Ok(())
 }

@@ -1,4 +1,5 @@
-use crate::utils::{aliases::*, sql::insert::update_both, card::Card};
+use crate::utils::card::Status;
+use crate::utils::{aliases::*, card::Card};
 use rusqlite::Connection;
 use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};
 use crate::utils::widgets::textinput::Field;
@@ -102,19 +103,28 @@ impl AddChildWidget{
         let question = self.question.return_text();
         let answer = self.answer.return_text();
         let source = if let Purpose::Source(id) = self.purpose {id} else {0};
+        let status = if isfinished{
+            Status::new_complete()
+        } else {
+            Status::new_incomplete()
+        };
         
 
-        let id = Card::save_new_card(conn, question, answer, topic, source, isfinished);
+
+        let mut card = Card::new()
+            .question(question)
+            .answer(answer)
+            .topic(topic)
+            .source(source)
+            .status(status);
 
         match self.purpose{
-            Purpose::Dependent(cid)  => {
-                update_both(conn, cid, id).unwrap();
-                Card::check_resolved(cid, conn);
-            },
-            Purpose::Dependency(cid) => update_both(conn, id, cid).unwrap(),
+            Purpose::Dependent(cid)  => {card.dependent (cid);},
+            Purpose::Dependency(cid) => {card.dependency(cid);}
             _ => {},
 
         }
+        card.save_card(conn);
         self.status = PopUpStatus::Finished;
     }
 

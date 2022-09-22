@@ -1,5 +1,4 @@
 use std::time::{SystemTime, UNIX_EPOCH};
-use serde_derive::{Deserialize, Serialize};
 use rusqlite::Connection;
 use crate::utils::sql::{
     fetch::fetch_card,
@@ -13,7 +12,7 @@ use crate::utils::sql::{
 
 
 
-#[derive(Serialize,Debug, Deserialize, Clone)]
+#[derive(Debug, Clone)]
 pub enum RecallGrade{
     None,
     Failed,
@@ -36,7 +35,7 @@ impl RecallGrade{
 
 
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Status {
     pub initiated: bool,
     pub complete:  bool,
@@ -87,7 +86,7 @@ impl Status{
 }
 
 
-#[derive(Serialize, Deserialize, Debug,Clone)]
+#[derive(Debug,Clone)]
 pub struct Review{
     pub grade: RecallGrade,
     pub date: u32,
@@ -131,6 +130,79 @@ impl Card {
     ///checks if the passed card should be resolved or not based on the completeness of its
     ///dependencies. If its status changed, it will recursively check all its dependents (and so
     ///on...)
+
+    pub fn new() -> Card{
+        Card{
+            question: String::new(),
+            answer: String::new(),
+            status: Status::new_complete(),
+            strength: 1.0,
+            stability: 1.0,
+            dependencies: vec![],
+            dependents: vec![],
+            history: Vec::<Review>::new(),
+            topic: 0,
+            future: String::new(),
+            integrated: 1.0,
+            card_id: 0,
+            source: 0,
+            skiptime: 0,
+            skipduration: 0,
+        }
+    }
+
+    pub fn question(mut self, question: String)-> Self{
+        self.question = question;
+        self
+    }
+    pub fn answer(mut self, answer: String)-> Self{
+        self.answer = answer;
+        self
+    }
+    pub fn status(mut self, status: Status)-> Self{
+        self.status = status;
+        self
+    }
+    pub fn source(mut self, source: IncID) -> Self{
+        self.source = source;
+        self
+    }
+    pub fn topic(mut self, topic: TopicID) -> Self{
+        self.topic = topic;
+        self
+    }
+
+
+    // these don't take self because theyre dependent on conditional logic 
+    // after the card has been created 
+    pub fn dependency(&mut self, dependency: CardID){
+        self.dependencies.push(dependency);
+    }
+    pub fn dependent(&mut self, dependent: CardID){
+        self.dependents.push(dependent);
+    }
+
+
+    pub fn save_card(self, conn: &Connection) -> CardID{
+        let dependencies = self.dependencies.clone();
+        let dependents = self.dependents.clone();
+        save_card(conn, self).unwrap();
+        let card_id = conn.last_insert_rowid() as CardID;
+        revlog_new(conn, card_id , Review::from(&RecallGrade::Decent)).unwrap();
+
+        for dependency in dependencies{
+            update_both(conn, card_id, dependency).unwrap();
+        }
+        for dependent in dependents{
+            update_both(conn, dependent, card_id).unwrap();
+            Self::check_resolved(dependent, conn);
+        }
+
+        Self::check_resolved(card_id, conn);
+        card_id
+    }
+
+
     pub fn check_resolved(id: u32, conn: &Connection) -> bool {
         let mut change_detected = false;
         let mut card = fetch_card(conn, id);
@@ -174,40 +246,9 @@ impl Card {
             Card::check_resolved(dependent, conn);
         }
     }
-
-
-    pub fn save_new_card(conn: &Connection, question: String, answer: String, topic: TopicID, source: IncID, completed: bool)-> CardID{
-        let status = if completed{
-            Status::new_complete()
-        } else {
-            Status::new_incomplete()
-        };
-
-        let card = Card {
-            question,
-            answer,
-            status,
-            strength: 1.,
-            stability: 1.,
-            dependencies: Vec::<u32>::new(),
-            dependents: Vec::<u32>::new(),
-            history: Vec::<Review>::new(),
-            topic,
-            future: String::new(),
-            integrated: 1.,
-            card_id: 1,
-            source,
-            skiptime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32,
-            skipduration: 1,
-        };
-        save_card(conn, card).unwrap();
-        let card_id = conn.last_insert_rowid() as CardID;
-        revlog_new(conn, card_id , Review::from(&RecallGrade::Decent)).unwrap();
-        card_id
-    }
 }
 
 
 use crate::utils::aliases::*;
-use super::sql::insert::save_card;
+use super::sql::insert::{save_card, update_both};
 use super::sql::insert::revlog_new;

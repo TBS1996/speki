@@ -1,13 +1,11 @@
+use crate::utils::card::Status;
 use crate::utils::{aliases::*, sql::fetch::load_inc_title};
 use rusqlite::Connection;
 use crate::utils::{
-    sql::{
-        fetch::{highest_id, fetch_card},
-        insert::update_both,
-    },
     card::Card,
     widgets::textinput::Field,
     widgets::find_card::FindCardWidget,
+    sql::fetch::fetch_card,
 };
 
 
@@ -112,23 +110,36 @@ impl NewCard{
         } else {
             0
         };
+        let status = if iscompleted{
+            Status::new_complete()
+        } else {
+            Status::new_incomplete()
+        };
 
-        Card::save_new_card(conn, question, answer, topic, source, iscompleted);
+
+     //(conn, question, answer, topic, source, iscompleted);
+        let mut card = Card::new()
+            .question(question)
+            .answer(answer)
+            .topic(topic)
+            .source(source)
+            .status(status);
+
      //   revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent)).unwrap();
 
-        let last_id: CardID = highest_id(conn).unwrap();
         match self.state{
             DepState::None => {},
             DepState::NewDependency(id) => {
-                update_both(conn, id, last_id).unwrap();
+                card.dependency(id);
             },  
             DepState::NewDependent(id) => {
-                update_both(conn, last_id, id).unwrap();
-                Card::check_resolved(id, conn);
+                card.dependent(id);
             },  
             DepState::NewChild(_id) => {
             }
         }
+
+        card.save_card(conn);
         self.reset(DepState::None, conn);
     }
 

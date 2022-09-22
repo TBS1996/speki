@@ -8,6 +8,7 @@ use rusqlite::Connection;
 use crate::utils::statelist::StatefulList;
 use crate::MyKey;
 use crate::utils::sql::update::update_inc_text;
+use crate::utils::card::Status;
 
 
 #[derive(Clone)]
@@ -46,7 +47,14 @@ impl IncRead{
             let mut question = self.source.return_text();
             question = question.replace(&cloze, "[...]");
             let answer = cloze;
-            Card::save_new_card(conn, question, answer, self.topic, self.id, true);
+            Card::new()
+                .question(question)
+                .answer(answer)
+                .topic(self.topic)
+                .source(self.id)
+                .status(Status::new_complete())
+                .save_card(conn);
+                
             self.clozes = StatefulList::with_items(load_cloze_cards(conn, self.id).unwrap());
         }
     }

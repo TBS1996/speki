@@ -120,7 +120,7 @@ impl AddChildWidget{
             .answer(answer)
             .topic(topic)
             .source(source)
-            .status(status);
+            .cardtype(status);
 
         match self.purpose{
             Purpose::Dependent(cid)  => {card.dependent (cid);},
@@ -157,9 +157,9 @@ where
         Selection::Answer => asel = true,
     }
 
-    self.prompt.draw_field(f, prompt, false);
-    self.question.draw_field(f, question, qsel);
-    self.answer.draw_field(f, answer, asel);
+    self.prompt.render(f, prompt, false);
+    self.question.render(f, question, qsel);
+    self.answer.render(f, answer, asel);
 }
 
 }

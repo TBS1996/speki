@@ -123,7 +123,7 @@ impl NewCard{
             .answer(answer)
             .topic(topic)
             .source(source)
-            .status(status);
+            .cardtype(status);
 
      //   revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent)).unwrap();
 

@@ -793,7 +793,7 @@ impl Field{
     }
 
 
-pub fn draw_field<B>(& self, f: &mut Frame<B>, area: Rect, selected: bool)
+pub fn render<B>(& self, f: &mut Frame<B>, area: Rect, selected: bool)
 where
     B: Backend,
 {

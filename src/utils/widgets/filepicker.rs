@@ -25,14 +25,14 @@ enum FileType{
 }
 
 
-pub struct Directory{
+pub struct FilePicker{
     contents: StatefulList<PathBuf>,
     path: PathBuf,
 
 }
 
 
-impl Directory{
+impl FilePicker{
     pub fn new()-> Self{
         let path = std::env::current_dir().unwrap();
         let files = Self::fill_vec(&path);
@@ -97,16 +97,8 @@ impl Directory{
             self.newdir(path);
         }
     }
-
-
-}
-use crate::tabs::MyType;
-impl Widget for Directory{
-    fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
-        self.contents.render(f, area);
         
-    }
-    fn keyhandler(&mut self, key: crate::MyKey) {
+    pub fn keyhandler(&mut self, key: crate::MyKey) {
         use crate::MyKey::*;
        // dbg!(&key);
 
@@ -119,24 +111,10 @@ impl Widget for Directory{
             
         }
     }
-}
 
-
-fn main() {
-    for file in fs::read_dir("./change_this_path").unwrap() {
-        println!("{}", file.unwrap().path().display());
-    }
-}
-
-
-
-impl Widget for StatefulList<PathBuf>{
-    fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
-
-
-
+    pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect, selected: bool) {
         let mylist = {
-            let items: Vec<ListItem> = self.items.iter()
+            let items: Vec<ListItem> = self.contents.items.iter()
                         .map(|item| {
                             let lines = Span::from(item.clone().into_os_string().into_string().unwrap());
                             ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
@@ -154,65 +132,19 @@ impl Widget for StatefulList<PathBuf>{
                 };
 
 
-        f.render_stateful_widget(mylist, area, &mut self.state);
+        f.render_stateful_widget(mylist, area, &mut self.contents.state);
                     
     }
-    fn keyhandler(&mut self, _key: crate::MyKey) {
-        panic!();
-    }
 
 }
-
-/*
- 
+use crate::tabs::MyType;
 
 
-impl<T> StraitList<T> for StatefulList<FileType>{
-    fn state(&self) -> ListState {
-        self.state.clone()
-    }
 
-    fn generate_list_items(&self, _selected: bool) -> List{
-        let items: Vec<ListItem> = self.items.iter()
-            .map(|item| {
-                let lines = vec![
-                    Spans::from(
-                        match &*item {
-                            FileType::File(buf)      => buf.clone().into_os_string().into_string().unwrap(),
-                            FileType::Directory(buf) => buf.clone().into_os_string().into_string().unwrap(),
-                        }
-                    )
-                ];
-                ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
-            })
-            .collect();
-    
-        let items = List::new(items).block(Block::default().borders(Borders::ALL).title("Selected"));
-        let items = items
-            .highlight_style(
-                Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        );
-        items
+fn main() {
+    for file in fs::read_dir("./change_this_path").unwrap() {
+        println!("{}", file.unwrap().path().display());
     }
 }
 
 
-
-
-pub fn list_widget<B, T>(f: &mut Frame<B>, widget: &T, area: Rect, selected: bool)
-where
-    B: Backend,
-    T: StraitList<T>,
-{
-
-    
-    let items = widget.generate_list_items(selected);
-    f.render_stateful_widget(items, area, &mut widget.state());
-}
-
-
-
-
-*/

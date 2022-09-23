@@ -53,7 +53,7 @@ impl IncRead{
                 .answer(answer)
                 .topic(self.topic)
                 .source(self.id)
-                .status(super::card::CardType::Finished)
+                .cardtype(super::card::CardType::Finished)
                 .save_card(conn);
                 
             self.clozes = StatefulList::with_items(load_cloze_cards(conn, self.id).unwrap());

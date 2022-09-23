@@ -146,7 +146,7 @@ where
     let (prompt, searchbar, matchlist) = (chunks[0], chunks[1], chunks[2]);
     
     draw_message(f, prompt, &widget.prompt);
-    widget.searchterm.draw_field(f, searchbar, false);
+    widget.searchterm.render(f, searchbar, false);
     list_widget(f, &widget.list, matchlist, false);
 }
 

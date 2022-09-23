@@ -72,7 +72,8 @@ wait that would fuck up selection lol
 */
 
 use crate::utils::widgets::newchild::AddChildWidget;
-use crate::utils::widgets::filepicker::Directory;
+use crate::utils::widgets::filepicker::FilePicker;
+use crate::logic::import::Importer;
 
 
 
@@ -92,7 +93,8 @@ pub struct App<'a> {
     pub add_card: NewCard,
     pub browse: Browse,
     pub incread: MainInc,
-    pub debug: Directory,
+    pub debug: FilePicker,
+    pub importer: Importer,
     pub popup: PopUp,
 }
 
@@ -106,7 +108,8 @@ impl<'a> App<'a> {
         addcards.topics.next();
         let incread = MainInc::new(&conn);
         let popup = PopUp::None;
-        let debug = Directory::new();
+        let debug = FilePicker::new();
+        let importer = Importer::new(&conn);
 
 
         App {
@@ -118,6 +121,7 @@ impl<'a> App<'a> {
             browse,
             incread,
             debug, 
+            importer,
             popup,
         }
     }
@@ -153,10 +157,10 @@ impl<'a> App<'a> {
                 match self.tabs.index {
                     0 => review_event(self,   key),
                     1 => add_card_event(self, key),
-                    3 => browse_event(self,   key),
+                    4 => browse_event(self,   key),
                     2 => main_inc(self,       key),
-                    4 => {
-                        self.debug.keyhandler(key);
+                    3 => {
+                        self.importer.keyhandler(&self.conn, key);
                     },
                     _ => {},
                 }

@@ -70,8 +70,8 @@ where
 
 
     draw_message(f, chunks[0], app.add_card.prompt.as_str());
-    app.add_card.question.draw_field(f, chunks[1], isqselected);
-    app.add_card.answer.draw_field(  f, chunks[2], is_ans_selected);
+    app.add_card.question.render(f, chunks[1], isqselected);
+    app.add_card.answer.render(  f, chunks[2], is_ans_selected);
     
 }
 

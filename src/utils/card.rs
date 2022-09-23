@@ -158,7 +158,7 @@ impl Card {
         self.answer = answer;
         self
     }
-    pub fn status(mut self, cardtype: CardType)-> Self{
+    pub fn cardtype(mut self, cardtype: CardType)-> Self{
         self.cardtype = cardtype;
         self
     }

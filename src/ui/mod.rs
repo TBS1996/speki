@@ -7,6 +7,7 @@ pub mod incread;
 use crate::app::App;
 use crate::tabs::Widget;
 use crate::utils::widgets::find_card::draw_find_card;
+use crate::ui::import::draw_import;
 
 
 use crate::app::PopUp;
@@ -60,8 +61,13 @@ pub fn draw(f: &mut Frame<MyType>, app: &mut App) {
                 0 => main_review(f,   app, chunks[1]),
                 1 => draw_add_card(f, app, chunks[1]),
                 2 => draw_incread(f,  app, chunks[1]),
-                3 => draw_browse(f,   app, chunks[1]),
-                4 => app.debug.render(f, chunks[1]),
+                //3 => draw_import(f,   app, chunks[1]),
+                3 => {
+                    app.importer.render(f, chunks[1])
+                }
+
+                4 => draw_browse(f,   app, chunks[1]),
+                //3 => app.debug.render(f, chunks[1]),
                 _ => {},
             };
         },

@@ -100,8 +100,8 @@ where
     unfinished.answer.set_win_height(area.answer.height);
     view_dependencies(f, unfinished.id, conn, area.dependencies,selected.dependencies); 
     view_dependents(f,   unfinished.id, conn, area.dependents, selected.dependents);
-    unfinished.question.draw_field(f, area.question,  selected.question);
-    unfinished.answer.draw_field(f,   area.answer,    selected.answer);
+    unfinished.question.render(f, area.question,  selected.question);
+    unfinished.answer.render(f,   area.answer,    selected.answer);
     /*
     draw_button(f, area.skip,   "skip",   selected.skip);
     draw_button(f, area.finish, "finish", selected.finish);
@@ -130,7 +130,7 @@ where
     inc.source.source.set_win_height(area.source.height);
 
 
-    inc.source.source.draw_field(f, area.source, selected.source);
+    inc.source.source.render(f, area.source, selected.source);
     let clozes: StatefulList<CardItem> = inc.source.clozes.clone();
     let list = {
         let bordercolor = if selected.clozes {Color::Red} else {Color::White};
@@ -254,9 +254,9 @@ where
     review.question.set_win_height(area.question.height);
     review.answer.set_win_height(area.answer.height);
 
-    review.question.draw_field(f, area.question, selected.question);
+    review.question.render(f, area.question, selected.question);
     if review.reveal{
-        review.answer.draw_field(f, area.answer, selected.answer);
+        review.answer.render(f, area.answer, selected.answer);
         review.cardrater.render(f, area.cardrater, selected.cardrater);
     } else {
         draw_button(f, area.answer,   "Space to reaveal", selected.revealbutton);

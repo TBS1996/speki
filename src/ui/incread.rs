@@ -38,7 +38,7 @@ where
 
 
     match &app.incread.focused{
-        Some(incread) => incread.source.draw_field(f, left, field_select),
+        Some(incread) => incread.source.render(f, left, field_select),
         None => draw_message(f,left, "No text selected"),
     };
 

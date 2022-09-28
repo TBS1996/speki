@@ -120,6 +120,8 @@ pub struct Card{
     pub id: u32,
     pub question: String,
     pub answer: String,
+    pub frontaudio: Option<String>,
+    pub backaudio: Option<String>,
     pub cardtype: CardType,
     pub suspended: bool,
     pub resolved:  bool,
@@ -140,6 +142,8 @@ impl Card {
             id: 0,
             question: String::new(),
             answer: String::new(),
+            frontaudio: None,
+            backaudio: None,
             cardtype: CardType::Finished,
             suspended: false,
             resolved: false,
@@ -265,17 +269,10 @@ impl Card {
         change_detected
     }
 
-
-
-
     pub fn new_review(conn: &Connection, id: CardID, review: RecallGrade){
         revlog_new(conn, id, Review::from(&review)).unwrap();
         super::interval::calc_stability(conn, id);
     }
-
-
-
-    
     pub fn complete_card(conn: &Connection, id: CardID){
         let card = fetch_card(conn, id);
         remove_unfinished(conn, id).unwrap();
@@ -286,6 +283,24 @@ impl Card {
         }
     }
 
+    pub fn play_frontaudio(conn: &Connection, id: CardID, handle: &rodio::OutputStreamHandle) {
+        let card = fetch_card(conn, id);
+        if let Some(path) = card.frontaudio{
+            Self::play_audio(handle, path);
+        }
+    }
+    pub fn play_backaudio(conn: &Connection, id: CardID, handle: &rodio::OutputStreamHandle) {
+        let card = fetch_card(conn, id);
+        if let Some(path) = card.backaudio{
+            Self::play_audio(handle, path);
+        }
+    }
+    fn play_audio(handle: &rodio::OutputStreamHandle, path: String){
+        let file = std::fs::File::open(path).unwrap();
+        let beep1 = handle.play_once(BufReader::new(file)).unwrap();
+        beep1.set_volume(0.2);
+        beep1.detach();
+    }
 
 }
 
@@ -295,3 +310,4 @@ use super::sql::{insert::{save_card, update_both}, update::set_resolved, fetch::
 use super::sql::insert::revlog_new;
 use super::sql::insert::new_finished;
 use super::sql::delete::remove_unfinished;
+use std::io::BufReader;

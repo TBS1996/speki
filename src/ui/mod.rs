@@ -52,8 +52,8 @@ pub fn draw(f: &mut Frame<MyType>, app: &mut App) {
         .select(app.tabs.index);
 
 
-    match &app.popup{
-        PopUp::CardSelecter(cardfinder) => draw_find_card(f, &cardfinder, chunks[1]),
+    match &mut app.popup{
+        PopUp::CardSelecter(cardfinder) => draw_find_card(f, cardfinder, chunks[1]),
         PopUp::AddChild(addchild) => addchild.render(f,  chunks[1]),
         PopUp::None => {
             f.render_widget(tabs, chunks[0]);

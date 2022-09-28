@@ -51,6 +51,22 @@ impl<T> StatefulList<T> {
         }
     }
 
+
+    pub fn move_item_up(&mut self){
+        if let Some(idx) = self.state.selected(){
+            if idx != 0{
+                self.items.swap(idx, idx - 1);
+            }
+        }
+    }
+    pub fn move_item_down(&mut self){
+        if let Some(idx) = self.state.selected(){
+            if idx != self.items.len() - 1{
+                self.items.swap(idx, idx + 1);
+            }
+        }
+    }
+
     pub fn next(&mut self) {
         if self.items.len() == 0 {return};
 

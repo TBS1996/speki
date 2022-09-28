@@ -30,11 +30,14 @@ pub fn init_db() -> Result<()>{
             id           integer primary key,
             question     text not null,
             answer       text not null,
+            frontaudio   text,
+            backaudio    text,
             cardtype     integer not null,
             suspended    bool not null,
             resolved     bool not null,
             topic        integer not null,
             source       integer not null
+            
     )",
         [],
         )?;

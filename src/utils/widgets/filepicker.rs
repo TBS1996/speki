@@ -24,24 +24,38 @@ enum FileType{
     File(PathBuf),
 }
 
+pub enum PickState{
+    Ongoing,
+    ExitEarly,
+    Fetch(PathBuf),
+}
 
 pub struct FilePicker{
     contents: StatefulList<PathBuf>,
     path: PathBuf,
+    pub state: PickState,
+    allowed_extensions: Vec<String>,
 
 }
 
 
-impl FilePicker{
-    pub fn new()-> Self{
-        let path = std::env::current_dir().unwrap();
-        let files = Self::fill_vec(&path);
-        let contents = StatefulList::with_items(files);
 
-        Self {
+impl FilePicker{
+    pub fn new<E>(extensions: E)-> Self
+    where
+        E: Into<Vec<String>>, 
+    {
+        let path = std::env::current_dir().unwrap();
+        let contents = StatefulList::new();
+
+        let mut me = Self {
             contents,
-            path,
-        }
+            path: path.clone(),
+            state: PickState::Ongoing,
+            allowed_extensions: extensions.into(),
+        };
+        me.fill_vec(&path);
+        me
 
         
     }
@@ -50,13 +64,21 @@ impl FilePicker{
         self.path.clone().into_os_string().into_string().unwrap()
     }
 
-    fn fill_vec(path: &PathBuf) -> Vec<PathBuf>{
+    fn fill_vec(&mut self, path: &PathBuf){
         let mut myvec = Vec::<PathBuf>::new();
         for entry in fs::read_dir(path).unwrap() {
             let dir = entry.unwrap();
-            myvec.push(dir.path());
+            let path = dir.path();
+            if let Some(foo) = path.extension(){
+                let extension = foo.to_str().unwrap().to_string();
+                if self.allowed_extensions.contains(&extension){
+                    myvec.push(path);
+                }
+            } else {
+                myvec.push(path);
+            }
         }
-        myvec
+        self.contents = StatefulList::with_items(myvec);
     }
     fn newdir(&mut self, newpath: PathBuf){
         let mut myvec = Vec::<PathBuf>::new();
@@ -66,7 +88,14 @@ impl FilePicker{
                 for entry in iter{
                     let dir = entry.unwrap().path();
                     if !dir.clone().into_os_string().into_string().unwrap().contains("/."){
-                        myvec.push(dir);
+                        if let Some(foo) = dir.extension(){
+                            let extension = foo.to_str().unwrap().to_string();
+                            if self.allowed_extensions.contains(&extension){
+                                myvec.push(dir);
+                            }
+                        } else {
+                            myvec.push(dir);
+                        }
                     }
                 }
                 self.contents = StatefulList::with_items(myvec);
@@ -103,21 +132,35 @@ impl FilePicker{
        // dbg!(&key);
 
         match key {
-            Char('k') => self.contents.previous(),
-            Char('j') => self.contents.next(),
-            Char('h') => self.prevdir(),
-            Char('l') => self.select_dir(),
+            Char('k') | Left=> self.contents.previous(),
+            Char('j') | Down=> self.contents.next(),
+            Char('h') | Up => self.prevdir(),
+            Char('l') | Right=> self.select_dir(),
+            Enter => {
+                let idx = self.contents.state.selected().unwrap();
+                let path = self.contents.items[idx].clone();
+                if let Some(foo) = path.extension(){
+                    if foo == "apkg"{
+                        self.state = PickState::Fetch(path);
+                    }
+                } else{
+                    self.select_dir();
+                }
+            },
+            Esc => self.state = PickState::ExitEarly,
             _ => {},
             
         }
     }
 
-    pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect, selected: bool) {
+
+
+    pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
         let mylist = {
             let items: Vec<ListItem> = self.contents.items.iter()
                         .map(|item| {
                             let lines = Span::from(item.clone().into_os_string().into_string().unwrap());
-                            ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
+                            ListItem::new(lines).style(Style::default().fg(Color::Gray).bg(Color::Black))
                         })
                         .collect();
                 

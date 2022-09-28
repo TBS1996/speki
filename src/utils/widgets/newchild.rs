@@ -133,7 +133,7 @@ impl AddChildWidget{
     }
 
 
-pub fn render<B>(&self, f: &mut Frame<B>, area: Rect)
+pub fn render<B>(&mut self, f: &mut Frame<B>, area: Rect)
 where
     B: Backend,
 {

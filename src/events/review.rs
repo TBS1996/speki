@@ -46,6 +46,7 @@ enum Action {
     AddDependency(CardID),
     AddDependent(CardID),
     AddChild(IncID),
+    PlayBackAudio(CardID),
     Quit,
     None,
 }
@@ -65,11 +66,11 @@ pub fn review_event(app: &mut App, key: MyKey) {
 
     match action{
         Action::IncNext(source, id) => {
-            app.review.inc_next(&app.conn);
+            app.review.inc_next(&app.conn, &app.audio_handle);
             update_inc_text(&app.conn, source, id).unwrap();
         },
         Action::IncDone(source, id) => {
-            app.review.inc_done(id, &app.conn);
+            app.review.inc_done(id, &app.conn, &app.audio_handle);
             update_inc_text(&app.conn, source, id).unwrap();
         },
         Action::Review(question, answer, id, char) => {
@@ -80,24 +81,24 @@ pub fn review_event(app: &mut App, key: MyKey) {
                 '4' => RecallGrade::Easy,
                 _ => panic!("illegal argument"),
             };
-            app.review.new_review(&app.conn, id, grade);
+            app.review.new_review(&app.conn, id, grade, &app.audio_handle);
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();
         },
         Action::SkipUnf(question, answer, id) => {
-            app.review.random_mode(&app.conn);
+            app.review.random_mode(&app.conn, &app.audio_handle);
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();
             double_skip_duration(&app.conn, id).unwrap();
         },
         Action::SkipRev(question, answer, id) => {
-            app.review.random_mode(&app.conn);
+            app.review.random_mode(&app.conn, &app.audio_handle);
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();
         },
         Action::CompleteUnf(question, answer, id) => {
             Card::complete_card(&app.conn, id);
-            app.review.random_mode(&app.conn);
+            app.review.random_mode(&app.conn, &app.audio_handle);
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();
         },
@@ -124,6 +125,9 @@ pub fn review_event(app: &mut App, key: MyKey) {
         Action::AddChild(id) => {
             let addchild = AddChildWidget::new(&app.conn, Purpose::Source(id));
             app.popup = PopUp::AddChild(addchild);
+        }
+        Action::PlayBackAudio(id) => {
+            Card::play_backaudio(&app.conn, id, &app.audio_handle);
         }
         Action::Quit => {
             app.should_quit = true;
@@ -230,9 +234,11 @@ fn mode_review(unf: &mut CardReview, key: MyKey, action: &mut Action) {
         (_, Alt('y')) => *action = Action::NewDependency(unf.id),
         (_, Alt('T')) => *action = Action::AddDependent(unf.id),
         (_, Alt('Y')) => *action = Action::AddDependency(unf.id),
-        (RevealButton, Char(' '))  => {
+        (RevealButton, Char(' ')) => {
+
             unf.reveal = true;
             unf.selection = CardRater;
+            *action = Action::PlayBackAudio(unf.id);
         },
         (Question, key) => unf.question.keyhandler(key),
         (Answer,   key) => unf.answer.keyhandler(key),

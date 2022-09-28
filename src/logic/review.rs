@@ -42,7 +42,6 @@ pub struct UnfCard{
     pub question: Field,
     pub answer: Field,
     pub selection: UnfSelection,
- //   pub select_card: FindCardWidget,
 }
 
 pub enum UnfSelection{
@@ -160,7 +159,7 @@ use crate::utils::sql::fetch::{fetch_card, load_active_inc};
 impl ReviewList {
 
 
-    pub fn new(conn: &Connection)->ReviewList{
+    pub fn new(conn: &Connection, handle: &rodio::OutputStreamHandle)->ReviewList{
         interval::calc_strength(conn);
 
         let mode = ReviewMode::Done;
@@ -174,11 +173,11 @@ impl ReviewList {
             start_qty,
             automode: true,
         };
-        myself.random_mode(conn);
+        myself.random_mode(conn, handle);
         myself
         }
 
-    pub fn random_mode(&mut self, conn: &Connection){
+    pub fn random_mode(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle){
 
         let  act: u32 = self.for_review.review_cards.len() as u32;
         let  unf: u32 = self.for_review.unfinished_cards.len() as u32 + act;
@@ -194,13 +193,13 @@ impl ReviewList {
         let rand = rng.gen_range(0..pen);
 
         if rand < act {
-            self.new_review_mode(conn);
+            self.new_review_mode(conn, handle);
         } else if rand < unf {
-            self.new_unfinished_mode(conn);
+            self.new_unfinished_mode(conn, handle);
         } else if rand < inc {
             self.new_inc_mode(conn);
         } else if rand < pen {
-            self.new_pending_mode(conn);
+            self.new_pending_mode(conn, handle);
         } else {
             panic!();
         };
@@ -220,11 +219,12 @@ impl ReviewList {
 
         self.mode = ReviewMode::IncRead(inc);
     }
-    pub fn new_unfinished_mode(&mut self, conn: &Connection){
+    pub fn new_unfinished_mode(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle){
         let id = self.for_review.unfinished_cards.remove(0);
+        Card::play_frontaudio(conn, id, handle);
         let selection = UnfSelection::Question;
         let mut question = Field::new();
-        let mut answer = Field::new();
+        let mut answer   = Field::new();
         let card = fetch_card(conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
@@ -238,8 +238,9 @@ impl ReviewList {
         self.mode = ReviewMode::Unfinished(unfcard);
     }
 
-    pub fn new_pending_mode(&mut self, conn: &Connection){
+    pub fn new_pending_mode(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle){
         let id = self.for_review.pending_cards.remove(0);
+        Card::play_frontaudio(conn, id, handle);
         let reveal = false;
         let selection = ReviewSelection::Question;
         let mut question = Field::new();
@@ -259,8 +260,9 @@ impl ReviewList {
 
         self.mode = ReviewMode::Review(cardreview);
     }
-    pub fn new_review_mode(&mut self, conn: &Connection){
+    pub fn new_review_mode(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle ){
         let id = self.for_review.review_cards.remove(0);
+        Card::play_frontaudio(conn, id, handle);
         let reveal = false;
         let selection = ReviewSelection::RevealButton;
         let mut question = Field::new();
@@ -281,21 +283,21 @@ impl ReviewList {
         self.mode = ReviewMode::Review(cardreview);
     }
 
-    pub fn inc_next(&mut self, conn: &Connection){
-        self.random_mode(conn);
+    pub fn inc_next(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle ){
+        self.random_mode(conn, handle);
     }
-    pub fn inc_done(&mut self, id: IncID, conn: &Connection){
+    pub fn inc_done(&mut self, id: IncID, conn: &Connection, handle: &rodio::OutputStreamHandle ){
         let active = false;
         update_inc_active(conn, id, active).unwrap();
-        self.inc_next(conn);
+        self.inc_next(conn, handle);
 
     }
 
 
 
-    pub fn new_review(&mut self, conn: &Connection, id: CardID, recallgrade: RecallGrade){
+    pub fn new_review(&mut self, conn: &Connection, id: CardID, recallgrade: RecallGrade, handle: &rodio::OutputStreamHandle ){
         Card::new_review(conn, id, recallgrade);
-        self.random_mode(conn);
+        self.random_mode(conn, handle);
     }
 }
 

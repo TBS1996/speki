@@ -793,12 +793,15 @@ impl Field{
     }
 
 
-pub fn render<B>(& self, f: &mut Frame<B>, area: Rect, selected: bool)
+pub fn render<B>(& mut self, f: &mut Frame<B>, area: Rect, selected: bool)
 where
     B: Backend,
 {
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);
+
+    self.set_rowlen(area.width);
+    self.set_win_height(area.height);
 
     let title = if selected{
         &self.title

@@ -63,6 +63,7 @@ pub fn new(conn: &Connection) -> TopicList {
     };
     foo.add_kids();
     foo.sort_topics();
+    foo.next();
     foo
 }
 

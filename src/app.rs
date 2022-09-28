@@ -74,6 +74,7 @@ wait that would fuck up selection lol
 use crate::utils::widgets::newchild::AddChildWidget;
 use crate::utils::widgets::filepicker::FilePicker;
 use crate::logic::import::Importer;
+use std::io::BufReader;
 
 
 
@@ -93,36 +94,35 @@ pub struct App<'a> {
     pub add_card: NewCard,
     pub browse: Browse,
     pub incread: MainInc,
-    pub debug: FilePicker,
     pub importer: Importer,
     pub popup: PopUp,
+    pub audio: rodio::OutputStream,
+    pub audio_handle: rodio::OutputStreamHandle,
 }
-
 
 impl<'a> App<'a> {
     pub fn new() -> App<'a> {
         let conn    = Connection::open("dbflash.db").expect("Failed to connect to database.");
-        let revlist = ReviewList::new(&conn);
+        let (audio, audio_handle) = rodio::OutputStream::try_default().unwrap();
+        let revlist = ReviewList::new(&conn, &audio_handle);
         let browse  = Browse::new(&conn);
         let mut addcards =  NewCard::new(&conn, DepState::None);
-        addcards.topics.next();
         let incread = MainInc::new(&conn);
         let popup = PopUp::None;
-        let debug = FilePicker::new();
         let importer = Importer::new(&conn);
-
 
         App {
             should_quit: false,
-            tabs: TabsState::new(vec!["Review", "Add card", "Incremental reading", "import"]),  //"Browse cards 🦀", "Incremental reading", "debug"]),
+            tabs: TabsState::new(vec!["Review", "Add card", "Incremental reading", "import"]),  
             conn,
             review: revlist,
             add_card: addcards,
             browse,
             incread,
-            debug, 
             importer,
             popup,
+            audio,
+            audio_handle,
         }
     }
 

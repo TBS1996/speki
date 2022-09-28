@@ -34,12 +34,22 @@ use tui::{
 
 
 
+use std::io::BufReader;
+
 
 
 fn main() -> Result<(), Box<dyn Error>> {
+
     env::set_var("RUST_BACKTRACE", "1");
     init_db().unwrap();  //.expect("Failed to create sqlite database");
 
+
+/*
+    let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+    let file = std::fs::File::open("testlol.mp3").unwrap();
+    let beep1 = stream_handle.play_once(BufReader::new(file)).unwrap();
+    beep1.set_volume(0.5);
+*/
 
     // setup terminal
     enable_raw_mode()?;

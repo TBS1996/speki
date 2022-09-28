@@ -126,7 +126,7 @@ pub fn reset_filter(&mut self, conn: &Connection, mut searchterm: String){
 
 
 
-pub fn draw_find_card<B>(f: &mut Frame<B>, widget: &FindCardWidget, area: Rect)
+pub fn draw_find_card<B>(f: &mut Frame<B>, widget: &mut FindCardWidget, area: Rect)
 where
     B: Backend,
 {

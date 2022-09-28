@@ -13,6 +13,8 @@ pub mod mode_status;
 pub mod newchild;
 pub mod filepicker;
 pub mod cardrater;
+pub mod ankimporter;
+pub mod load_cards;
 //pub mod submit_finished;
 
 

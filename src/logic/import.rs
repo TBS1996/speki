@@ -1,10 +1,11 @@
 use crate::Direction;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::time::{UNIX_EPOCH, SystemTime};
 use std::{fs::File, io::Read};
 use crate::MyKey;
 use crate::tabs::Widget;
 use crate::utils::widgets::button::draw_button;
-use crate::utils::widgets::filepicker::FilePicker;
 use crate::utils::widgets::message_box::draw_message;
 use crate::utils::widgets::textinput::Field;
 use crate::utils::widgets::topics::TopicList;
@@ -13,6 +14,7 @@ use crate::utils::{
     sql::insert::save_card,
 
 };
+use tui::widgets::ListState;
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction::{Vertical, Horizontal}, Layout, Rect},
@@ -28,13 +30,14 @@ use anyhow::Result;
 use crate::utils::card::CardType;
 use crate::MyType;
 use reqwest;
+use std::fs;
+use std::io;
+use crate::utils::widgets::ankimporter::{Ankimporter, ShouldQuit};
+use crate::utils::widgets::load_cards::{Template, LoadState};
 
 
-enum FileSource{
-    None,
-    Url(Field),
-    Local(FilePicker),
-}
+
+use crate::utils::widgets::filepicker::{FilePicker, PickState};
 
 enum Selection{
     Topics,
@@ -43,6 +46,9 @@ enum Selection{
     Urlfile,
     Localfile,
     Preview,
+    Qtemp,
+    Atemp,
+    ImportButton,
 }
 
 
@@ -53,6 +59,9 @@ struct Selected{
     urlfile: bool,
     localfile: bool,
     preview: bool,
+    qtemp: bool,
+    atemp: bool,
+    importbutton: bool,
 }
 
 impl Selected{
@@ -65,6 +74,9 @@ impl Selected{
             urlfile: false,
             localfile: false,
             preview: false,
+            qtemp: false,
+            atemp: false,
+            importbutton: false,
         };
         match selected{
             Topics => foo.topics = true,
@@ -73,176 +85,123 @@ impl Selected{
             Urlfile => foo.urlfile = true,
             Localfile => foo.localfile = true,
             Preview => foo.preview = true,
+            Qtemp => foo.qtemp = true,
+            Atemp => foo.atemp = true,
+            ImportButton => foo.importbutton = true,
         };
         foo
     }
 }
 
 
+
+enum DeckSource{
+    id(u32),
+    path(PathBuf),
+}
+
+
+
+enum Menu{
+    Main,
+    Anki(Ankimporter),
+    Local(FilePicker),
+    LoadCards(Template),
+    
+}
+
+//use crate::utils::widgets::filepicker::FilePicker;
+
 pub struct Importer{
-    ankon: Connection,
     topics: TopicList,
-    notes: Option<Vec<Vec<String>>>,
-    filesource: FileSource,
-    question: Field,
-    answer: Field,
     selection: Selection,
+    menu: Menu,
 }
 
 use crate::utils::widgets::list::list_widget;
 
 impl Importer{
     pub fn new(conn: &Connection) -> Importer{
-        let ankon = Connection::open("collection.anki2").unwrap();
-        let notes = None;
         let topics = TopicList::new(conn);
-        //let filesource = FileSource::Url(Field::new());
-        let filesource = FileSource::None;
-        let question = Field::new();
-        let answer = Field::new();
+        let filepicker = FilePicker::new(["apkg".to_string()]);
+        let menu = Menu::Local(filepicker);
         let selection = Selection::Nonefile;
-        Importer::download_deck().unwrap();
 
         Importer{
-            ankon,
             topics,
-            notes,
-            filesource,
-            question,
-            answer,
             selection,
+            menu,
         }
     }
 
-    fn import_cards(&mut self, conn: &Connection){
-        if let Some(notes) = &self.notes{
-            for note in notes{
-                let question = note[0].clone();
-                let answer = note[1].clone();
-                Card::new()
-                    .question(question)
-                    .answer(answer)
-                    .cardtype(CardType::Pending)
-                    .save_card(conn);
-            }
-        }
-    }
-    
+
+    /*
+    */
     pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
         let selection = Selected::from(&self.selection);
 
-        let leftright = Layout::default()
-            .direction(Horizontal)
-            .constraints(
-                [
-                Constraint::Ratio(2, 3),
-                Constraint::Ratio(1, 3),
-                ]
-                .as_ref(),
-                )
-            .split(area);
-        let (left, right) = (leftright[0], leftright[1]);
-
-
-
-        let leftcol = Layout::default()
-            .direction(Vertical)
-            .constraints(
-                [
-                Constraint::Ratio(1, 4),
-                Constraint::Ratio(1, 4),
-                Constraint::Ratio(1, 4),
-                Constraint::Ratio(1, 4),
-                ]
-                .as_ref(),
-                )
-            .split(left);
-
-
-
-        match &mut self.filesource{
-            FileSource::Url(url) => {
-                url.render(f, leftcol[0], selection.urlfile)
+        match &mut self.menu{
+            Menu::Main => {},
+            Menu::Local(filesource) => {
+                filesource.render(f, area);
             },
-            FileSource::Local(loc) => {
-                loc.render(f, leftcol[0], selection.localfile)
+            Menu::Anki(ankimporter) => {},
+            Menu::LoadCards(tmpl) => {
+                tmpl.render(f, area);
             },
-            FileSource::None => {
-                draw_button(f, leftcol[0], "U -> url.  L -> local", selection.nonefile);
-            }
         }
-        draw_button(f, leftcol[1], "preview cards", selection.preview);
-        self.question.render(f, leftcol[2], false);
-        self.answer.render(f, leftcol[3], false);
-        list_widget(f, &self.topics, right, selection.topics);
     }
 
 
-
-    fn navigate(&mut self, dir: Direction){
-        use Direction::*;
-        use Selection::*;
-
-        match (self.selection, dir){
-
-        }
-
-    }
 
 
     pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
         use MyKey::*;
-        match key {
-            Char('i') => self.import_cards(conn),
-            _ => {},
+        use Selection::*;
+        
+        match &mut self.menu{
+            Menu::Main => {},
+            Menu::Anki(ankimporter) => {},
+            Menu::Local(loc) => {
+                match &loc.state{
+                    PickState::Ongoing => loc.keyhandler(key),
+                    PickState::ExitEarly => {
+                        loc.state = PickState::Ongoing;
+
+                    },
+                    PickState::Fetch(path) => {
+                        let template = Template::new(conn, path.to_path_buf());
+                        self.menu = Menu::LoadCards(template);
+                        },
+                    };
+                },
+            Menu::LoadCards(tmpl) => {
+                match tmpl.state{
+                    LoadState::OnGoing => tmpl.keyhandler(conn, key),
+                    LoadState::Finished => {},
+                    LoadState::Importing(_) => {},
+                }
+            }
+
+
+        
         }
-    }
 
-
-    fn download_deck() -> Result<()>{
-        if !std::path::Path::new("ankidecks/").exists(){
-            std::fs::create_dir("ankidecks/").unwrap();
         }
-        let target = "https://dl13.ankiweb.net/shared/downloadDeck2/399999380?k=WzM5OTk5OTM4MCwgMjM4MjAsIDE1MzcwMTQzMzld.wOZQe9zANTuefBwIGildi2HWUDe6V34-7T1eM-1jb7g";
-        let body = reqwest::blocking::get(target)?;
-        let path = std::path::Path::new("./download.zip");
-        let mut file = match File::create(&path) {
-            Err(why) => panic!("couldn't create {}", why),
-            Ok(file) => file,
-        };
-        file.write_all(&(body.bytes().unwrap()))?;
-        Ok(())
-
-
-    }
 }
+  
+
+
+
+
+
+
+
+
 
 
 use std::io::prelude::*;
+use serde_json::json;
 
-
-
-
-
-pub fn load_notes(conn: &Connection) -> Result<Vec<Vec<String>>>{
-    let mut stmt = conn.prepare("SELECT flds FROM notes")?;
-    let inc_iter = stmt.query_map([], |row| {
-                                  let myvec: Vec<String> = row
-                                      .get::<usize, String>(0)
-                                      .unwrap()
-                                      .split('')
-                                      .map(|x| x.to_string())
-                                      .collect();
-
-                                  Ok(myvec)
-                                   })
-    ?;
-
-
-    let mut outervec = Vec::new();
-    for inc in inc_iter {
-        outervec.push(inc.unwrap().clone());}
-    Ok(outervec)
-}
 
 

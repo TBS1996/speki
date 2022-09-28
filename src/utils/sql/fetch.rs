@@ -182,13 +182,28 @@ pub fn get_dependents(conn: &Connection, dependency: u32) -> Result<Vec<u32>>{
     }
 
     Ok(dependents)
-    
 }
+
+/*
+fn nullorstring(row: &Row, index: usize) -> Result<String>{
+    let foo: String = row.get(index)?;
+    Ok(foo)
+    let frontaudio = match nullorstring(row, 3){
+        Ok(res) => Some(res),
+        Err(_) => None,
+    };
+    let backaudio = if let Ok(str) = nullorstring(row, 4){
+        Some(str)
+    } else {
+        None
+    };
+}
+*/
 
 use crate::utils::card::CardType;
 
 pub fn row2card(conn: &Connection, row: &Row) -> Result<Card>{
-    let cardtype = match row.get::<usize, u32>(3)?{
+    let cardtype = match row.get::<usize, u32>(5)?{
         0 => CardType::Pending,
         1 => CardType::Unfinished,
         2 => CardType::Finished,
@@ -201,17 +216,21 @@ pub fn row2card(conn: &Connection, row: &Row) -> Result<Card>{
 
 
 
+
+
         Ok(Card {
             id,
             question:      row.get(1)?,
             answer:        row.get(2)?,
+            frontaudio:    row.get(3)?,
+            backaudio:     row.get(4)?,
             cardtype,
-            suspended:     row.get(4)?,
-            resolved:      row.get(5)?,
+            suspended:     row.get(6)?,
+            resolved:      row.get(7)?,
             dependents,
             dependencies,
-            topic:         row.get(6)?,
-            source:        row.get(7)?,
+            topic:         row.get(8)?,
+            source:        row.get(9)?,
         })
 }
 

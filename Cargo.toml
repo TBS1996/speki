@@ -25,6 +25,7 @@ rodio = "0.16.0"
 scraper = "0.13.0"
 regex = "1.6.0"
 lazy_static = "1.4.0"
+viuer = "0.6.1"
 
 
 [dependencies.crossterm]

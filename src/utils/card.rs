@@ -122,6 +122,8 @@ pub struct Card{
     pub answer: String,
     pub frontaudio: Option<String>,
     pub backaudio: Option<String>,
+    pub frontimage: Option<String>,
+    pub backimage: Option<String>,
     pub cardtype: CardType,
     pub suspended: bool,
     pub resolved:  bool,
@@ -144,6 +146,8 @@ impl Card {
             answer: String::new(),
             frontaudio: None,
             backaudio: None,
+            frontimage: None,
+            backimage: None,
             cardtype: CardType::Finished,
             suspended: false,
             resolved: false,
@@ -172,6 +176,22 @@ impl Card {
     }
     pub fn topic(mut self, topic: TopicID) -> Self{
         self.topic = topic;
+        self
+    }
+    pub fn frontaudio(mut self, audiopath: Option<String>) -> Self{
+        self.frontaudio = audiopath;
+        self
+    }
+    pub fn backaudio(mut self, audiopath: Option<String>) -> Self{
+        self.backaudio = audiopath;
+        self
+    }
+    pub fn frontimage(mut self, imagepath: Option<String>) -> Self{
+        self.frontimage = imagepath;
+        self
+    }
+    pub fn backimage(mut self, imagepath: Option<String>) -> Self{
+        self.backimage = imagepath;
         self
     }
 

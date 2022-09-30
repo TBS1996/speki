@@ -16,7 +16,7 @@ use tui::{
 
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct CursorPos{
     pub row: usize,
     pub column: usize,
@@ -438,6 +438,8 @@ impl Field{
     pub fn replace_text(&mut self, newtext: String){
 
         self.text = newtext.split('\n').map(|s| s.to_string()).collect();
+        self.cursor = CursorPos::default();
+        
     }
 
     pub fn paste(&mut self, paste: String) {

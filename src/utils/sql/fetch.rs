@@ -203,7 +203,7 @@ fn nullorstring(row: &Row, index: usize) -> Result<String>{
 use crate::utils::card::CardType;
 
 pub fn row2card(conn: &Connection, row: &Row) -> Result<Card>{
-    let cardtype = match row.get::<usize, u32>(5)?{
+    let cardtype = match row.get::<usize, u32>(7)?{
         0 => CardType::Pending,
         1 => CardType::Unfinished,
         2 => CardType::Finished,
@@ -213,24 +213,21 @@ pub fn row2card(conn: &Connection, row: &Row) -> Result<Card>{
 
     let dependencies = get_dependencies(conn, id).unwrap();
     let dependents = get_dependents(conn, id).unwrap();
-
-
-
-
-
         Ok(Card {
             id,
             question:      row.get(1)?,
             answer:        row.get(2)?,
             frontaudio:    row.get(3)?,
             backaudio:     row.get(4)?,
+            frontimage:    row.get(5)?,
+            backimage:     row.get(6)?,
             cardtype,
-            suspended:     row.get(6)?,
-            resolved:      row.get(7)?,
+            suspended:     row.get(8)?,
+            resolved:      row.get(9)?,
             dependents,
             dependencies,
-            topic:         row.get(8)?,
-            source:        row.get(9)?,
+            topic:         row.get(10)?,
+            source:        row.get(11)?,
         })
 }
 

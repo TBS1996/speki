@@ -14,16 +14,33 @@ pub fn save_card(conn: &Connection, card: Card)-> Result<()>{
     };
 
     conn.execute(
-        "INSERT INTO cards (question, answer, cardtype, suspended, resolved, topic, source) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO cards (
+            question, 
+            answer, 
+            frontaudio, 
+            backaudio, 
+            frontimg, 
+            backimg, 
+            cardtype, 
+            suspended, 
+            resolved, 
+            topic, 
+            source
+            ) 
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+
         params![
         card.question, 
         card.answer, 
+        card.frontaudio,
+        card.backaudio,
+        card.frontimage,
+        card.backimage,
         cardtype,
         card.suspended, 
         card.resolved, 
         card.topic, 
         card.source,
-    //    time_added,
         ],
     )?;
 
@@ -31,9 +48,9 @@ pub fn save_card(conn: &Connection, card: Card)-> Result<()>{
 
 
     match card.cardtype{
-        CardType::Pending => new_pending(conn, id)?,
+        CardType::Pending =>    new_pending(conn, id)?,
         CardType::Unfinished => new_unfinished(conn, id)?,
-        CardType::Finished => new_finished(conn, id)?,
+        CardType::Finished =>   new_finished(conn, id)?,
     };
 
     Ok(())

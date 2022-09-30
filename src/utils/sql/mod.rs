@@ -32,6 +32,8 @@ pub fn init_db() -> Result<()>{
             answer       text not null,
             frontaudio   text,
             backaudio    text,
+            frontimg     text,
+            backimg      text,
             cardtype     integer not null,
             suspended    bool not null,
             resolved     bool not null,

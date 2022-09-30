@@ -102,16 +102,6 @@ where
     view_dependents(f,   unfinished.id, conn, area.dependents, selected.dependents);
     unfinished.question.render(f, area.question,  selected.question);
     unfinished.answer.render(f,   area.answer,    selected.answer);
-    /*
-    draw_button(f, area.skip,   "skip",   selected.skip);
-    draw_button(f, area.finish, "finish", selected.finish);
-
-    unfinished.question.set_rowlen(area.question.width - 2);
-    unfinished.question.set_win_height(area.question.height - 2);
-    unfinished.answer.set_rowlen(area.answer.width - 2);
-    unfinished.answer.set_win_height(area.answer.height - 2);
-
-    */
 }
 
 

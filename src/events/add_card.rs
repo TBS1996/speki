@@ -1,7 +1,7 @@
 use crate::app::App;
 use crate::logic::add_card::{TextSelect, DepState} ;
-use crate::utils::sql::fetch::highest_id;
 use crate::MyKey;
+use crate::utils::aliases::*;
 
 
 
@@ -19,11 +19,11 @@ pub fn add_card_event(app: &mut App, key: MyKey){
             app.add_card.reset(DepState::None, &app.conn);
         },
         (_, Alt('Y')) => {
-            let id = highest_id(&app.conn).unwrap();
+            let id = app.conn.lock().unwrap().last_insert_rowid() as CardID;
             app.add_card.reset(DepState::NewDependency(id), &app.conn);
         },
         (_, Alt('T')) => {
-            let id = highest_id(&app.conn).unwrap();
+            let id = app.conn.lock().unwrap().last_insert_rowid() as CardID;
             app.add_card.reset(DepState::NewDependent(id), &mut app.conn);
         },
         (_, Alt('q')) => app.should_quit = true,

@@ -36,6 +36,7 @@ use std::fs;
 use std::io;
 use crate::utils::widgets::ankimporter::{Ankimporter, ShouldQuit};
 use crate::utils::widgets::list::list_widget;
+use std::sync::{Arc, Mutex};
 
 
 
@@ -47,17 +48,13 @@ use super::progress_bar;
 
 #[derive(Clone, Debug)]
 pub struct ImportProgress{
-    question: String,
-    answer: String,
-    curr_index: u32,
-    total: u32,
+    curr_index: usize,
+    total: usize,
 }
 
 impl ImportProgress{
-    fn new(front: String, back: String, curr: u32, tot: u32)-> Self{
+    fn new(curr: usize, tot: usize)-> Self{
         ImportProgress{
-            question: front,
-            answer: back,
             curr_index: curr,
             total: tot,
         }
@@ -213,7 +210,7 @@ fn remove_useless_formatting(trd: &mut String){
 
 
 fn extract_image(trd: &mut String, folderpath: &String) -> Option<String>{
-    let pattern = "<img src=\"(.*?)\"".to_string();
+    let pattern = "<img src=\"(.*?)\" />".to_string();
     let re = Regex::new(&pattern).unwrap();
     let foo = re.captures(&trd)?;
   
@@ -239,11 +236,11 @@ fn extract_audio(trd: &mut String, folderpath: &String) -> Option<String>{
     return res;
 }
 #[derive(Default)]
-struct MediaContents{
-    frontaudio: Option<String>,
-    backaudio:  Option<String>,
-    frontimage: Option<String>,
-    backimage:  Option<String>,
+pub struct MediaContents{
+    pub frontaudio: Option<String>,
+    pub backaudio:  Option<String>,
+    pub frontimage: Option<String>,
+    pub backimage:  Option<String>,
 }
 
 
@@ -264,8 +261,12 @@ pub struct Template{
     folderpath: String,
 }
 
+
+use std::io::BufReader;
+use rodio;
+
 impl Template{
-    pub fn new(conn: &Connection, path: PathBuf)-> Template{
+    pub fn new(conn: &Arc<Mutex<Connection>>, path: PathBuf, name: String)-> Template{
         let cards = vec![];
         let notes:  HashMap<NoteID, Note> = HashMap::new();
         let models: HashMap<ModelID, Model> = HashMap::new();
@@ -281,59 +282,36 @@ impl Template{
             topics: TopicList::new(conn),
             selected: Selected::Preview,
             state: LoadState::OnGoing,
-            folderpath: String::new(),
+            folderpath: name,
         };
         temp.init(path);
+        temp.front_view.stickytitle = true;
+        temp.back_view.stickytitle = true;
         temp
     }
 
 
+    fn play_front_audio(&self, handle: &rodio::OutputStreamHandle){
+        let media = self.get_media(self.viewpos);
+        if let Some(audio) = media.frontaudio{
+            let file = std::fs::File::open(audio).unwrap();
+            let beep1 = handle.play_once(BufReader::new(file)).unwrap();
+            beep1.set_volume(0.2);
+            beep1.detach();
+        }
+    }
+    fn play_back_audio(&self, handle: &rodio::OutputStreamHandle){
+        let media = self.get_media(self.viewpos);
+        if let Some(audio) = media.backaudio{
+            let file = std::fs::File::open(audio).unwrap();
+            let beep1 = handle.play_once(BufReader::new(file)).unwrap();
+            beep1.set_volume(0.2);
+            beep1.detach();
+        }
+    }
 
 
 
-/*
-
-
-
-
-#[derive(Clone, Debug)]
-struct Kort{
-    note_id: NoteID,
-    template_ord: usize,
-}
-#[derive(Clone, Debug)]
-struct Note{
-    model_id: ModelID,
-    fields: Vec<CardField>,
-}
-#[derive(Default, Clone, Debug)]
-struct Model{
-    is_cloze: bool,
-    fields: Vec<String>,
-    name: String,
-    templates: Vec<Temple>,
-}
-#[derive(Clone, Debug)]
-struct CardField{
-    text: String,
-    image: Option<String>,
-    audio: Option<String>,
-}
-#[derive(Default, Clone, Debug)]
-struct Temple{
-    name: String,
-    qfmt: String,
-    afmt: String,
-}
-
-
-find all the fields in question template in order 
-iterate over the CardFields, when you find one that has audio, return it 
-else return None
-
-
-
-*/
 
     fn get_media(&self, idx: usize) -> MediaContents{
         let mut media = MediaContents::default();
@@ -349,19 +327,20 @@ else return None
         let model = self.model_from_card_index(idx);
 
         for (i, field) in note.fields.iter().enumerate(){
+            let fieldname = Self::with_braces(model.fields[i].clone());
             if let Some(path) = &field.audio{
-                front_template.match_indices(&model.fields[i].clone()).for_each(|foo| {
+                front_template.match_indices(&fieldname).for_each(|foo| {
                     frontaudiovec.push((foo.0, path));
                 });
-                back_template.match_indices(&model.fields[i].clone()).for_each(|foo| {
+                back_template.match_indices(&fieldname).for_each(|foo| {
                     backaudiovec.push((foo.0, path));
                 });
             }
             if let Some(path) = &field.image{
-                front_template.match_indices(&model.fields[i].clone()).for_each(|foo| {
+                front_template.match_indices(&fieldname).for_each(|foo| {
                     frontimagevec.push((foo.0, path));
                 });
-                back_template.match_indices(&model.fields[i].clone()).for_each(|foo| {
+                back_template.match_indices(&fieldname).for_each(|foo| {
                     backimagevec.push((foo.0, path));
                 });
             }
@@ -395,25 +374,46 @@ else return None
         self.back_view .replace_text(self.fill_back_view (self.back_template .return_text(), self.viewpos));
     }
 
-    fn rename_media(&self)-> Result<()>{
-        let mappath = format!("media/{}/media", self.folderpath);
-        let contents = fs::read_to_string(mappath).unwrap();
-        let jsonmodels: serde_json::Value = serde_json::from_str(&contents).unwrap();
-
-        if let serde_json::Value::Object(ob) = jsonmodels{
-            for (key, val) in ob{
-                let mut val = val.to_string();
-                val.pop();
-                val.remove(0);
-                let keypath = format!("media/{}/{}", self.folderpath, key.to_string());
-                let valpath = format!("media/{}/{}", self.folderpath, val);
-                
-                std::fs::rename(keypath, valpath)?;
-            }
-        }
-        Ok(())
+    fn refresh_views(&mut self){
+        self.front_view.replace_text(self.fill_front_view(self.front_template.return_text(), self.viewpos));
+        self.back_view .replace_text(self.fill_back_view (self.back_template .return_text(), self.viewpos));
     }
 
+    
+
+fn rename_media(&self)-> Result<()>{
+    let mappath = format!("media/{}/media", self.folderpath);
+    let contents = fs::read_to_string(mappath).unwrap();
+    let jsonmodels: serde_json::Value = serde_json::from_str(&contents).unwrap();
+
+    if let serde_json::Value::Object(ob) = jsonmodels{
+        for (key, val) in ob{
+            let mut val = val.to_string();
+            val.pop();
+            val.remove(0);
+            let keypath = format!("media/{}/{}", self.folderpath, key.to_string());
+            let valpath = format!("media/{}/{}", self.folderpath, val);
+            
+            std::fs::rename(keypath, valpath)?;
+        }
+    }
+    Ok(())
+}
+
+fn unzip_deck(&mut self, downloc: PathBuf) -> Result<String> {
+    let foldername = &self.folderpath;
+    let folderpath = format!("media/{}", &foldername);
+    if !std::path::Path::new(&folderpath).exists(){
+        std::fs::create_dir(&folderpath).unwrap();
+    }
+
+    let db_path = format!("media/{}/collection.anki2", foldername);
+    let file = fs::File::open(downloc).unwrap();
+    let mut archive = zip::ZipArchive::new(file).unwrap();
+    archive.extract(folderpath).unwrap();
+    self.rename_media().unwrap();
+    Ok(db_path)
+}
 
 
     fn selected_model(&mut self) -> &mut Model{
@@ -448,10 +448,11 @@ else return None
 
     fn init(&mut self, path: PathBuf){
         let loc = self.unzip_deck(path).unwrap();
-        let ankon = Connection::open(loc).unwrap();
+        let ankon = Arc::new(Mutex::new(Connection::open(loc).unwrap()));
         self.load_models(&ankon);
         self.load_notes(&ankon).unwrap();
         self.load_cards(&ankon).unwrap();
+        self.refresh_template_and_view();
     }
 
     fn selected_note_id(&self) -> NoteID{
@@ -501,6 +502,8 @@ else return None
         }
         text
     }
+
+
 
 
 
@@ -608,8 +611,9 @@ else return None
 
 
 
-    fn load_cards(&mut self, conn: &Connection) -> Result<()>{
-        let mut stmt = conn.prepare("SELECT nid, ord FROM cards").unwrap();
+    fn load_cards(&mut self, conn: &Arc<Mutex<Connection>>) -> Result<()>{
+        let guard = conn.lock().unwrap();
+        let mut stmt = guard.prepare("SELECT nid, ord FROM cards").unwrap();
         let foo = stmt.query_map([], |row| {
                                       let note_id: NoteID = row
                                           .get::<usize, NoteID>(0)
@@ -630,8 +634,9 @@ else return None
         }
         Ok(())
     }
-    fn load_notes(&mut self, conn: &Connection) -> Result<()>{
-        let mut stmt = conn.prepare("SELECT id, mid, flds FROM notes")?;
+    fn load_notes(&mut self, conn: &Arc<Mutex<Connection>>) -> Result<()>{
+        let guard = conn.lock().unwrap();
+        let mut stmt = guard.prepare("SELECT id, mid, flds FROM notes")?;
         let foo = stmt.query_map([], |row| {
                                   let id: NoteID = row
                                       .get::<usize, NoteID>(0)
@@ -675,21 +680,12 @@ else return None
     }
 
 
-    /*
 
 
 
-    is_cloze: bool,
-    fields: Vec<CardField>,
-    name: String,
-    templates: Vec<Temple>,
-
-       */
-
-
-
-    fn load_models(&mut self, conn: &Connection){
-        let rawmodel: String = conn.query_row(
+    fn load_models(&mut self, conn: &Arc<Mutex<Connection>>){
+        let guard = conn.lock().unwrap();
+        let rawmodel: String = guard.query_row(
             "select models from col",
             [],
             |row| row.get(0),
@@ -767,42 +763,7 @@ else return None
 
 
 
-    fn download_deck(url: String) -> Result<String>{
-        let downloc = "./ankidecks/download.zip";
-        if !std::path::Path::new("ankidecks/").exists(){
-            std::fs::create_dir("ankidecks/").unwrap();
-        }
-        let body = reqwest::blocking::get(url)?;
-        let path = std::path::Path::new(downloc);
-        let mut file = match File::create(&path) {
-            Err(why) => panic!("couldn't create {}", why),
-            Ok(file) => file,
-        };
- //       file.write_all(&(body.bytes().unwrap()))?;
-        Ok(downloc.to_string())
-    }
-
-
-    fn unzip_deck(&mut self, downloc: PathBuf) -> Result<String> {
-        let mut foldername = downloc.clone().to_string_lossy().to_string();
-        foldername.pop();
-        foldername.pop();
-        foldername.pop();
-        foldername.pop();
-        let foldername = foldername.rsplit_once('/').unwrap().1.to_string();
-        let folderpath = format!("media/{}", &foldername);
-        if !std::path::Path::new(&folderpath).exists(){
-            std::fs::create_dir(&folderpath).unwrap();
-        }
-
-        let db_path = format!("media/{}/collection.anki2", foldername);
-        let file = fs::File::open(downloc).unwrap();
-        let mut archive = zip::ZipArchive::new(file).unwrap();
-        archive.extract(folderpath).unwrap();
-        self.folderpath = foldername;
-        self.rename_media().unwrap();
-        Ok(db_path)
-    }
+    
 
     fn with_cloze_braces(string:  String)->String{
         let mut formatted = "{{cloze:".to_string();
@@ -820,32 +781,49 @@ else return None
     }
 
 
-
-
-
-    fn import_cards(&mut self, conn: &Connection){
+    pub fn import_them(&mut self, conn: &Arc<Mutex<Connection>>){
+        let step = 10;
         let cardlen = self.cards.len();
-        let topic = self.topics.get_selected_id().unwrap();
+        let topic   = self.topics.get_selected_id().unwrap();
+        let next;
+        let currdex;
 
-        for idx in 0..cardlen{
+        if let LoadState::Importing(prog) =  &self.state{
+            next = std::cmp::min(prog.curr_index + step, cardlen);
+            currdex = prog.curr_index;
+        } else{panic!()}
+
+        for idx in currdex..next{
             let front_template = self.get_front_template(idx);
             let back_template  = self.get_back_template(idx);
             let frontside = self.fill_front_view(front_template, idx);
             let backside  = self.fill_back_view(back_template, idx);
             let media = self.get_media(idx);
 
-
             card::Card::new()
                 .question(frontside)
                 .answer(backside)
                 .topic(topic)
                 .frontimage(media.frontimage)
-                .backimage(media.backimage)
+                .backimage( media.backimage)
                 .frontaudio(media.frontaudio)
-                .backaudio(media.backaudio)
+                .backaudio( media.backaudio)
                 .cardtype(CardType::Pending)
                 .save_card(conn);
         }
+
+        
+        if let LoadState::Importing(prog) =  &mut self.state{
+            prog.curr_index = next;
+        }
+    }
+
+
+
+    fn import_cards(&mut self){
+        let cardlen = self.cards.len();
+        let prog = ImportProgress::new(0, cardlen);
+        self.state = LoadState::Importing(prog);
     }
 
 
@@ -866,9 +844,7 @@ else return None
                 .split(area);
 
 
-            draw_message(f, rightcol[0], &prog.question);
-            draw_message(f, rightcol[1], &prog.answer);
-            progress_bar::progress_bar(f, prog.curr_index, prog.total, Color::Cyan, rightcol[2]);
+            progress_bar::progress_bar(f, prog.curr_index as u32, prog.total as u32, Color::Cyan, rightcol[2]);
             return;
 
         } 
@@ -958,6 +934,15 @@ else return None
         };         let fieldlist = List::new(flds).block(Block::default().borders(Borders::ALL).title("Available fields"));
         f.render_stateful_widget(fieldlist, thefields, &mut ListState::default());
 
+        let media = self.get_media(self.viewpos);
+        let mut frontstring = "Front side ".to_string();
+        let mut backstring = "Back side ".to_string();
+        if media.frontaudio.is_some(){frontstring.push('🔊')}
+        if media.backaudio.is_some(){backstring.push('🔊')}
+        if media.frontimage.is_some(){frontstring.push('📷')}
+        if media.backimage.is_some(){backstring.push('📷')}
+        self.front_view.title = frontstring;
+        self.back_view.title = backstring;
 
         draw_button(f, preview, &format!("Previewing card {} out of {}", self.viewpos + 1, self.notes.len()), selected.preview);
         list_widget(f, &self.topics, thetopics, selected.topics);
@@ -966,6 +951,9 @@ else return None
         self.front_view.render(f, topright, false);
         self.back_view.render(f, bottomright, false);
         draw_button(f, button, &format!("Import cards!"), selected.import);
+
+
+
 
         self.front_template.set_win_height(topleft.height);
         self.front_template.set_rowlen(topleft.width);
@@ -993,7 +981,7 @@ else return None
             (_, _) => {},
         };
     }
-    pub fn keyhandler(&mut self, conn: &Connection, key: MyKey) {
+    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, handle: &rodio::OutputStreamHandle) {
 
         use MyKey::*;
         use Selected::*;
@@ -1011,30 +999,36 @@ else return None
                 let back_text = self.back_template.return_text();
                 self.front_template.replace_text(back_text);
                 self.back_template.replace_text(front_text);
+                self.update_template();
+                self.refresh_template_and_view();
             },
             (Preview, Char('l')) => {
                 if self.viewpos < self.notes.len() - 1{
                     self.viewpos += 1;
                     self.refresh_template_and_view();
+                    self.play_front_audio(handle);
+                    self.play_back_audio(handle);
                 }
             },
             (Preview, Char('h')) => {
                 if self.viewpos > 0{
                     self.viewpos -= 1;
                     self.refresh_template_and_view();
+                    self.play_front_audio(handle);
+                    self.play_back_audio(handle);
                 }
             }
-            (Import, Enter) => self.import_cards(conn),
+            (Import, Enter) => self.import_cards(),
             (_, Esc) => self.state = LoadState::Finished,
             (Front,  key) => {
                 self.front_template.keyhandler(key);
                 self.update_template();
-                self.refresh_template_and_view();
+                self.refresh_views();
             },
             (Back,   key) => {
                 self.back_template.keyhandler(key);
                 self.update_template();
-                self.refresh_template_and_view();
+                self.refresh_views();
             },
             (Topics, key) => self.topics.keyhandler(key, conn),
             (_, _) => {},
@@ -1043,62 +1037,3 @@ else return None
 }
 
 
-
-
-
-
-
-
-
-
-
-
-/*
-
-    fn set_cardtype(&mut self){
-        let notes = &self.notes[0];
-
-        for i in 0..notes.len(){
-            if notes[i].starts_with("<img src="){
-                self.fields[i].change_ftype(Ftype::Image);
-            } else if notes[i].starts_with("[sound:") {
-                self.fields[i].change_ftype(Ftype::Audio);
-            }
-        }
-        let (text, ftype) = if string.starts_with("<img src="){
-            let mut trimmed = String::new();
-            let strlen = string.len();
-            for (idx, chr) in string.chars().enumerate(){
-                if idx > 9 && idx < (strlen - 4){
-                    trimmed.push(chr);
-                }
-            }
-            (trimmed, Ftype::Image)
-        } else if string.starts_with("[sound:]") {
-            let (_, right) = string.split_at(6);
-            let mut right = right.to_string();
-            right.pop();
-            (right, Ftype::Audio)
-        } else{
-            (string, Ftype::Text)
-        };
-        */
-
-
-
-    /* 
-    fn autoformat(&mut self, obj: &serde_json::Value){
-        if let serde_json::Value::Object(ob) = obj{
-            for (_, val) in ob {
-                if let serde_json::Value::Object(ob) = val{
-                    if let serde_json::Value::Array(arr) = &ob["tmpls"]{
-                        let qstring = self.fix_format(arr[0]["qfmt"].to_string());
-                        self.front_template.replace_text(qstring);
-                        let astring = self.fix_format(arr[0]["afmt"].to_string());
-                        self.back_template.replace_text(astring);
-                    } else {panic!()};
-                } else {panic!()};
-            }
-        }
-    }
-*/

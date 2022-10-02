@@ -13,6 +13,8 @@ use crate::utils::incread::IncRead;
 use rand::prelude::*;
 use crate::utils::sql::update::update_inc_active;
 use crate::utils::widgets::cardrater::CardRater;
+use crate::utils::widgets::load_cards::MediaContents;
+use std::sync::{Arc, Mutex};
 
 
 
@@ -33,6 +35,7 @@ pub struct CardReview{
     pub reveal: bool,
     pub selection: ReviewSelection,
     pub cardrater: CardRater,
+    pub media: MediaContents,
 //    pub select_card: FindCardWidget,
 }
 
@@ -83,18 +86,18 @@ pub struct ForReview{
 
 
 impl ForReview{
-    pub fn new(conn: &Connection)-> Self{
+    pub fn new(conn: &Arc<Mutex<Connection>>)-> Self{
         crate::utils::interval::calc_strength(conn);
-        let thecards = load_cards(conn).unwrap();
+        let thecards = load_cards(&conn).unwrap();
         let mut review_cards     = Vec::<CardID>::new();
         let mut unfinished_cards = Vec::<CardID>::new();
         let mut pending_cards    = Vec::<CardID>::new();
 
-        let active_increads  = load_active_inc(conn).unwrap();
+        let active_increads  = load_active_inc(&conn).unwrap();
 
         for card in thecards{
             if card.is_complete(){
-                if get_strength(conn, card.id).unwrap() < 0.999{
+                if get_strength(&conn, card.id).unwrap() < 0.999{
                     review_cards.push(card.id);
                 }
             } else if card.is_unfinished(){
@@ -153,14 +156,14 @@ pub struct ReviewList{
     pub automode: bool,
 }
 
-use crate::utils::sql::fetch::{fetch_card, load_active_inc};
+use crate::utils::sql::fetch::{fetch_card, load_active_inc, fetch_media};
 
 
 impl ReviewList {
 
 
-    pub fn new(conn: &Connection, handle: &rodio::OutputStreamHandle)->ReviewList{
-        interval::calc_strength(conn);
+    pub fn new(conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle)->ReviewList{
+        //interval::calc_strength(conn);
 
         let mode = ReviewMode::Done;
         let for_review = ForReview::new(conn);
@@ -177,7 +180,7 @@ impl ReviewList {
         myself
         }
 
-    pub fn random_mode(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle){
+    pub fn random_mode(&mut self, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle){
 
         let  act: u32 = self.for_review.review_cards.len() as u32;
         let  unf: u32 = self.for_review.unfinished_cards.len() as u32 + act;
@@ -207,7 +210,7 @@ impl ReviewList {
 
 
 
-    pub fn new_inc_mode(&mut self, conn: &Connection){
+    pub fn new_inc_mode(&mut self, conn: &Arc<Mutex<Connection>>){
         let id = self.for_review.active_increads.remove(0);
         let selection = IncSelection::Source;
         let source = IncRead::new(conn, id);
@@ -219,13 +222,13 @@ impl ReviewList {
 
         self.mode = ReviewMode::IncRead(inc);
     }
-    pub fn new_unfinished_mode(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle){
+    pub fn new_unfinished_mode(&mut self, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle){
         let id = self.for_review.unfinished_cards.remove(0);
         Card::play_frontaudio(conn, id, handle);
         let selection = UnfSelection::Question;
         let mut question = Field::new();
         let mut answer   = Field::new();
-        let card = fetch_card(conn, id);
+        let card = fetch_card(&conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
         let unfcard = UnfCard{
@@ -238,17 +241,18 @@ impl ReviewList {
         self.mode = ReviewMode::Unfinished(unfcard);
     }
 
-    pub fn new_pending_mode(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle){
+    pub fn new_pending_mode(&mut self, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle){
         let id = self.for_review.pending_cards.remove(0);
         Card::play_frontaudio(conn, id, handle);
         let reveal = false;
-        let selection = ReviewSelection::Question;
+        let selection = ReviewSelection::RevealButton;
         let mut question = Field::new();
         let mut answer = Field::new();
-        let card = fetch_card(conn, id);
+        let card = fetch_card(&conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
         let cardrater = CardRater::new();
+        let media = fetch_media(&conn, id);
         let cardreview = CardReview{
             id,
             question,
@@ -256,21 +260,23 @@ impl ReviewList {
             reveal,
             selection,
             cardrater,
+            media,
         };
 
         self.mode = ReviewMode::Review(cardreview);
     }
-    pub fn new_review_mode(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle ){
+    pub fn new_review_mode(&mut self, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle ){
         let id = self.for_review.review_cards.remove(0);
         Card::play_frontaudio(conn, id, handle);
         let reveal = false;
         let selection = ReviewSelection::RevealButton;
         let mut question = Field::new();
         let mut answer = Field::new();
-        let card = fetch_card(conn, id);
+        let card = fetch_card(&conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
         let cardrater = CardRater::new();
+        let media = fetch_media(&conn, id);
         let cardreview = CardReview{
             id,
             question,
@@ -278,24 +284,25 @@ impl ReviewList {
             reveal,
             selection,
             cardrater,
+            media,
         };
 
         self.mode = ReviewMode::Review(cardreview);
     }
 
-    pub fn inc_next(&mut self, conn: &Connection, handle: &rodio::OutputStreamHandle ){
+    pub fn inc_next(&mut self, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle ){
         self.random_mode(conn, handle);
     }
-    pub fn inc_done(&mut self, id: IncID, conn: &Connection, handle: &rodio::OutputStreamHandle ){
+    pub fn inc_done(&mut self, id: IncID, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle ){
         let active = false;
-        update_inc_active(conn, id, active).unwrap();
+        update_inc_active(&conn, id, active).unwrap();
         self.inc_next(conn, handle);
 
     }
 
 
 
-    pub fn new_review(&mut self, conn: &Connection, id: CardID, recallgrade: RecallGrade, handle: &rodio::OutputStreamHandle ){
+    pub fn new_review(&mut self, conn: &Arc<Mutex<Connection>>, id: CardID, recallgrade: RecallGrade, handle: &rodio::OutputStreamHandle ){
         Card::new_review(conn, id, recallgrade);
         self.random_mode(conn, handle);
     }

@@ -14,6 +14,7 @@ use tui::{
 
 use crate::utils::incread::IncRead;
 use crate::utils::incread::IncListItem;
+use std::sync::{Arc, Mutex};
 
 #[derive(PartialEq)]
 pub enum Selection{
@@ -38,7 +39,7 @@ use rusqlite::Connection;
 use crate::utils::sql::fetch::load_extracts;
 
 impl MainInc{
-    pub fn new(conn: &Connection) -> Self{
+    pub fn new(conn: &Arc<Mutex<Connection>>) -> Self{
         let items = load_inc_items(conn, 1).unwrap();
         let foo = StatefulList::with_items(items);
         let mut topics = TopicList::new(conn);
@@ -53,7 +54,7 @@ impl MainInc{
         }
     }
 
-    pub fn update_text(&self, conn: &Connection){
+    pub fn update_text(&self, conn: &Arc<Mutex<Connection>>){
         if let Some(inc) = &self.focused{
             let id = inc.id;
             let text = inc.source.return_text();
@@ -62,14 +63,14 @@ impl MainInc{
         }
     }
 
-    pub fn create_source(&mut self, conn: &Connection){
+    pub fn create_source(&mut self, conn: &Arc<Mutex<Connection>>){
         let topic: TopicID = self.topics.get_selected_id().unwrap();
         new_incread(conn, 0, topic, "".to_string() , true).unwrap();
         self.reload_inc_list(conn);
     }
 
 
-    pub fn new_focus(&mut self, conn: &Connection){
+    pub fn new_focus(&mut self, conn: &Arc<Mutex<Connection>>){
         if let Selection::List = self.selection{
             if let Some(idx) = self.inclist.state.selected(){
                 let id: IncID = self.inclist.items[idx].id;
@@ -87,13 +88,13 @@ impl MainInc{
     }
 
 
-    pub fn reload_inc_list(&mut self, conn: &Connection){
+    pub fn reload_inc_list(&mut self, conn: &Arc<Mutex<Connection>>){
         let items = load_inc_items(conn, self.topics.get_selected_id().unwrap()).unwrap();
         let foo = StatefulList::with_items(items);
         self.inclist = foo;
     }
 
-    pub fn reload_extracts(&mut self, conn: &Connection, id: IncID){
+    pub fn reload_extracts(&mut self, conn: &Arc<Mutex<Connection>>, id: IncID){
         self.extracts.items = load_extracts(conn, id).unwrap();
     }
 }

@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use rusqlite::Connection;
 use tui::{
     backend::Backend,
@@ -15,7 +16,7 @@ use crate::utils::widgets::{
     message_box::draw_message,
     progress_bar::progress_bar,
     cardlist::CardItem,
-    mode_status::mode_status,
+    mode_status::mode_status, load_cards::MediaContents,
 
 };
 
@@ -87,7 +88,7 @@ where
 
 }
 
-pub fn draw_unfinished<B>(f: &mut Frame<B>, conn: &Connection, unfinished: &mut UnfCard, area: Rect)
+pub fn draw_unfinished<B>(f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, unfinished: &mut UnfCard, area: Rect)
 where
     B: Backend,
 {
@@ -105,7 +106,7 @@ where
 }
 
 
-pub fn draw_incread<B>(f: &mut Frame<B>, _conn: &Connection, inc: &mut IncMode, area: Rect)
+pub fn draw_incread<B>(f: &mut Frame<B>, _conn: &Arc<Mutex<Connection>>, inc: &mut IncMode, area: Rect)
 where
     B: Backend,
 {
@@ -231,13 +232,19 @@ where
         progress_bar(f, current, target, color, area);
 }
 
-pub fn draw_review<B>(f: &mut Frame<B>, conn: &Connection, review: &mut CardReview, area: Rect)
+pub fn draw_review<B>(f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, review: &mut CardReview, area: Rect)
 where
     B: Backend,
 {
     
-    let area = review_layout(area);
+    
+    let showimage = false;//review.media.frontimage.is_some() || review.media.backimage.is_some();
+    let area = review_layout(area, showimage);
     let selected = RevSelect::new(&review.selection);
+    if showimage{
+        draw_front_image(&review.media, area.frontimg);
+    }
+
 
     review.question.set_rowlen(area.question.width);
     review.answer.set_rowlen(area.answer.width);
@@ -253,6 +260,26 @@ where
     }
     view_dependencies(f, review.id, conn, area.dependencies, selected.dependencies); 
     view_dependents(f,   review.id, conn, area.dependents, selected.dependents);
+}
+
+
+use viuer::{print_from_file, Config};
+fn draw_front_image(media: &MediaContents, area: Rect){
+    if area.width < 6 || area.height < 6{return}
+    let path = match &media.frontimage{
+        Some(path) => path.clone(),
+        None => return,
+    };
+     let conf = Config {
+        // set offset
+        x: area.x ,
+        y: area.y as i16,
+        // set dimensions
+        width: Some(area.width.into()),
+        height: Some(area.height.into()),
+        ..Default::default()
+    };
+    //print_from_file(path, &conf).expect("Image printing failed.");
 
 }
 
@@ -359,6 +386,8 @@ struct DrawUnf{
 struct DrawReview{
     question: Rect,
     answer: Rect,
+    frontimg: Rect,
+    backimg: Rect,
     dependents: Rect,
     dependencies: Rect,
     cardrater: Rect,
@@ -383,11 +412,8 @@ fn inc_layout(area: Rect) -> DrawInc {
             .as_ref(),
             )
         .split(area);
-
-
     
     let (editing, rightside) = (mainvec[0], mainvec[1]);
-
     let rightvec = Layout::default()
         .direction(Vertical)
         .constraints(
@@ -449,7 +475,7 @@ fn unfinished_layout(area: Rect) -> DrawUnf {
 }
 
 
-fn review_layout(area: Rect) -> DrawReview{
+fn review_layout(area: Rect, showimage: bool) -> DrawReview{
    
 
 
@@ -504,7 +530,7 @@ fn review_layout(area: Rect) -> DrawReview{
             )
         .split(right);
 
-    let leftcolumn = Layout::default()
+    let mut leftcolumn = Layout::default()
         .constraints(
             [
             Constraint::Ratio(1, 2),
@@ -514,9 +540,50 @@ fn review_layout(area: Rect) -> DrawReview{
             )
         .split(left);
 
+    let question;
+    let answer;
+    let frontimg;
+    let backimg;
+
+
+    if showimage{
+        let (up, down) = (leftcolumn[0], leftcolumn[1]);
+        let upper = Layout::default()
+                .direction(Horizontal)
+                .constraints(
+                    [
+                    Constraint::Ratio(1, 2),
+                    Constraint::Ratio(1, 2),
+                    ]
+                .as_ref(),
+                )
+            .split(up);
+        let downer = Layout::default()
+                .direction(Horizontal)
+                .constraints(
+                    [
+                    Constraint::Ratio(1, 2),
+                    Constraint::Ratio(1, 2),
+                    ]
+                .as_ref(),
+                )
+            .split(down);
+        (question, frontimg) = (upper[0], upper[1]);
+        (answer, backimg) = (downer[0], downer[1]);
+    } else {
+        question = leftcolumn[0];
+        answer = leftcolumn[1];
+        frontimg = question;
+        backimg = question;
+    }
+
+   
+
     DrawReview {
-        question: leftcolumn[0],
-        answer:   leftcolumn[1],
+        question,
+        answer,
+        frontimg, 
+        backimg, 
         dependents: rightcolumn[0],
         dependencies: rightcolumn[1],
         cardrater: bottomleftright[0],

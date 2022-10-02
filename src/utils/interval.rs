@@ -12,6 +12,7 @@ use rusqlite::Connection;
 
 use super::sql::{fetch::fetch_card, update::set_stability};
 
+use std::sync::{Arc, Mutex};
 
 
 fn func(passed: f32, stability: f32) -> f32 {
@@ -28,39 +29,40 @@ fn time_passed_since_review(review: &Review) -> f32 {
 }
 
 
-pub fn calc_strength(conn: &Connection) {
-    let cards = load_cards(conn).unwrap();
+pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
+    let cards = load_cards(&conn,).unwrap();
 
     let mut strength;
     let mut passed;
 
     for card in cards.iter(){
-        let history = get_history(conn, card.id).unwrap();
+        let history = get_history(&conn, card.id).unwrap();
         if card.is_complete() {
             let hislen = history.len();
             if hislen == 0 as usize{
                 panic!{"wtf {}", &card.question};
             }
-            let stability = get_stability(conn, card.id).unwrap() as f32;
+            let stability = get_stability(&conn, card.id);
             passed = time_passed_since_review(&history[(history.len() - 1) as usize]);
             strength = func(passed, stability);
-            update_strength(conn, card.id, strength).unwrap();
+            update_strength(&conn, card.id, strength).unwrap();
         }
     }
 }
 
 
 
-pub fn calc_stability(conn: &Connection, id: CardID){
-    let mut card = fetch_card(conn, id);
-    let history = get_history(conn, id).unwrap();
+pub fn calc_stability(conn: &Arc<Mutex<Connection>>, id: CardID){
+    let mut card = fetch_card(&conn, id);
+    let history = get_history(&conn, id).unwrap();
     let hislen = history.len();
     
     if hislen < 2{
-        panic!("too small {}, {}", hislen, card.question.clone());
+        set_stability(&conn, card.id, 1.0).unwrap();
+        return
     }
 
-    let prev_stability = get_stability(conn, id).unwrap() as f32;
+    let prev_stability = get_stability(&conn, id);
     let grade          =  &history[hislen - 1 as usize].grade;
     let time_passed    = time_passed_since_review(&history[(hislen - 2) as usize]);
     
@@ -81,7 +83,7 @@ pub fn calc_stability(conn: &Connection, id: CardID){
         }
     };
 
-    set_stability(conn, card.id, new_stability).unwrap();
+    set_stability(&conn, card.id, new_stability).unwrap();
 }
 
 

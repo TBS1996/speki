@@ -9,7 +9,7 @@ pub mod delete;
 use rusqlite::{Connection, Result};
 use crate::utils::sql::insert::new_topic;
 
-
+use std::sync::{Mutex, Arc};
 
 
 
@@ -116,6 +116,7 @@ pub fn init_db() -> Result<()>{
         [],
         )?;
     
+    let conn = Arc::new(Mutex::new(conn));
     if new_db {new_topic(&conn, String::from("root"), 0, 0)?;}
      
     

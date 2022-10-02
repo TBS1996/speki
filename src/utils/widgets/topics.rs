@@ -16,6 +16,7 @@ use crate::utils::sql::update::update_topic_name;
 use crate::MyKey;
 
 use super::textinput::Field;
+use std::sync::{Arc, Mutex};
 
 
 #[derive(Clone)]
@@ -55,10 +56,10 @@ pub struct TopicList {
 impl TopicList{
 
 
-pub fn new(conn: &Connection) -> TopicList {
+pub fn new(conn: &Arc<Mutex<Connection>>) -> TopicList {
     let mut foo = TopicList {
         state: ListState::default(),
-        items: get_topics(conn).unwrap(),
+        items: get_topics(&conn).unwrap(),
         writing: None,
     };
     foo.add_kids();
@@ -203,26 +204,26 @@ pub fn distance_sibling_below(&self, id: u32) -> u32{
     below_index - current_index
 }
 
-pub fn shift_left(&mut self, conn: &Connection, index: u32){
+pub fn shift_left(&mut self, conn: &Arc<Mutex<Connection>>, index: u32){
     let topic = self.topic_from_index(index);
     let parent = self.parent_from_id(topic.id);
     let uncles = self.uncles_from_id(topic.id);
     let uncle_qty = uncles.len() as u32;
     
-    update_topic_parent(conn, topic.id, parent.parent).unwrap();
-    update_topic_relpos(conn, topic.id, parent.relpos).unwrap();
+    update_topic_parent(&conn, topic.id, parent.parent).unwrap();
+    update_topic_relpos(&conn, topic.id, parent.relpos).unwrap();
 
     for i in parent.relpos..uncle_qty{
         let uncle_id = uncles[i as usize];
         let uncle = self.topic_from_id(uncle_id);
-        update_topic_relpos(conn, uncle_id, uncle.relpos + 1).unwrap();
+        update_topic_relpos(&conn, uncle_id, uncle.relpos + 1).unwrap();
     }
     let siblings = self.siblings_from_id(topic.id);
     let sibling_qty = siblings.len() as u32;
 
     for i in (topic.relpos + 1)..sibling_qty{
         let sibling = self.topic_from_id(siblings[i as usize]);
-        update_topic_relpos(conn, siblings[i as usize], sibling.relpos - 1).unwrap();
+        update_topic_relpos(&conn, siblings[i as usize], sibling.relpos - 1).unwrap();
 
     }
 }
@@ -232,16 +233,16 @@ pub fn shift_left(&mut self, conn: &Connection, index: u32){
 
 
 
-pub fn delete_topic(&mut self, conn: &Connection, index: u32){
+pub fn delete_topic(&mut self, conn: &Arc<Mutex<Connection>>, index: u32){
     let topic = self.topic_from_index(index);
 
     for (index, child) in topic.children.iter().enumerate(){
-        update_topic_parent(conn, *child, topic.parent).unwrap(); 
-        update_topic_relpos(conn, *child, topic.relpos + index as u32).unwrap();
+        update_topic_parent(&conn, *child, topic.parent).unwrap(); 
+        update_topic_relpos(&conn, *child, topic.relpos + index as u32).unwrap();
     }
 
-    delete_topic(conn, topic.id).unwrap();
-    update_card_topic(conn, topic.id, topic.parent).unwrap(); // all the cards with the deleted topic
+    delete_topic(&conn, topic.id).unwrap();
+    update_card_topic(&conn, topic.id, topic.parent).unwrap(); // all the cards with the deleted topic
                                                            // get assigned to the topic above item  
 
     let siblings = self.siblings_from_id(topic.id);
@@ -249,32 +250,32 @@ pub fn delete_topic(&mut self, conn: &Connection, index: u32){
     let kidqty = topic.children.len() as u32;
 
     for i in (topic.relpos + 1)..(siblingqty){
-        update_topic_relpos(conn, siblings[(i) as usize],  i + kidqty - 1).unwrap();
+        update_topic_relpos(&conn, siblings[(i) as usize],  i + kidqty - 1).unwrap();
     }
 }
 
 
-pub fn shift_right(&mut self, conn: &Connection, index: u32){
+pub fn shift_right(&mut self, conn: &Arc<Mutex<Connection>>, index: u32){
     let topic = self.topic_from_index(index);
     let below = self.topic_from_index(index + 1);
-    update_topic_parent(conn, topic.id, below.id).unwrap();
-    update_topic_relpos(conn, topic.id, 0).unwrap();
+    update_topic_parent(&conn, topic.id, below.id).unwrap();
+    update_topic_relpos(&conn, topic.id, 0).unwrap();
 
 
     for child_id in below.children{
         let child = self.topic_from_id(child_id);
-        update_topic_relpos(conn, child_id, child.relpos + 1).unwrap();
+        update_topic_relpos(&conn, child_id, child.relpos + 1).unwrap();
     }
     let siblings = self.siblings_from_id(topic.id);
     let sibling_qty = siblings.len() as u32;
     
     for i in (topic.relpos + 1)..sibling_qty{
         let sib = self.topic_from_id(siblings[i as usize]);
-        update_topic_relpos(conn, sib.id, sib.relpos - 1).unwrap();
+        update_topic_relpos(&conn, sib.id, sib.relpos - 1).unwrap();
     }
 }
 
-pub fn shift_down(&mut self, conn: &Connection, index: u32){
+pub fn shift_down(&mut self, conn: &Arc<Mutex<Connection>>, index: u32){
     let topic = self.topic_from_index(index);
     if self.is_last_sibling(topic.id){return}
     let siblings = self.siblings_from_id(topic.id);
@@ -284,18 +285,18 @@ pub fn shift_down(&mut self, conn: &Connection, index: u32){
     // if topic is not the last relpos, shift its relpos one down and the below it one up 
     
     if topic.relpos != sibling_qty - 1 {
-        update_topic_relpos(conn, topic.id, topic.relpos + 1).unwrap();
-        update_topic_relpos(conn, below_sibling.id, topic.relpos).unwrap();
+        update_topic_relpos(&conn, topic.id, topic.relpos + 1).unwrap();
+        update_topic_relpos(&conn, below_sibling.id, topic.relpos).unwrap();
         return
     } 
 }
 
-pub fn shift_up(&mut self, conn: &Connection, index: u32){
+pub fn shift_up(&mut self, conn: &Arc<Mutex<Connection>>, index: u32){
     let topic = self.topic_from_index(index);
     if topic.relpos == 0{ return} 
     let sibling_above = self.sibling_above(topic.id);
-    update_topic_relpos(conn, topic.id, topic.relpos - 1).unwrap();
-    update_topic_relpos(conn, sibling_above.id, topic.relpos).unwrap();
+    update_topic_relpos(&conn, topic.id, topic.relpos - 1).unwrap();
+    update_topic_relpos(&conn, sibling_above.id, topic.relpos).unwrap();
 }
 
 
@@ -339,8 +340,8 @@ pub fn sort_topics(&mut self){
 
 
 
-pub fn reload_topics(&mut self, conn: &Connection) {
-    self.items = get_topics(conn).unwrap();
+pub fn reload_topics(&mut self, conn: &Arc<Mutex<Connection>>) {
+    self.items = get_topics(&conn).unwrap();
     self.add_kids();
     self.sort_topics();
 }
@@ -382,7 +383,7 @@ pub fn previous(&mut self) {
 
 
 
-pub fn keyhandler(&mut self, key: MyKey, conn: &Connection){
+pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
     match &mut self.writing{
         Some(inner) => {
             match key{
@@ -390,14 +391,14 @@ pub fn keyhandler(&mut self, key: MyKey, conn: &Connection){
                     inner.name.addchar(c);
                     let id = inner.id;
                     let name = inner.name.return_text();
-                    update_topic_name(conn, id, name).unwrap();
+                    update_topic_name(&conn, id, name).unwrap();
                     self.reload_topics(conn);
                 },
                 MyKey::Backspace => {
                     inner.name.backspace();
                     let id = inner.id;
                     let name = inner.name.return_text();
-                    update_topic_name(conn, id, name).unwrap();
+                    update_topic_name(&conn, id, name).unwrap();
                     self.reload_topics(conn);
                 },
                 MyKey::Enter => {
@@ -472,8 +473,8 @@ pub fn keyhandler(&mut self, key: MyKey, conn: &Connection){
                     let name = String::new();
                     let children = self.items[parent_index].children.clone();
                     let sibling_qty = (&children).len();
-                    new_topic(conn, name, parent, sibling_qty as u32).unwrap();
-                    let id = (conn.last_insert_rowid()) as u32;
+                    new_topic(&conn, name, parent, sibling_qty as u32).unwrap();
+                    let id = (conn.lock().unwrap().last_insert_rowid()) as u32;
                     self.writing = Some(NewTopic::new(id));
                     self.reload_topics(conn);
                 },

@@ -3,9 +3,10 @@ use crate::{MyKey, Direction};
 
 use crate::logic::review::{UnfCard, UnfSelection, CardReview};
 use crate::utils::sql::update::{update_inc_text,  update_card_question, update_card_answer, double_skip_duration};
+use crate::utils::sql::fetch::get_cardtype;
 use crate::utils::widgets::find_card::{FindCardWidget, CardPurpose};
 use crate::app::{App, PopUp};
-use crate::utils::card::{RecallGrade, Card};
+use crate::utils::card::{RecallGrade, Card, CardType};
 use crate::logic::review::{ReviewSelection, IncSelection, IncMode};
 use crate::logic::review::ReviewMode;
 
@@ -34,6 +35,7 @@ navigation is with alt+[h,j,k,l]
 
 
 
+use std::sync::{Arc, Mutex};
 enum Action {
     IncNext(String, TopicID),
     IncDone(String, TopicID),
@@ -81,6 +83,9 @@ pub fn review_event(app: &mut App, key: MyKey) {
                 '4' => RecallGrade::Easy,
                 _ => panic!("illegal argument"),
             };
+            if get_cardtype(&app.conn, id) == CardType::Pending{
+                Card::activate_card(&app.conn, id);
+            }
             app.review.new_review(&app.conn, id, grade, &app.audio_handle);
             update_card_question(&app.conn, id, question).unwrap();
             update_card_answer(&app.conn, id, answer).unwrap();
@@ -199,7 +204,7 @@ fn inc_nav(inc: &mut IncMode, dir: &Direction){
     }
 }
 
-fn mode_inc(conn: &Connection, inc: &mut IncMode, key: MyKey, action: &mut Action) {
+fn mode_inc(conn: &Arc<Mutex<Connection>>, inc: &mut IncMode, key: MyKey, action: &mut Action) {
     use MyKey::*;
     use IncSelection::*;
     

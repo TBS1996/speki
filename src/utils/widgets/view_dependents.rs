@@ -18,6 +18,7 @@ pub struct Dependent{
 
 
 
+use std::sync::{Arc, Mutex};
 
 
 use rusqlite::Connection;
@@ -26,18 +27,18 @@ use tui::text::Spans;
 use tui::style::Modifier;
 use crate::utils::aliases::*;
 
-pub fn view_dependents<B>(f: &mut Frame<B>, id: CardID, conn: &Connection, area: Rect, selected: bool)
+pub fn view_dependents<B>(f: &mut Frame<B>, id: CardID, conn: &Arc<Mutex<Connection>>, area: Rect, selected: bool)
 where
     B: Backend,
 {
-    let thecard = fetch_card(conn, id);
+    let thecard = fetch_card(&conn, id);
     let dep_ids = &thecard.dependents;
     let mut dependency_vec = Vec::<Dependent>::new();
 
     for id in dep_ids{
         dependency_vec.push(
             Dependent{
-                question: fetch_card(conn, *id).question,
+                question: fetch_card(&conn, *id).question,
                 id: *id,
             }
         );

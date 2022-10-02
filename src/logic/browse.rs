@@ -2,6 +2,7 @@ use crate::utils::{
     statelist::StatefulList,    //   StatefulList,
 };
 use rusqlite::Connection;
+use std::sync::{Arc, Mutex};
 
 
 pub enum BrowseCursor{
@@ -17,7 +18,7 @@ pub struct Browse{
 }
 
 impl Browse {
-    pub fn new(conn: &Connection) -> Self{ 
+    pub fn new(conn: &Arc<Mutex<Connection>>) -> Self{ 
         Browse {
             filtered: StatefulList::<u32>::load_cards(conn),
             selected: StatefulList::<u32>::load_empty(),

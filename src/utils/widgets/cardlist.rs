@@ -12,6 +12,7 @@ use tui::{
 };
 
 
+use std::sync::{Arc, Mutex};
 
 use tui::text::Spans;
 use tui::style::Modifier;
@@ -26,7 +27,7 @@ pub struct CardItem{
 
 
 /*
-pub fn view_cards<B>(f: &mut Frame<B>, id: u32, conn: &Connection, area: Rect, selected: bool)
+pub fn view_cards<B>(f: &mut Frame<B>, id: u32, conn: &Arc<Mutex<Connection>>, area: Rect, selected: bool)
 where
     B: Backend,
 {

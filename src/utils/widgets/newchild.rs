@@ -17,6 +17,7 @@ use crate::MyKey;
 use crate::utils::misc::PopUpStatus;
 use crate::Direction;
 
+use std::sync::{Arc, Mutex};
 pub enum Selection{
     Question,
     Answer,
@@ -38,7 +39,7 @@ pub struct AddChildWidget{
 }
 
 impl AddChildWidget{
-    pub fn new(conn: &Connection, purpose: Purpose) -> Self{
+    pub fn new(conn: &Arc<Mutex<Connection>>, purpose: Purpose) -> Self{
         let prompt = Self::add_prompt(conn, &purpose);
         let question = Field::new();
         let answer = Field::new();
@@ -56,29 +57,29 @@ impl AddChildWidget{
         }
     }
 
-    fn add_prompt(conn: &Connection, purpose: &Purpose) -> Field{
+    fn add_prompt(conn: &Arc<Mutex<Connection>>, purpose: &Purpose) -> Field{
         let mut prompt = Field::new();
         match purpose{
             Purpose::Source(id) => {
                 prompt.push("Add new sourced card".to_string());
-                let sourcetext = load_inc_text(conn, *id).unwrap();
+                let sourcetext = load_inc_text(&conn, *id).unwrap();
                 prompt.push(sourcetext);
             },
             Purpose::Dependency(id) => {
                 prompt.push("Add new dependent of: ".to_string());
-                let ques = fetch_question(conn, *id);
+                let ques = fetch_question(&conn, *id);
                 prompt.push(ques)
             },
             Purpose::Dependent(id) => {
                 prompt.push("Add new dependency of: ".to_string());
-                let ques = fetch_question(conn, *id);
+                let ques = fetch_question(&conn, *id);
                 prompt.push(ques)
             },
         }
         prompt
     }
 
-    pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
+    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey){
         use MyKey::*;
         match key {
             Esc => self.status = PopUpStatus::Finished,
@@ -95,11 +96,11 @@ impl AddChildWidget{
         }
     }
 
-    fn submit_card(&mut self, conn: &Connection, isfinished: bool){
+    fn submit_card(&mut self, conn: &Arc<Mutex<Connection>>, isfinished: bool){
         let topic = match self.purpose{
-            Purpose::Source(id)     => get_topic_of_inc(conn, id).unwrap(),
-            Purpose::Dependent(id)  => get_topic_of_card(conn, id),
-            Purpose::Dependency(id) => get_topic_of_card(conn, id),
+            Purpose::Source(id)     => get_topic_of_inc(&conn, id).unwrap(),
+            Purpose::Dependent(id)  => get_topic_of_card(&conn, id),
+            Purpose::Dependency(id) => get_topic_of_card(&conn, id),
         };
 
 

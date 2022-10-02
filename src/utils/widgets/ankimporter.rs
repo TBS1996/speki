@@ -12,6 +12,7 @@ use tui::{
     layout::{Constraint, Direction::Vertical, Layout, Rect},
     Frame, widgets::ListState,
 };
+use std::sync::{Arc, Mutex};
 
 use crate::utils::widgets::list::list_widget;
 use super::{message_box::draw_message, list::StraitList};
@@ -19,7 +20,8 @@ use crate::MyKey;
 use crate::utils::misc::PopUpStatus;
 use tui::layout::Direction::Horizontal;
 
-
+use regex::*;
+use reqwest::header;
 
 use tui::{
     style::{Color, Modifier, Style},
@@ -33,8 +35,22 @@ use tui::widgets::List;
 pub enum ShouldQuit{
     No,
     Yeah,
-    Takethis(u32),
+    Takethis(super::load_cards::Template),
 }
+
+
+fn get_description(pagesource: &String, id: &u32) -> String{
+    let pattern = "<div class=\"shared-item-description pb-3\">((.|\n)*)<h2>Sample".to_string();
+    let re = Regex::new(&pattern).unwrap();
+    let foo = match re.captures(&pagesource){
+        Some(x) => x,
+        None => panic!("{}, @@{}", pagesource, id),
+    };
+    foo.get(1).unwrap().as_str().to_string()
+}
+
+
+
 
 pub struct Ankimporter{
     searchterm: Field,
@@ -66,18 +82,45 @@ impl Ankimporter{
 
         }
     }
+    
+    fn update_desc(&mut self){
+        if let Some(idx) = self.list.state.selected(){
+            let id = self.list.items[idx].id;
+            if !self.descmap.contains_key(&id){
+                let url = format!("https://ankiweb.net/shared/info/{}", id);
+                let body = reqwest::blocking::get(url).unwrap().text().unwrap();
+                let desc = get_description(&body, &id);
+                self.descmap.insert(id, desc);
+            }
+        }
+    }
 
-    pub fn keyhandler(&mut self, key: MyKey){
+    fn is_desc_loaded(&self) -> bool {
+        if let Some(idx) = self.list.state.selected(){
+            let id = self.list.items[idx].id;
+            return self.descmap.contains_key(&id)
+        } 
+        false
+    }
+
+    pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
         match key {
             MyKey::Enter => {
                 match self.list.state.selected(){
                     None => self.fetch(),
-                    Some(idx) => self.choose(idx),
+                    Some(_) if !self.is_desc_loaded() => self.update_desc(),
+                    Some(idx) => self.choose(idx, conn),
                 }
             }
             MyKey::Esc => self.should_quit = ShouldQuit::Yeah,
-            MyKey::Down => self.list.next(),
-            MyKey::Up => self.list.previous(),
+            MyKey::Down => {
+                self.list.next();
+
+            },
+            MyKey::Up => {
+                self.list.previous();
+            },
+            MyKey::Right => self.update_desc(),
             key => {
                 self.searchterm.keyhandler(key);
                 self.list.state.select(None);
@@ -103,8 +146,8 @@ impl Ankimporter{
         let chunks = Layout::default()
             .direction(Vertical)
             .constraints([
-                         Constraint::Ratio(1, 10),
-                         Constraint::Ratio(2, 10),
+                         Constraint::Max(5),
+                         Constraint::Max(3),
                          Constraint::Ratio(1, 10),
             ]
             .as_ref(),)
@@ -134,21 +177,29 @@ impl Ankimporter{
 
 
         draw_message(f, prompt, "Select an anki deck!");
-        self.searchterm.render(f, searchfield, false);
+        self.searchterm.render(f, searchfield, true);
         f.render_stateful_widget(items, results, &mut self.list.state);
 
         if let Some(idx) = self.list.state.selected(){
             let id = self.list.items[idx].id;
             let mut newfield = Field::new();
-            newfield.replace_text(self.descmap[&id].clone());
+            let text = match self.descmap.get(&id){
+                Some(desc) => desc.clone(),
+                None => "Enter to load description ".to_string(),
+            };
+            newfield.replace_text(text);
             newfield.render(f, desc, false);
         }
-
     }
 
 
-    fn choose(&mut self, idx: usize) {
-        self.should_quit = ShouldQuit::Takethis(self.list.items[idx].id);
+    fn choose(&mut self, idx: usize, conn: &Arc<Mutex<Connection>>) {
+        use std::path::PathBuf;
+        let deck = self.list.items[idx].clone();
+        let downpath = crate::logic::import::download_deck(deck.id);
+        let name = sanitize_filename::sanitize(deck.title.clone());
+        let tmp = super::load_cards::Template::new(conn, PathBuf::from(downpath), name);
+        self.should_quit = ShouldQuit::Takethis(tmp);
     }
 
     
@@ -189,7 +240,7 @@ impl Ankimporter{
                 },
                 Stringstatus::Onstring => {
                     if c == '"'{
-                        stringstatus = Stringstatus::Beforeint;
+                        stringstatus = Stringstatus::Beforenewarray;
                         let num = intrep.parse::<u32>().unwrap();
                         myvec.push(
                             Deck{
@@ -219,13 +270,12 @@ impl Ankimporter{
             if !self.descmap.contains_key(&deck.id){
                 let url = format!("https://ankiweb.net/shared/info/{}", deck.id);
                 let body = reqwest::blocking::get(url).unwrap().text().unwrap();
-                let splitter: Vec<&str> = body.split("<div class=\"shared-item-description pb-3\">").collect();
-                let foo = splitter[1].to_string();
-                let splitter: Vec<&str> = foo.split("</div>").collect();
-                let foo = splitter[0].to_string();
-                self.descmap.insert(deck.id, foo);
+                let desc = get_description(&body, &deck.id);
+                self.descmap.insert(deck.id, desc);
+                break;
             }
         }
+
         self.list.items = myvec;
         self.list.state = ListState::default();
     }
@@ -243,41 +293,3 @@ enum Stringstatus{
 
 use tui::widgets::ListItem;
 
-/*
-
-pub fn list_widget<B, T>(f: &mut Frame<B>, widget: &T, area: Rect, selected: bool)
-where
-    B: Backend,
-    T: StraitList<T>,
-{
-
-    
-    let items = widget.generate_list_items(selected);
-    f.render_stateful_widget(items, area, &mut widget.state());
-}
-
-
-
-
-pub trait StraitList<T> {
-    fn generate_list_items(&self, selected: bool) -> List;
-    fn state(&self) -> ListState; 
-}
-
-
-
-use crate::utils::widgets::find_card::CardMatch;
-
-
-impl<T> StraitList<T> for StatefulList<CardMatch>{
-    fn state(&self) -> ListState {
-        self.state.clone()
-    }
-
-    fn generate_list_items(&self, _selected: bool) -> List{
-    }
-}
-
-
-
-*/

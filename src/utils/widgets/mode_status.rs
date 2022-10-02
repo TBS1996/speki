@@ -35,7 +35,7 @@ where
                           target.unf_qty - current.unfinished_cards.len() as u16,
                           target.unf_qty, 
                           );
-    let _pending = format!("Pending: {}/{}  ", 
+    let pending = format!("Pending: {}/{}  ", 
                           target.pending_qty - current.pending_cards.len() as u16,
                           target.pending_qty,
                           );
@@ -64,7 +64,7 @@ where
             Span::styled(format!("Current mode: {}    ", current_mode), Style::default().fg(Color::Magenta)),
             Span::styled(finished,   Style::default().fg(Color::Red)),
             Span::styled(unfinished, Style::default().fg(Color::Yellow)),
-        //    Span::styled(pending,    Style::default().fg(Color::Cyan)),
+            Span::styled(pending,    Style::default().fg(Color::Cyan)),
             Span::styled(incread,    Style::default().fg(Color::Green)),
             ]
             )

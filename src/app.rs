@@ -40,41 +40,12 @@ impl<'a> TabsState<'a> {
     }
 }
 
-/* 
-
-Architecture idea: 
-each tab has a trait with a keyhandler and a render function. 
-perhaps return a custom result option if needed 
-
-perhaps the tabs are a vector of tabs, you can move them around and close and open and such
-
-
-perhaps popup is a simple option 
-
-option type is one that has the same render and keyhandler trait as above 
-
-
-ok wait
-
-there should be a tab struct 
-it keeps all the widgets in it,
-and it handles navigation
-and tab-specific functions
-
-it can also handle popups, so that you can have  a popup on one tab but able to switch to other tabs
-
-
-
-
-maybe widgets like topiclist and stuff should be mutable references so that they'll stay in sync
-wait that would fuck up selection lol
-
-*/
 
 use crate::utils::widgets::newchild::AddChildWidget;
 use crate::utils::widgets::filepicker::FilePicker;
 use crate::logic::import::Importer;
 use std::io::BufReader;
+use std::sync::{Arc, Mutex};
 
 
 
@@ -89,7 +60,7 @@ pub enum PopUp{
 pub struct App<'a> {
     pub should_quit: bool,
     pub tabs: TabsState<'a>,
-    pub conn: Connection,
+    pub conn: Arc<Mutex<Connection>>,
     pub review: ReviewList,
     pub add_card: NewCard,
     pub browse: Browse,
@@ -103,10 +74,11 @@ pub struct App<'a> {
 impl<'a> App<'a> {
     pub fn new() -> App<'a> {
         let conn    = Connection::open("dbflash.db").expect("Failed to connect to database.");
+        let conn = Arc::new(Mutex::new(conn));
         let (audio, audio_handle) = rodio::OutputStream::try_default().unwrap();
         let revlist = ReviewList::new(&conn, &audio_handle);
         let browse  = Browse::new(&conn);
-        let mut addcards =  NewCard::new(&conn, DepState::None);
+        let addcards =  NewCard::new(&conn, DepState::None);
         let incread = MainInc::new(&conn);
         let popup = PopUp::None;
         let importer = Importer::new(&conn);
@@ -160,7 +132,7 @@ impl<'a> App<'a> {
                     4 => browse_event(self,   key),
                     2 => main_inc(self,       key),
                     3 => {
-                        self.importer.keyhandler(&self.conn, key);
+                        self.importer.keyhandler(&self.conn, key, &self.audio_handle);
                     },
                     _ => {},
                 }

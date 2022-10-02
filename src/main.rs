@@ -31,25 +31,19 @@ use tui::{
 };
 
 
-
+use reqwest;
 
 
 use std::io::BufReader;
+use reqwest::header;
 
 
-
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
 
     env::set_var("RUST_BACKTRACE", "1");
     init_db().unwrap();  //.expect("Failed to create sqlite database");
+   // panic!("@@@@@@@@@22");
 
-
-/*
-    let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
-    let file = std::fs::File::open("testlol.mp3").unwrap();
-    let beep1 = stream_handle.play_once(BufReader::new(file)).unwrap();
-    beep1.set_volume(0.5);
-*/
 
     // setup terminal
     enable_raw_mode()?;
@@ -83,7 +77,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 
-
+use std::time::Duration;
+use crossterm::{event::{read, poll}, Result};
 fn run_app(
     terminal: &mut Terminal<MyType>,
     mut app: App,
@@ -92,15 +87,20 @@ fn run_app(
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
-        let event = event::read()?;
-        if let Some(key) = MyKey::from(event){
-            app.handle_key(key);
-        }
+         if poll(Duration::from_millis(100))? {
+            let event = event::read()?;
+            if let Some(key) = MyKey::from(event){
+                app.handle_key(key);
+            }
 
-        if app.should_quit {
-            backup();
-            return Ok(());
-        }
+            if app.should_quit {
+                backup();
+                return Ok(());
+            }
+         } else{
+             //app.handle_key(MyKey::Null);
+         }
+        
 
     }
 }
@@ -211,87 +211,5 @@ fn backup(){
         std::fs::copy(dbflash, formatted).unwrap();  // Copy foo.txt to bar.txt
     }
 }
-
-
-/*
-use tui::layout::Rect;
-use tui::Frame;
-
-
-
-
-struct MyWidget{
-    title: String,
-}
-
-
-
-struct Pane{
-    area: tui::layout::Rect,
-    content: Content,
-}
-
-enum Content{
-    Container(SplitContainer),
- //   Widget(Obs),
-}
-
-struct SplitContainer{
-    direction: tui::layout::Direction,
-    splits: Vec<Split>,
-}
-
-struct Split{
-    constraint: tui::layout::Constraint,
-    pane: Pane,
-}
-
-struct Tabs{
-    tabs: Vec<Tab>,
-    selected: usize,
-}
-
-*/
-
-
-/*
-schemass!!! 
-
-
-tabs -> 
-id, name 
-
-widgets -> 
-id, name  
-
-panes -> 
-widget or split: bool 
-widget-id or splitcontainer-id, depending on the bool
-tab_id 
-pane_id 
-
-
-splits -> 
-constraint, parent_pane, new_pane, order
-
-
-
-hmm mmhm hmhmhmmm 
-
-maybe the tab should return options for card, topic etc..  
-
-so all of the tabs can return but some of it is just options 
-
-when you call for example get_question(), the tab will search all its widgets for a 
-question widget, if it finds it, it\ll return the text, if not it will return None 
-
-
-*/
-
-
-
-
-
-
 
 

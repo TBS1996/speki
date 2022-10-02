@@ -45,8 +45,9 @@ pub struct Field {
     repeat: u16,
     keyvec: Vec<MyKey>,
     text_alignment: Alignment,
-    title: String,
+    pub title: String,
     preferredcol: Option<usize>,
+    pub stickytitle: bool,
 }
 
 
@@ -74,10 +75,21 @@ impl Field{
             text_alignment: Alignment::Left,
             title: "my title".to_string(),
             preferredcol: None,
+            stickytitle: false,
+
         };
         myfield.set_insert_mode();
         myfield
     }
+
+
+    pub fn new_with_text(text: String) -> Self {
+        let mut field = Self::new();
+        field.replace_text(text);
+        field
+    }
+
+
 
     fn reset_keyvec(&mut self){
         self.keyvec = vec![MyKey::Null; 5]; 
@@ -102,6 +114,7 @@ impl Field{
     pub fn set_rowlen(&mut self, win_width: u16){
         self.rowlen = win_width - 2;
     }
+
 
     pub fn set_win_height(&mut self, winheight: u16){
         self.window_height = winheight - 2;
@@ -805,7 +818,7 @@ where
     self.set_rowlen(area.width);
     self.set_win_height(area.height);
 
-    let title = if selected{
+    let title = if selected || self.stickytitle{
         &self.title
     } else {
         ""

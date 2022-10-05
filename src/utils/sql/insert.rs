@@ -6,7 +6,7 @@ use crate::utils::sql::update::set_cardtype;
 use std::sync::{Arc, Mutex};
 
 pub fn save_card(conn: &Arc<Mutex<Connection>>, card: Card)-> CardID{
-    let time_added = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
+    //let time_added = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
 
     let cardtype = match card.cardtype{
         CardType::Pending    => 0,
@@ -84,9 +84,10 @@ pub fn new_topic(conn: &Arc<Mutex<Connection>>, name: String, parent: u32, pos: 
 
 
 pub fn new_incread(conn: &Arc<Mutex<Connection>>, parent: u32, topic: u32, source: String, isactive: bool) -> Result<()>{
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
     conn.lock().unwrap().execute(
-        "INSERT INTO incread (parent, topic, source, active) VALUES (?1, ?2, ?3, ?4)",
-        params![parent, topic, source, isactive],
+        "INSERT INTO incread (parent, topic, source, active, skiptime, skipduration, row, column) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![parent, topic, source, isactive, 1.0, now, 0, 0],
     )?;
     Ok(())
 }
@@ -96,7 +97,7 @@ pub fn new_finished(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<()>{
         "INSERT INTO finished_cards (id, strength, stability) VALUES (?1, ?2, ?3)",
         params![id, 1.0f32, 1.0f32],
     )?;
-    set_cardtype(conn, id, CardType::Finished);
+    set_cardtype(conn, id, CardType::Finished).unwrap();
     Ok(())
 }
 

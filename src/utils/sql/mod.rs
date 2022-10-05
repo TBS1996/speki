@@ -15,7 +15,7 @@ use std::sync::{Mutex, Arc};
 
 
 
-pub fn init_db() -> Result<()>{
+pub fn init_db() -> Result<bool>{
 
     let mut new_db = false;
     if let Err(_) = std::fs::metadata("dbflash.db"){
@@ -110,7 +110,11 @@ pub fn init_db() -> Result<()>{
             parent integer not null,
             topic integer not null,
             source text not null,
-            active integer not null
+            active integer not null,
+            skiptime integer,
+            skipduration integer,
+            row integer,
+            column integer
 
     )",
         [],
@@ -123,7 +127,7 @@ pub fn init_db() -> Result<()>{
 
 
 
-    Ok(())
+    Ok(new_db)
 }
 
 

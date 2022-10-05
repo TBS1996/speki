@@ -1,8 +1,9 @@
 
+use crate::utils::widgets::textinput::CursorPos;
 use crate::{MyKey, Direction};
 
 use crate::logic::review::{UnfCard, UnfSelection, CardReview};
-use crate::utils::sql::update::{update_inc_text,  update_card_question, update_card_answer, double_skip_duration};
+use crate::utils::sql::update::{update_inc_text,  update_card_question, update_card_answer, double_skip_duration, set_suspended};
 use crate::utils::sql::fetch::get_cardtype;
 use crate::utils::widgets::find_card::{FindCardWidget, CardPurpose};
 use crate::app::{App, PopUp};
@@ -28,17 +29,14 @@ second one keeps track of position
 
 navigation is with alt+[h,j,k,l]
 
-
-
-
 */ 
 
 
 
 use std::sync::{Arc, Mutex};
 enum Action {
-    IncNext(String, TopicID),
-    IncDone(String, TopicID),
+    IncNext(String, TopicID, CursorPos),
+    IncDone(String, TopicID, CursorPos),
     Review(String, String, CardID, char),
     SkipUnf(String, String, CardID),
     SkipRev(String, String, CardID),
@@ -50,6 +48,7 @@ enum Action {
     AddChild(IncID),
     PlayBackAudio(CardID),
     Quit,
+    Refresh,
     None,
 }
 
@@ -60,20 +59,20 @@ pub fn review_event(app: &mut App, key: MyKey) {
 
     match &mut app.review.mode{
         ReviewMode::Done => mode_done(key, &mut action),
-        ReviewMode::Unfinished(unf) => mode_unfinished( unf, key, &mut action),
-        ReviewMode::Pending(rev) | ReviewMode::Review(rev) => mode_review(rev, key, &mut action),
+        ReviewMode::Unfinished(unf) => mode_unfinished(&app.conn, unf, key, &mut action),
+        ReviewMode::Pending(rev) | ReviewMode::Review(rev) => mode_review(&app.conn, rev, key, &mut action),
         ReviewMode::IncRead(inc) => mode_inc(&app.conn, inc, key, &mut action),
 }
 
 
     match action{
-        Action::IncNext(source, id) => {
-            app.review.inc_next(&app.conn, &app.audio_handle);
-            update_inc_text(&app.conn, source, id).unwrap();
+        Action::IncNext(source, id, cursor) => {
+            app.review.inc_next(&app.conn, &app.audio_handle, id);
+            update_inc_text(&app.conn, source, id, &cursor).unwrap();
         },
-        Action::IncDone(source, id) => {
+        Action::IncDone(source, id, cursor) => {
             app.review.inc_done(id, &app.conn, &app.audio_handle);
-            update_inc_text(&app.conn, source, id).unwrap();
+            update_inc_text(&app.conn, source, id, &cursor).unwrap();
         },
         Action::Review(question, answer, id, char) => {
             let grade = match char{
@@ -136,6 +135,9 @@ pub fn review_event(app: &mut App, key: MyKey) {
         }
         Action::Quit => {
             app.should_quit = true;
+        },
+        Action::Refresh => {
+            app.review = crate::logic::review::ReviewList::new(&app.conn, &app.audio_handle);
         },
         Action::None => {},
     }
@@ -214,16 +216,15 @@ fn mode_inc(conn: &Arc<Mutex<Connection>>, inc: &mut IncMode, key: MyKey, action
     }
     match (&inc.selection, key) {
         (_, Alt('q')) => *action = Action::Quit,
-        (_, Alt('d')) => *action = Action::IncDone(inc.source.source.return_text(), inc.id), 
-        (_, Alt('s')) => *action = Action::IncNext(inc.source.source.return_text(), inc.id),
+        (_, Alt('d')) => *action = Action::IncDone(inc.source.source.return_text(), inc.id, inc.source.source.cursor.clone()), 
+        (_, Alt('s')) => *action = Action::IncNext(inc.source.source.return_text(), inc.id, inc.source.source.cursor.clone()),
         (Source, Alt('a')) => *action = Action::AddChild(inc.id),
-        (_, Alt('f')) => *action = Action::IncDone(inc.source.source.return_text(), inc.id),
         (Source, key) =>  inc.source.keyhandler(conn, key),
         (_,_) => {},
     }
 }
 
-fn mode_review(unf: &mut CardReview, key: MyKey, action: &mut Action) {
+fn mode_review(conn: &Arc<Mutex<Connection>>, unf: &mut CardReview, key: MyKey, action: &mut Action) {
     use ReviewSelection::*;
     use MyKey::*;
         
@@ -233,14 +234,16 @@ fn mode_review(unf: &mut CardReview, key: MyKey, action: &mut Action) {
     }
     match (&unf.selection, key){
         (_, Alt('q')) => *action = Action::Quit,
-        (_, Alt('w')) => unf.reveal = true,
-        (_, Alt('s'))     => *action = Action::SkipRev(unf.question.return_text(), unf.answer.return_text(), unf.id),
+        (_, Alt('s')) => *action = Action::SkipRev(unf.question.return_text(), unf.answer.return_text(), unf.id),
         (_, Alt('t')) => *action = Action::NewDependent(unf.id),
         (_, Alt('y')) => *action = Action::NewDependency(unf.id),
         (_, Alt('T')) => *action = Action::AddDependent(unf.id),
         (_, Alt('Y')) => *action = Action::AddDependency(unf.id),
-        (RevealButton, Char(' ')) => {
-
+        (_, Alt('i')) => {
+            set_suspended(conn, unf.id, true).unwrap();
+    *action = Action::SkipRev(unf.question.return_text(), unf.answer.return_text(), unf.id);
+        },
+        (RevealButton, Char(' ')) | (RevealButton, Enter) => {
             unf.reveal = true;
             unf.selection = CardRater;
             *action = Action::PlayBackAudio(unf.id);
@@ -278,11 +281,13 @@ fn mode_review(unf: &mut CardReview, key: MyKey, action: &mut Action) {
 fn mode_done(key: MyKey, action: &mut Action){
     match key{
         MyKey::Alt('q') => *action = Action::Quit,
+        MyKey::Alt('r') => *action = Action::Refresh,
+
         _ => {},
     }
 }
 
-fn mode_unfinished(unf: &mut UnfCard, key: MyKey, action: &mut Action) {
+fn mode_unfinished(conn: &Arc<Mutex<Connection>>, unf: &mut UnfCard, key: MyKey, action: &mut Action) {
     use UnfSelection::*;
     use MyKey::*;
 
@@ -298,6 +303,10 @@ fn mode_unfinished(unf: &mut UnfCard, key: MyKey, action: &mut Action) {
         (_, Alt('y'))  => *action = Action::NewDependency(unf.id),
         (_, Alt('T'))  => *action = Action::AddDependent(unf.id),
         (_, Alt('Y'))  => *action = Action::AddDependency(unf.id),
+        (_, Alt('i')) => {
+            set_suspended(conn, unf.id, true).unwrap();
+            *action = Action::SkipRev(unf.question.return_text(), unf.answer.return_text(), unf.id);
+        },
         (Question, key) => unf.question.keyhandler(key),
         (Answer,   key) => unf.answer.keyhandler(key),
         (_,_) => {},

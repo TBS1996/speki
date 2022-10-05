@@ -1,4 +1,4 @@
-use crate::utils::{aliases::*, sql::insert::update_both, card::Card};
+use crate::utils::{aliases::*, sql::{insert::update_both, fetch::load_card_matches}, card::Card};
 use rusqlite::Connection;
 use crate::utils::sql::fetch::load_cards;
 use crate::utils::statelist::StatefulList;
@@ -101,17 +101,15 @@ impl StatefulList<CardMatch>{
 
 pub fn reset_filter(&mut self, conn: &Arc<Mutex<Connection>>, mut searchterm: String){
     let mut matching_cards = Vec::<CardMatch>::new();
-    let all_cards = load_cards(&conn).unwrap();
     searchterm.pop();
+    let all_cards = load_card_matches(&conn, &searchterm).unwrap();
     for card in all_cards{
-        if card.question.to_lowercase().contains(&searchterm) || card.answer.to_lowercase().contains(&searchterm){
             matching_cards.push(
                 CardMatch{
                     question: card.question,
                     id: card.id,
                 }
             );
-        };
         }
         self.items = matching_cards;
     }
@@ -148,7 +146,7 @@ where
     
     draw_message(f, prompt, &widget.prompt);
     widget.searchterm.render(f, searchbar, false);
-    list_widget(f, &widget.list, matchlist, false);
+    list_widget(f, &widget.list, matchlist, false, "".to_string());
 }
 
 

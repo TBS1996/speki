@@ -321,10 +321,11 @@ impl Card {
         }
     }
     fn play_audio(handle: &rodio::OutputStreamHandle, path: String){
-        let file = std::fs::File::open(path).unwrap();
-        let beep1 = handle.play_once(BufReader::new(file)).unwrap();
-        beep1.set_volume(0.2);
-        beep1.detach();
+        if let Ok(file) = std::fs::File::open(path){
+            let beep1 = handle.play_once(BufReader::new(file)).unwrap();
+            beep1.set_volume(0.2);
+            beep1.detach();
+        }
     }
 
 }

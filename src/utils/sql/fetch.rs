@@ -5,6 +5,7 @@ use crate::utils::aliases::*;
 use crate::utils::widgets::load_cards::MediaContents;
 use std::sync::MutexGuard;
 use std::sync::{Mutex, Arc};
+use std::time::{UNIX_EPOCH, SystemTime};
 
 
 #[derive(Clone)]
@@ -50,25 +51,7 @@ pub fn fetch_card(conn: &Arc<Mutex<Connection>>, cid: u32) -> Card {
     
 }
 
-/*
-pub fn highest_id(conn: &Arc<Mutex<Connection>>) -> Result<u32> {
-    let mut stmt = conn.lock().unwrap().prepare("SELECT * FROM cards")?;
 
-    let card_iter = stmt.query_map([], |row| {
-        Ok(row.get(0)?)
-        
-    })?;
-    let mut maxid = 0;
-    let mut temp;
-    for card in card_iter {
-        temp = card.unwrap();
-            if temp > maxid{
-                maxid = temp;
-            }
-        }
-    Ok(maxid)
-}
-*/
 
 pub fn get_topics(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Topic>>{
     let mut vecoftops = Vec::<Topic>::new();
@@ -172,7 +155,23 @@ pub fn load_cards(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Card>> {
     Ok(cardvec)
 }
 
-
+pub fn load_card_matches(conn: &Arc<Mutex<Connection>>, search: &str) -> Result<Vec<Card>> {
+    let mut cardvec = Vec::<Card>::new();
+    conn
+        .lock()
+        .unwrap()
+        .prepare("SELECT * FROM cards WHERE (question LIKE '%' || ?1 || '%') OR (answer LIKE '%' || ?1 || '%') LIMIT 50")?
+        .query_map([search], |row| {
+            cardvec.push(row2card(row).unwrap());
+            Ok(())
+        })?.for_each(|_|{});
+    for i in 0..cardvec.len(){
+        let id = cardvec[i].id;
+        cardvec[i].dependencies = get_dependencies(conn, id).unwrap();
+        cardvec[i].dependents   = get_dependents  (conn, id).unwrap();
+    }
+    Ok(cardvec)
+}
 
 
 
@@ -244,6 +243,8 @@ pub fn fetch_media(conn: &Arc<Mutex<Connection>>, id: CardID) -> MediaContents{
 
    */
 pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<IncRead>{
+    let extracts = load_extracts(conn, id).unwrap();
+    let cloze_cards = load_cloze_cards(conn, id).unwrap();
     conn
         .lock()
         .unwrap()
@@ -256,9 +257,9 @@ pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<IncRead>{
                         id,
                         parent: row.get(1)?,
                         topic: row.get(2)?,
-                        source: Field::new_with_text(row.get(3).unwrap()),
-                        extracts: StatefulList::with_items(load_extracts(conn, id).unwrap()),
-                        clozes: StatefulList::with_items(load_cloze_cards(conn, id).unwrap()),
+                        source: Field::new_with_text(row.get(3).unwrap(), row.get(7).unwrap(), row.get(8).unwrap()),
+                        extracts: StatefulList::with_items(extracts),
+                        clozes: StatefulList::with_items(cloze_cards),
                         isactive: row.get(4)?,
                     }
                 )
@@ -314,15 +315,26 @@ pub fn load_extracts(conn: &Arc<Mutex<Connection>>, parent: IncID) -> Result<Vec
 }
 
 
+/*
+
+
+let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
+if current_time - card.skiptime(conn) > card.skipduration(conn) * 84_600{
+    unfinished_cards.push(card.id);
+}
+
+   
+   */
 pub fn load_active_inc(conn: &Arc<Mutex<Connection>>) -> Result<Vec<IncID>>{
+    let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
     let mut incvec = Vec::<IncID>::new();
     conn
         .lock()
         .unwrap()
-        .prepare("SELECT id FROM incread where active = 1")
+        .prepare("SELECT id FROM incread where active = 1 and ((? - skiptime) > (skipduration * 86400))")
         .unwrap()
         .query_map(
-            [], 
+            [current_time], 
             |row| {
                 incvec.push(row.get(0).unwrap());
                 Ok(())
@@ -350,6 +362,9 @@ pub fn load_inc_text(conn: &Arc<Mutex<Connection>>, id: IncID) -> Result<String>
 pub fn load_inc_title(conn: &Arc<Mutex<Connection>>, incid: IncID, titlelen: u16) -> Result<String> {
     let mut source = load_inc_text(conn, incid).unwrap();
     source.truncate(titlelen.into());
+    if source.len() < 5 {
+        source = "Empty Source".to_string();
+    }
     Ok(source)
 }
 
@@ -398,6 +413,13 @@ pub fn get_skipduration(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<u32
     )
 }
 
+pub fn get_inc_skipduration(conn: &Arc<Mutex<Connection>>, id: IncID) -> Result<u32> {
+    conn.lock().unwrap().query_row(
+    "select skipduration FROM incread WHERE id=?",
+    [id],
+    |row| row.get(0),
+    )
+}
 
 
 pub fn get_skiptime(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<u32> {

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::mpsc::channel, path::{Path, PathBuf}};
 
 use crate::MyType;
 use reqwest;
@@ -10,12 +10,12 @@ use crate::utils::widgets::textinput::Field;
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction::Vertical, Layout, Rect},
-    Frame, widgets::ListState,
+    Frame, widgets::{ListState, Clear},
 };
 use std::sync::{Arc, Mutex};
 
 use crate::utils::widgets::list::list_widget;
-use super::{message_box::draw_message, list::StraitList};
+use super::{message_box::draw_message, list::StraitList, load_cards::Template};
 use crate::MyKey;
 use crate::utils::misc::PopUpStatus;
 use tui::layout::Direction::Horizontal;
@@ -35,7 +35,7 @@ use tui::widgets::List;
 pub enum ShouldQuit{
     No,
     Yeah,
-    Takethis(super::load_cards::Template),
+    Takethis((PathBuf, String)),
 }
 
 
@@ -49,7 +49,18 @@ fn get_description(pagesource: &String, id: &u32) -> String{
     foo.get(1).unwrap().as_str().to_string()
 }
 
+use std::sync::mpsc;
+use std::thread;
+enum Menu{
+    Main,
+    Downloading(DeckDownload),
+}
 
+
+struct DeckDownload{
+    name: String,
+    rx: mpsc::Receiver<(u64, u64)>,
+}
 
 
 pub struct Ankimporter{
@@ -57,6 +68,7 @@ pub struct Ankimporter{
     description: Field,
     list: StatefulList<Deck>,
     descmap: HashMap<u32, String>,
+    menu: Menu,
     pub should_quit: ShouldQuit,
 }
 
@@ -72,12 +84,14 @@ impl Ankimporter{
         let list = StatefulList::<Deck>::new();
         let searchterm = Field::new();
         let description = Field::new();
+        let menu = Menu::Main;
 
         Ankimporter {
             searchterm,
             description,
             list,
             descmap: HashMap::new(),
+            menu,
             should_quit: ShouldQuit::No,
 
         }
@@ -104,34 +118,70 @@ impl Ankimporter{
     }
 
     pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
-        match key {
-            MyKey::Enter => {
-                match self.list.state.selected(){
-                    None => self.fetch(),
-                    Some(_) if !self.is_desc_loaded() => self.update_desc(),
-                    Some(idx) => self.choose(idx, conn),
+        match self.menu{
+            Menu::Main => {
+                match key {
+                    MyKey::Enter => {
+                        match self.list.state.selected(){
+                            None => self.fetch(),
+                            Some(_) if !self.is_desc_loaded() => self.update_desc(),
+                            Some(idx) => {
+                                let deck = self.list.items[idx].clone();
+                                let name = sanitize_filename::sanitize(deck.title.clone());
+                                let download_link = crate::logic::import::get_download_link(deck.id);
+                                let (tx, rx) = mpsc::sync_channel(1);
+                                let downdeck = DeckDownload{
+                                    name,
+                                    rx,
+                                };
+                                self.menu = Menu::Downloading(downdeck);
+                                use crate::logic::import::foo;
+                                thread::spawn(move||{
+                                    foo(download_link, tx);
+                                });
+                            }, 
+                        }
+                    }
+                    //MyKey::Esc => self.should_quit = ShouldQuit::Yeah,
+                    MyKey::Down => {
+                        self.list.next();
+                    },
+                    MyKey::Up => {
+                        self.list.previous();
+                    },
+                    key => {
+                        self.searchterm.keyhandler(key);
+                        self.list.state.select(None);
+                    },
                 }
-            }
-            MyKey::Esc => self.should_quit = ShouldQuit::Yeah,
-            MyKey::Down => {
-                self.list.next();
-
             },
-            MyKey::Up => {
-                self.list.previous();
-            },
-            MyKey::Right => self.update_desc(),
-            key => {
-                self.searchterm.keyhandler(key);
-                self.list.state.select(None);
-            },
-            
+            Menu::Downloading(_) => {},
         }
     }
-
             
 
-    pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
+    pub fn render(&mut self, conn: &Arc<Mutex<Connection>>, f: &mut tui::Frame<MyType>, mut area: tui::layout::Rect) {
+        let full_area = area;
+        if let Menu::Downloading(deck) = &self.menu{
+            if let Ok(prog) = deck.rx.recv(){
+                let (current, max) = prog;
+                let percent = ((current as f32 / max as f32) * 100.0) as u32;
+                area.height = std::cmp::min(area.height, 7);
+                crate::utils::widgets::progress_bar::progress_bar(f, percent, 100 as u32, Color::Blue, area, "Downloading deck...");
+                if current == max{
+                    let pathandname = (Path::new("./temp/ankitemp.apkg").to_path_buf(), deck.name.clone());
+                    self.should_quit = ShouldQuit::Takethis(pathandname);
+                }
+                return;
+            } else {
+                let pathandname = (Path::new("./temp/ankitemp.apkg").to_path_buf(), deck.name.clone());
+                self.should_quit = ShouldQuit::Takethis(pathandname);
+                return;
+            }
+        }
+
+
+
         let chunks = Layout::default()
             .direction(Horizontal)
             .constraints([
@@ -190,16 +240,6 @@ impl Ankimporter{
             newfield.replace_text(text);
             newfield.render(f, desc, false);
         }
-    }
-
-
-    fn choose(&mut self, idx: usize, conn: &Arc<Mutex<Connection>>) {
-        use std::path::PathBuf;
-        let deck = self.list.items[idx].clone();
-        let downpath = crate::logic::import::download_deck(deck.id);
-        let name = sanitize_filename::sanitize(deck.title.clone());
-        let tmp = super::load_cards::Template::new(conn, PathBuf::from(downpath), name);
-        self.should_quit = ShouldQuit::Takethis(tmp);
     }
 
     

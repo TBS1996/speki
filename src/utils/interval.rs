@@ -53,25 +53,25 @@ pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
 
 
 pub fn calc_stability(conn: &Arc<Mutex<Connection>>, id: CardID){
-    let mut card = fetch_card(&conn, id);
     let history = get_history(&conn, id).unwrap();
     let hislen = history.len();
-    
-    if hislen < 2{
-        set_stability(&conn, card.id, 1.0).unwrap();
-        return
-    }
+    let grade =  &history[hislen - 1 as usize].grade;
 
-    let prev_stability = get_stability(&conn, id);
-    let grade          =  &history[hislen - 1 as usize].grade;
-    let time_passed    = time_passed_since_review(&history[(hislen - 2) as usize]);
-    
     let gradefactor = match grade {
          RecallGrade::None   => 0.25,
          RecallGrade::Failed => 0.5,
          RecallGrade::Decent => 2.,
          RecallGrade::Easy   => 4.,
     };
+    
+    if hislen < 2{
+        set_stability(&conn, id, gradefactor).unwrap();
+        return
+    }
+
+    let prev_stability = get_stability(&conn, id);
+    let time_passed    = time_passed_since_review(&history[(hislen - 2) as usize]);
+    
 
     let new_stability = if gradefactor < 1.{
         time_passed * gradefactor
@@ -83,7 +83,7 @@ pub fn calc_stability(conn: &Arc<Mutex<Connection>>, id: CardID){
         }
     };
 
-    set_stability(&conn, card.id, new_stability).unwrap();
+    set_stability(&conn, id, new_stability).unwrap();
 }
 
 

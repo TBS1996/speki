@@ -38,11 +38,24 @@ use std::io::BufReader;
 use reqwest::header;
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 fn main() -> Result<()> {
 
     env::set_var("RUST_BACKTRACE", "1");
-    init_db().unwrap();  //.expect("Failed to create sqlite database");
-   // panic!("@@@@@@@@@22");
+    let is_new_db = init_db().unwrap();  
 
 
     // setup terminal
@@ -57,8 +70,15 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+
+
+    
+
+
+
+
     // create app and run it
-    let app = App::new();
+    let app = App::new(is_new_db);
     let res = run_app(&mut terminal, app);
 
     // restore terminal

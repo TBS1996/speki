@@ -48,25 +48,23 @@ use super::progress_bar;
 
 #[derive(Clone, Debug)]
 pub struct ImportProgress{
-    curr_index: usize,
-    total: usize,
+    pub curr_index: usize,
+    pub total: usize,
+    pub front: String,
+    pub back: String,
 }
 
-impl ImportProgress{
-    fn new(curr: usize, tot: usize)-> Self{
-        ImportProgress{
-            curr_index: curr,
-            total: tot,
-        }
-    }
-}
 
+pub enum UnzipStatus{
+    Ongoing(String),
+    Done,
+}
 
 #[derive(Clone, Debug)]
 pub enum LoadState{
     OnGoing,
     Finished,
-    Importing(ImportProgress), // e.g.  70/500 cards imported...
+    Importing, // e.g.  70/500 cards imported...
 }
 
 #[derive(Clone, Debug)]
@@ -266,10 +264,11 @@ use std::io::BufReader;
 use rodio;
 
 impl Template{
-    pub fn new(conn: &Arc<Mutex<Connection>>, path: PathBuf, name: String)-> Template{
+    pub fn new(conn: &Arc<Mutex<Connection>>,  name: String)-> Template{
         let cards = vec![];
         let notes:  HashMap<NoteID, Note> = HashMap::new();
         let models: HashMap<ModelID, Model> = HashMap::new();
+        let path = name.clone();
         let mut temp = Template{
             cards,
             notes,
@@ -284,7 +283,7 @@ impl Template{
             state: LoadState::OnGoing,
             folderpath: name,
         };
-        temp.init(path);
+        temp.init(&path);
         temp.front_view.stickytitle = true;
         temp.back_view.stickytitle = true;
         temp
@@ -294,19 +293,21 @@ impl Template{
     fn play_front_audio(&self, handle: &rodio::OutputStreamHandle){
         let media = self.get_media(self.viewpos);
         if let Some(audio) = media.frontaudio{
-            let file = std::fs::File::open(audio).unwrap();
-            let beep1 = handle.play_once(BufReader::new(file)).unwrap();
-            beep1.set_volume(0.2);
-            beep1.detach();
+            if let Ok(file) = std::fs::File::open(&audio){
+                let beep1 = handle.play_once(BufReader::new(file)).unwrap();
+                beep1.set_volume(0.2);
+                beep1.detach();
+            }
         }
     }
     fn play_back_audio(&self, handle: &rodio::OutputStreamHandle){
         let media = self.get_media(self.viewpos);
         if let Some(audio) = media.backaudio{
-            let file = std::fs::File::open(audio).unwrap();
-            let beep1 = handle.play_once(BufReader::new(file)).unwrap();
-            beep1.set_volume(0.2);
-            beep1.detach();
+            if let Ok(file) = std::fs::File::open(&audio){
+                let beep1 = handle.play_once(BufReader::new(file)).unwrap();
+                beep1.set_volume(0.2);
+                beep1.detach();
+            }
         }
     }
 
@@ -381,37 +382,40 @@ impl Template{
 
     
 
-fn rename_media(&self)-> Result<()>{
-    let mappath = format!("media/{}/media", self.folderpath);
+fn rename_media(folderpath: &String)-> Result<()>{
+    let mappath = format!("media/{}/media", folderpath);
     let contents = fs::read_to_string(mappath).unwrap();
     let jsonmodels: serde_json::Value = serde_json::from_str(&contents).unwrap();
-
     if let serde_json::Value::Object(ob) = jsonmodels{
         for (key, val) in ob{
             let mut val = val.to_string();
             val.pop();
             val.remove(0);
-            let keypath = format!("media/{}/{}", self.folderpath, key.to_string());
-            let valpath = format!("media/{}/{}", self.folderpath, val);
-            
+            let keypath = format!("media/{}/{}", folderpath, key.to_string());
+            let valpath = format!("media/{}/{}", folderpath, val);
             std::fs::rename(keypath, valpath)?;
         }
     }
     Ok(())
 }
 
-fn unzip_deck(&mut self, downloc: PathBuf) -> Result<String> {
-    let foldername = &self.folderpath;
+pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync::mpsc::Sender<UnzipStatus>) -> Result<String> {
+
     let folderpath = format!("media/{}", &foldername);
     if !std::path::Path::new(&folderpath).exists(){
         std::fs::create_dir(&folderpath).unwrap();
     }
 
     let db_path = format!("media/{}/collection.anki2", foldername);
-    let file = fs::File::open(downloc).unwrap();
+
+    transmitter.send(UnzipStatus::Ongoing("Opening zip file".to_string()));
+    let file = fs::File::open(&downloc).expect(&format!("couldnt open file: {}", downloc.to_str().unwrap()));
+    transmitter.send(UnzipStatus::Ongoing("Loading zip file to memory".to_string()));
     let mut archive = zip::ZipArchive::new(file).unwrap();
+    transmitter.send(UnzipStatus::Ongoing("Extracting files...".to_string()));
     archive.extract(folderpath).unwrap();
-    self.rename_media().unwrap();
+    transmitter.send(UnzipStatus::Ongoing("Preparing files...".to_string()));
+    Self::rename_media(&foldername).unwrap();
     Ok(db_path)
 }
 
@@ -446,9 +450,9 @@ fn unzip_deck(&mut self, downloc: PathBuf) -> Result<String> {
     }
 
 
-    fn init(&mut self, path: PathBuf){
-        let loc = self.unzip_deck(path).unwrap();
-        let ankon = Arc::new(Mutex::new(Connection::open(loc).unwrap()));
+    fn init(&mut self, name: &String){
+        let path = format!("./media/{}/collection.anki2", &name);
+        let ankon = Arc::new(Mutex::new(Connection::open(path).unwrap()));
         self.load_models(&ankon);
         self.load_notes(&ankon).unwrap();
         self.load_cards(&ankon).unwrap();
@@ -605,12 +609,7 @@ fn unzip_deck(&mut self, downloc: PathBuf) -> Result<String> {
         }
         model.templates[temp_ord].afmt.clone()
     }
-    
-
-
-
-
-
+   
     fn load_cards(&mut self, conn: &Arc<Mutex<Connection>>) -> Result<()>{
         let guard = conn.lock().unwrap();
         let mut stmt = guard.prepare("SELECT nid, ord FROM cards").unwrap();
@@ -781,19 +780,11 @@ fn unzip_deck(&mut self, downloc: PathBuf) -> Result<String> {
     }
 
 
-    pub fn import_them(&mut self, conn: &Arc<Mutex<Connection>>){
-        let step = 10;
+    pub fn import_cards(&mut self, conn: Arc<Mutex<Connection>>, transmitter: std::sync::mpsc::SyncSender<ImportProgress>){
         let cardlen = self.cards.len();
         let topic   = self.topics.get_selected_id().unwrap();
-        let next;
-        let currdex;
 
-        if let LoadState::Importing(prog) =  &self.state{
-            next = std::cmp::min(prog.curr_index + step, cardlen);
-            currdex = prog.curr_index;
-        } else{panic!()}
-
-        for idx in currdex..next{
+        for idx in 0..cardlen{
             let front_template = self.get_front_template(idx);
             let back_template  = self.get_back_template(idx);
             let frontside = self.fill_front_view(front_template, idx);
@@ -801,53 +792,28 @@ fn unzip_deck(&mut self, downloc: PathBuf) -> Result<String> {
             let media = self.get_media(idx);
 
             card::Card::new()
-                .question(frontside)
-                .answer(backside)
+                .question(frontside.clone())
+                .answer(backside.clone())
                 .topic(topic)
                 .frontimage(media.frontimage)
                 .backimage( media.backimage)
                 .frontaudio(media.frontaudio)
                 .backaudio( media.backaudio)
                 .cardtype(CardType::Pending)
-                .save_card(conn);
-        }
+                .save_card(&conn);
 
-        
-        if let LoadState::Importing(prog) =  &mut self.state{
-            prog.curr_index = next;
+            let _ = transmitter.try_send(ImportProgress{
+                curr_index: idx,
+                total: cardlen,
+                front: frontside,
+                back: backside,
+            });
         }
     }
-
-
-
-    fn import_cards(&mut self){
-        let cardlen = self.cards.len();
-        let prog = ImportProgress::new(0, cardlen);
-        self.state = LoadState::Importing(prog);
-    }
-
 
 
     pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
 
-        if let LoadState::Importing(prog) = &self.state{
-            let rightcol = Layout::default()
-                .direction(Vertical)
-                .constraints(
-                    [
-                    Constraint::Ratio(1, 3),
-                    Constraint::Ratio(1, 3),
-                    Constraint::Ratio(1, 3),
-                    ]
-                    .as_ref(),
-                    )
-                .split(area);
-
-
-            progress_bar::progress_bar(f, prog.curr_index as u32, prog.total as u32, Color::Cyan, rightcol[2]);
-            return;
-
-        } 
 
         let selected = IsSelected::new(&self.selected);
 
@@ -938,21 +904,19 @@ fn unzip_deck(&mut self, downloc: PathBuf) -> Result<String> {
         let mut frontstring = "Front side ".to_string();
         let mut backstring = "Back side ".to_string();
         if media.frontaudio.is_some(){frontstring.push('🔊')}
-        if media.backaudio.is_some(){backstring.push('🔊')}
+        if media.backaudio.is_some() {backstring.push ('🔊')}
         if media.frontimage.is_some(){frontstring.push('📷')}
-        if media.backimage.is_some(){backstring.push('📷')}
+        if media.backimage.is_some() {backstring.push ('📷')}
         self.front_view.title = frontstring;
         self.back_view.title = backstring;
 
         draw_button(f, preview, &format!("Previewing card {} out of {}", self.viewpos + 1, self.notes.len()), selected.preview);
-        list_widget(f, &self.topics, thetopics, selected.topics);
+        list_widget(f, &self.topics, thetopics, selected.topics, "Topics".to_string());
         self.front_template.render(f, topleft, selected.front);
         self.back_template.render(f, bottomleft, selected.back);
         self.front_view.render(f, topright, false);
         self.back_view.render(f, bottomright, false);
         draw_button(f, button, &format!("Import cards!"), selected.import);
-
-
 
 
         self.front_template.set_win_height(topleft.height);
@@ -1018,7 +982,7 @@ fn unzip_deck(&mut self, downloc: PathBuf) -> Result<String> {
                     self.play_back_audio(handle);
                 }
             }
-            (Import, Enter) => self.import_cards(),
+            (Import, Enter) => self.state = LoadState::Importing,
             (_, Esc) => self.state = LoadState::Finished,
             (Front,  key) => {
                 self.front_template.keyhandler(key);

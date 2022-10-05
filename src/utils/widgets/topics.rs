@@ -384,24 +384,25 @@ pub fn previous(&mut self) {
 
 
 pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
+    use MyKey::*;
     match &mut self.writing{
         Some(inner) => {
             match key{
-                MyKey::Char(c) => {
+                Char(c) => {
                     inner.name.addchar(c);
                     let id = inner.id;
                     let name = inner.name.return_text();
                     update_topic_name(&conn, id, name).unwrap();
                     self.reload_topics(conn);
                 },
-                MyKey::Backspace => {
+                Backspace => {
                     inner.name.backspace();
                     let id = inner.id;
                     let name = inner.name.return_text();
                     update_topic_name(&conn, id, name).unwrap();
                     self.reload_topics(conn);
                 },
-                MyKey::Enter => {
+                Enter => {
                     let id = inner.id;
                     let index = self.index_from_id(id);
                     let parent_id = self.items[index as usize].parent;
@@ -415,8 +416,8 @@ pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
         },
         None => {
             match key{
-                MyKey::Char('k') => self.previous(),
-                MyKey::Delete => {
+                Char('k') | Up => self.previous(),
+                Delete => {
                     let mut index = self.state.selected().unwrap() as u32;
                     if index == 0 {return}
                     self.delete_topic(conn, index);
@@ -424,7 +425,7 @@ pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
                     self.reload_topics(conn);
                     self.state.select(Some((index) as usize));
                 }
-                MyKey::Char('h') => {
+                Char('h') => {
                     let index = self.state.selected().unwrap() as u32;
                     let topic = self.items[index as usize].clone();
                     if topic.parent == 1 {return}
@@ -434,7 +435,7 @@ pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
                     self.reload_topics(conn);
                     self.state.select(Some((parent_index) as usize));
                 }
-                MyKey::Char('l') => {
+                Char('l') => {
                     let index = self.state.selected().unwrap() as u32;
                     if index == (self.items.len() as u32) - 1 {return}
                     if index == 0 {return}
@@ -445,7 +446,7 @@ pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
                     self.reload_topics(conn);
                     self.state.select(Some((index + 1) as usize));
                 }
-                MyKey::Char('J') => {
+                Char('J') => {
                     let index = self.state.selected().unwrap() as u32;
                     let topic = self.items[index as usize].clone();
                     self.shift_down(conn, index as u32);
@@ -453,7 +454,7 @@ pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
                     let new_index = self.index_from_id(topic.id);
                     self.state.select(Some((new_index) as usize));
                 }
-                MyKey::Char('K') => {
+                Char('K') => {
                     let index = self.state.selected().unwrap();
                     let topic = self.items[index as usize].clone();
                     self.shift_up(conn, index as u32);
@@ -461,13 +462,13 @@ pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
                     let new_index = self.index_from_id(topic.id);
                     self.state.select(Some(new_index as usize));
                 },
-                MyKey::Char('e') => {
+                Char('e') => {
                     let index = self.state.selected().unwrap() as u32;
                     let topic = self.items[index as usize].clone();
                     self.writing = Some(NewTopic::new(topic.id));
                 }
-                MyKey::Char('j') => self.next(),
-                MyKey::Char('a') => {
+                Char('j') | Down => self.next(),
+                Char('a') => {
                     let parent = self.get_selected_id().unwrap();
                     let parent_index = self.state.selected().unwrap();
                     let name = String::new();
@@ -528,7 +529,7 @@ impl<T> StraitList<T> for TopicList{
         self.state.clone()
     }
 
-    fn generate_list_items(&self, selected: bool) -> List{
+    fn generate_list_items(&self, selected: bool, title: String) -> List{
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);
 
@@ -537,7 +538,13 @@ impl<T> StraitList<T> for TopicList{
         ListItem::new(lines).style(Style::default().fg(Color::Red).bg(Color::Black))
     }).collect();
     
-    let items = List::new(items).block(Block::default().borders(Borders::ALL).border_style(style).title("Topics"));
+    let items = List::new(items)
+        .block(
+            Block::default()
+            .borders(Borders::ALL)
+            .border_style(style)
+            .title(title)
+            );
 
     let  items = items
         .highlight_style(

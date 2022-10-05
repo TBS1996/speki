@@ -2,7 +2,7 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 use crate::utils::{
     card::{Card, RecallGrade},
-    sql::fetch::{load_cards, get_strength},
+    sql::{fetch::{load_cards, get_strength}, update::{update_inc_skiptime, double_inc_skip_duration}},
     interval, 
 };
 
@@ -180,20 +180,25 @@ impl ReviewList {
         myself
         }
 
+    // randomly choose a mode between active, unfinished and inc read, if theyre all done, 
+    // start with pending cards, if theyre all done, declare nothing left to review
     pub fn random_mode(&mut self, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle){
+        let act: u32 = self.for_review.review_cards.len()     as u32;
+        let unf: u32 = self.for_review.unfinished_cards.len() as u32 + act;
+        let inc: u32 = self.for_review.active_increads.len()  as u32 + unf;
 
-        let  act: u32 = self.for_review.review_cards.len() as u32;
-        let  unf: u32 = self.for_review.unfinished_cards.len() as u32 + act;
-        let  inc: u32 = self.for_review.active_increads.len() as u32 + unf;
-        let  pen: u32 = self.for_review.pending_cards.len() as u32 + inc;
-
-        if pen == 0{
-            self.mode = ReviewMode::Done;
+        let pending_qty = self.for_review.pending_cards.len() as u32;
+        if inc == 0{
+            if pending_qty > 0{
+                self.new_pending_mode(conn, handle);
+            } else {
+                self.mode = ReviewMode::Done;
+            }
             return;
         }
 
         let mut rng = rand::thread_rng();
-        let rand = rng.gen_range(0..pen);
+        let rand = rng.gen_range(0..inc);
 
         if rand < act {
             self.new_review_mode(conn, handle);
@@ -201,9 +206,7 @@ impl ReviewList {
             self.new_unfinished_mode(conn, handle);
         } else if rand < inc {
             self.new_inc_mode(conn);
-        } else if rand < pen {
-            self.new_pending_mode(conn, handle);
-        } else {
+        } else{
             panic!();
         };
     }
@@ -237,7 +240,6 @@ impl ReviewList {
             answer,
             selection,
         };
-
         self.mode = ReviewMode::Unfinished(unfcard);
     }
 
@@ -263,7 +265,7 @@ impl ReviewList {
             media,
         };
 
-        self.mode = ReviewMode::Review(cardreview);
+        self.mode = ReviewMode::Pending(cardreview);
     }
     pub fn new_review_mode(&mut self, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle ){
         let id = self.for_review.review_cards.remove(0);
@@ -290,13 +292,14 @@ impl ReviewList {
         self.mode = ReviewMode::Review(cardreview);
     }
 
-    pub fn inc_next(&mut self, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle ){
+    pub fn inc_next(&mut self, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle, id: IncID ){
         self.random_mode(conn, handle);
+        double_inc_skip_duration(conn, id).unwrap();
     }
-    pub fn inc_done(&mut self, id: IncID, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle ){
+    pub fn inc_done(&mut self, id: IncID, conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle){
         let active = false;
         update_inc_active(&conn, id, active).unwrap();
-        self.inc_next(conn, handle);
+        self.random_mode(conn, handle);
 
     }
 

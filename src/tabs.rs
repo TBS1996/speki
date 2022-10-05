@@ -53,13 +53,6 @@ pub trait TabState{
     fn get_topic(&self) -> Option<TopicID>;
     fn get_card(&self) -> Option<CardID>;
 }
-/*
-struct Widget{
-    area: tui::layout::Rect,
-    widget: Box<dyn Widget>,
-    id: WidgetID,
-}
-*/
 
 struct Tab<T: Widget>{
     title: String,
@@ -110,62 +103,3 @@ fn foo(){
 
 
 
-/*
-
-need to find a way to group together widgets that share some mutual data,
-while at the same time those widgets can be placed around 
-
-for example both  
-
-
-perhaps a state object, which "owns" various widgets. those widgets take the state object by reference,
-and they all implement a trait that is unique to said state widgets. the widgets are both in the normal widget vector where they all get rendered from, but also in a unique vector to the state object.
-
-keyhandling is more tricky as those owned by the state object may wanna  modify ssaid object. perhaps those owned by
-
-
-*/
-
-
-
-
-/*
-    fn get_card(&self) -> Option<TopicID>{
-        for pane in &self.panes{
-            let topic = pane.widget.get_card();
-            if topic.is_some(){
-                return topic;
-            }
-        }
-        None
-    }
-    fn get_question(&self) -> Option<String>{
-        for pane in &self.panes{
-            let topic = pane.widget.get_question();
-            if topic.is_some(){
-                return topic;
-            }
-        }
-        None
-    }
-    fn get_answer(&self) -> Option<String>{
-        for pane in &self.panes{
-            let topic = pane.widget.get_answer();
-            if topic.is_some(){
-                return topic;
-            }
-        }
-        None
-    }
-    fn get_topic(&self) -> Option<TopicID>{
-        for pane in &self.panes{
-            let topic = pane.widget.get_topic();
-            if topic.is_some(){
-                return topic;
-            }
-        }
-        None
-    }
-
-
-    */ 

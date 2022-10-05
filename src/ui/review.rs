@@ -197,7 +197,7 @@ pub fn draw_done<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
 where
     B: Backend,
 {
-    draw_message(f, area, "Nothing left to review now!");
+    draw_message(f, area, "Nothing left to review now! Press Alt+r to refresh");
 }
 
 
@@ -219,17 +219,14 @@ where
 
     let current = match app.review.mode{
         ReviewMode::Done          => 0,
-        ReviewMode::Review(_)     => app.review.for_review.review_cards.len(),
-        ReviewMode::Pending(_)    => app.review.for_review.pending_cards.len(),
-        ReviewMode::IncRead(_)    => app.review.for_review.active_increads.len(),
-        ReviewMode::Unfinished(_) => app.review.for_review.unfinished_cards.len(),
-    } as u32;
+        ReviewMode::Review(_)     => (app.review.start_qty.fin_qty as u32) - (app.review.for_review.review_cards.len() as u32),
+        ReviewMode::Pending(_)    => (app.review.start_qty.pending_qty as u32) - (app.review.for_review.pending_cards.len() as u32),
+        ReviewMode::IncRead(_)    => (app.review.start_qty.inc_qty as u32) - (app.review.for_review.active_increads.len() as u32),
+        ReviewMode::Unfinished(_) => (app.review.start_qty.unf_qty as u32) - (app.review.for_review.unfinished_cards.len() as u32),
+    };
 
     let color = modecolor(&app.review.mode);
-
-
-
-        progress_bar(f, current, target, color, area);
+    progress_bar(f, current, target, color, area, "progress");
 }
 
 pub fn draw_review<B>(f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, review: &mut CardReview, area: Rect)

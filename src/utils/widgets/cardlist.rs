@@ -53,7 +53,7 @@ impl<T> StraitList<T> for StatefulList<CardItem>{
         self.state.clone()
     }
 
-    fn generate_list_items(&self, selected: bool) -> List{
+    fn generate_list_items(&self, selected: bool, title: String) -> List{
         let bordercolor = if selected {Color::Red} else {Color::White};
         let style = Style::default().fg(bordercolor);
 
@@ -67,7 +67,7 @@ impl<T> StraitList<T> for StatefulList<CardItem>{
             .block(Block::default()
                    .borders(Borders::ALL)
                    .border_style(style)
-                   .title("Dependencies"));
+                   .title(title));
         
         if selected{
         items

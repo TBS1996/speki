@@ -12,7 +12,6 @@ use crate::events::{
     review::review_event,
     browse::browse_event,
     add_card::add_card_event,
-    incread::main_inc,
 };
 
 use crate::utils::misc::PopUpStatus;
@@ -69,10 +68,11 @@ pub struct App<'a> {
     pub popup: PopUp,
     pub audio: rodio::OutputStream,
     pub audio_handle: rodio::OutputStreamHandle,
+    pub display_help: bool,
 }
 
 impl<'a> App<'a> {
-    pub fn new() -> App<'a> {
+    pub fn new(display_help: bool) -> App<'a> {
         let conn    = Connection::open("dbflash.db").expect("Failed to connect to database.");
         let conn = Arc::new(Mutex::new(conn));
         let (audio, audio_handle) = rodio::OutputStream::try_default().unwrap();
@@ -95,6 +95,7 @@ impl<'a> App<'a> {
             popup,
             audio,
             audio_handle,
+            display_help,
         }
     }
 
@@ -122,6 +123,7 @@ impl<'a> App<'a> {
                 match key {
                     MyKey::Tab => self.on_right(),
                     MyKey::BackTab => self.on_left(),
+                    MyKey::F(1) => self.display_help = !self.display_help,
                     _ => {},
                 };
                  
@@ -130,10 +132,8 @@ impl<'a> App<'a> {
                     0 => review_event(self,   key),
                     1 => add_card_event(self, key),
                     4 => browse_event(self,   key),
-                    2 => main_inc(self,       key),
-                    3 => {
-                        self.importer.keyhandler(&self.conn, key, &self.audio_handle);
-                    },
+                    2 => self.incread.keyhandler(&self.conn, key),
+                    3 => self.importer.keyhandler(&self.conn, key, &self.audio_handle),
                     _ => {},
                 }
             },

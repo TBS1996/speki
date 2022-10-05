@@ -79,7 +79,7 @@ impl IncRead{
     }
     pub fn update_text(&self, conn: &Arc<Mutex<Connection>>){
         let text = self.source.return_text();
-        update_inc_text(&conn, text, self.id).unwrap();
+        update_inc_text(&conn, text, self.id, &self.source.cursor).unwrap();
     }
 }
 

@@ -40,7 +40,7 @@ where
         );
     }
     let statelist = StatefulList::with_items(dependent_vec);
-    list_widget(f, &statelist, area, selected);
+    list_widget(f, &statelist, area, selected, "Dependencies".to_string());
 }
 
 
@@ -51,7 +51,7 @@ impl<T> StraitList<T> for StatefulList<Dependency>{
         self.state.clone()
     }
 
-    fn generate_list_items(&self, selected: bool) -> List{
+    fn generate_list_items(&self, selected: bool, title: String) -> List{
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);
 
@@ -60,7 +60,13 @@ impl<T> StraitList<T> for StatefulList<Dependency>{
         ListItem::new(lines).style(Style::default())
     }).collect();
     
-    let items = List::new(items).block(Block::default().borders(Borders::ALL).border_style(style).title("Dependencies"));
+    let items = List::new(items)
+        .block(
+            Block::default()
+            .borders(Borders::ALL)
+            .border_style(style)
+            .title(title)
+            );
     
     if selected{
     items

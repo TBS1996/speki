@@ -1,6 +1,6 @@
 [package]
 name = "speki"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Tor Berge torberge@outlook.com"]
 license = "gpl-3.0"

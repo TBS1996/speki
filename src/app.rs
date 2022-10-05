@@ -7,7 +7,7 @@ use crate::{
         browse::Browse,
         add_card::{NewCard, DepState}, incread::MainInc,
     }, 
-    utils::widgets::find_card::FindCardWidget};
+    utils::widgets::find_card::FindCardWidget, SpekiPaths};
 
 use crate::events::{
     review::review_event,
@@ -43,7 +43,7 @@ impl<'a> TabsState<'a> {
 
 use crate::utils::widgets::newchild::AddChildWidget;
 use crate::logic::import::Importer;
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, path::PathBuf};
 
 
 
@@ -53,7 +53,7 @@ pub enum PopUp{
     AddChild(AddChildWidget),
 }
 
-
+use home;
 
 pub struct App<'a> {
     pub should_quit: bool,
@@ -68,11 +68,12 @@ pub struct App<'a> {
     pub audio: rodio::OutputStream,
     pub audio_handle: rodio::OutputStreamHandle,
     pub display_help: bool,
+    pub paths: SpekiPaths,
 }
 
 impl<'a> App<'a> {
-    pub fn new(display_help: bool) -> App<'a> {
-        let conn    = Connection::open("dbflash.db").expect("Failed to connect to database.");
+    pub fn new(display_help: bool, paths: SpekiPaths) -> App<'a> {
+        let conn    = Connection::open(&paths.database).expect("Failed to connect to database.");
         let conn = Arc::new(Mutex::new(conn));
         let (audio, audio_handle) = rodio::OutputStream::try_default().unwrap();
         let revlist = ReviewList::new(&conn, &audio_handle);
@@ -95,6 +96,7 @@ impl<'a> App<'a> {
             audio,
             audio_handle,
             display_help,
+            paths,
         }
     }
 
@@ -132,7 +134,7 @@ impl<'a> App<'a> {
                     1 => add_card_event(self, key),
                     4 => browse_event(self,   key),
                     2 => self.incread.keyhandler(&self.conn, key),
-                    3 => self.importer.keyhandler(&self.conn, key, &self.audio_handle),
+                    3 => self.importer.keyhandler(&self.conn, key, &self.audio_handle, &self.paths),
                     _ => {},
                 }
             },

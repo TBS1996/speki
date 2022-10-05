@@ -16,7 +16,7 @@ use crate::ui::{
     browse::draw_browse,
 };
 
-use crate::MyType;
+use crate::{MyType, SpekiPaths};
 use crate::utils::widgets::textinput::Field;
 use tui::{
     layout::{Constraint, Layout},
@@ -75,7 +75,7 @@ pub fn draw(f: &mut Frame<MyType>, app: &mut App) {
                 0 => main_review(f,   app, chunks[1]),
                 1 => draw_add_card(f, app, chunks[1]),
                 2 => app.incread.render(f,  chunks[1]),
-                3 => app.importer.render(&app.conn, f, chunks[1]),
+                3 => app.importer.render(&app.conn, f, chunks[1], &app.paths),
                 4 => draw_browse(f,   app, chunks[1]),
                 //3 => app.debug.render(f, chunks[1]),
                 _ => {},

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::{Path, PathBuf}};
 
-use crate::MyType;
+use crate::{MyType, SpekiPaths};
 use reqwest;
 use rusqlite::Connection;
 use crate::utils::statelist::StatefulList;
@@ -29,7 +29,7 @@ use tui::widgets::List;
 pub enum ShouldQuit{
     No,
     Yeah,
-    Takethis((PathBuf, String)),
+    Takethis(String),
 }
 
 
@@ -111,7 +111,7 @@ impl Ankimporter{
         false
     }
 
-    pub fn keyhandler(&mut self, key: MyKey, _conn: &Arc<Mutex<Connection>>){
+    pub fn keyhandler(&mut self, key: MyKey, _conn: &Arc<Mutex<Connection>>, paths: &SpekiPaths){
         match self.menu{
             Menu::Main => {
                 match key {
@@ -130,8 +130,9 @@ impl Ankimporter{
                                 };
                                 self.menu = Menu::Downloading(downdeck);
                                 use crate::logic::import::foo;
+                                let threadpaths = paths.clone();
                                 thread::spawn(move||{
-                                    foo(download_link, tx);
+                                    foo(download_link, tx, threadpaths);
                                 });
                             }, 
                         }
@@ -162,13 +163,13 @@ impl Ankimporter{
                 area.height = std::cmp::min(area.height, 7);
                 crate::utils::widgets::progress_bar::progress_bar(f, percent, 100 as u32, Color::Blue, area, "Downloading deck...");
                 if current == max{
-                    let pathandname = (Path::new("./temp/ankitemp.apkg").to_path_buf(), deck.name.clone());
-                    self.should_quit = ShouldQuit::Takethis(pathandname);
+                    let deckname = deck.name.clone();
+                    self.should_quit = ShouldQuit::Takethis(deckname);
                 }
                 return;
             } else {
-                let pathandname = (Path::new("./temp/ankitemp.apkg").to_path_buf(), deck.name.clone());
-                self.should_quit = ShouldQuit::Takethis(pathandname);
+                let deckname = deck.name.clone();
+                self.should_quit = ShouldQuit::Takethis(deckname);
                 return;
             }
         }

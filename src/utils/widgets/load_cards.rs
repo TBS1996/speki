@@ -1,5 +1,5 @@
 
-use crate::Direction;
+use crate::{Direction, SpekiPaths};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use crate::MyKey;
@@ -33,8 +33,8 @@ use std::sync::{Arc, Mutex};
 pub struct ImportProgress{
     pub curr_index: usize,
     pub total: usize,
-    pub front: String,
-    pub back: String,
+ //   pub front: String,
+ //   pub back: String,
 }
 
 
@@ -135,8 +135,8 @@ struct Model{
 #[derive(Clone, Debug)]
 struct CardField{
     text: String,
-    image: Option<String>,
-    audio: Option<String>,
+    image: Option<PathBuf>,
+    audio: Option<PathBuf>,
 }
 
 
@@ -190,13 +190,17 @@ fn remove_useless_formatting(trd: &mut String){
 
 
 
-fn extract_image(trd: &mut String, folderpath: &String) -> Option<String>{
+fn extract_image(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Option<PathBuf>{
     let pattern = "<img src=\"(.*?)\" />".to_string();
     let re = Regex::new(&pattern).unwrap();
     let foo = re.captures(&trd)?;
   
     let res = match foo.get(1) {
-        Some(res) => Some(format!("media/{}/{}", &folderpath, res.as_str().to_string())),
+        Some(res) => {
+            let mut imagepath = paths.media.clone();
+            imagepath.push(format!("{}/{}", deckname, res.as_str().to_string()));
+            Some(imagepath)
+        },
         None => None,
     };
     *trd = re.replace_all(&trd, "").to_string();
@@ -204,13 +208,18 @@ fn extract_image(trd: &mut String, folderpath: &String) -> Option<String>{
 }
 
 
-fn extract_audio(trd: &mut String, folderpath: &String) -> Option<String>{
+fn extract_audio(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Option<PathBuf>{
     let pattern = r"\[sound:(.*?)\]".to_string();
     let re = Regex::new(&pattern).unwrap();
     let foo = re.captures(&trd)?;
+    
   
     let res = match foo.get(1) {
-        Some(res) => Some(format!("media/{}/{}", &folderpath, res.as_str().to_string())),
+        Some(res) => {
+            let mut audiopath = paths.media.clone();
+            audiopath.push(format!("{}/{}", deckname, res.as_str().to_string()));
+            Some(audiopath)
+        },
         None => None,
     };
     *trd = re.replace_all(&trd, "").to_string();
@@ -218,10 +227,10 @@ fn extract_audio(trd: &mut String, folderpath: &String) -> Option<String>{
 }
 #[derive(Default)]
 pub struct MediaContents{
-    pub frontaudio: Option<String>,
-    pub backaudio:  Option<String>,
-    pub frontimage: Option<String>,
-    pub backimage:  Option<String>,
+    pub frontaudio: Option<PathBuf>,
+    pub backaudio:  Option<PathBuf>,
+    pub frontimage: Option<PathBuf>,
+    pub backimage:  Option<PathBuf>,
 }
 
 
@@ -239,7 +248,6 @@ pub struct Template{
     topics: TopicList,
     selected: Selected,
     pub state: LoadState,
-    folderpath: String,
 }
 
 
@@ -247,11 +255,11 @@ use std::io::BufReader;
 use rodio;
 
 impl Template{
-    pub fn new(conn: &Arc<Mutex<Connection>>,  name: String)-> Template{
+
+    pub fn new(conn: &Arc<Mutex<Connection>>, deckname: String, paths: &SpekiPaths)-> Template{
         let cards = vec![];
         let notes:  HashMap<NoteID, Note> = HashMap::new();
         let models: HashMap<ModelID, Model> = HashMap::new();
-        let path = name.clone();
         let mut temp = Template{
             cards,
             notes,
@@ -264,9 +272,8 @@ impl Template{
             topics: TopicList::new(conn),
             selected: Selected::Preview,
             state: LoadState::OnGoing,
-            folderpath: name,
         };
-        temp.init(&path);
+        temp.init(&deckname, paths);
         temp.front_view.stickytitle = true;
         temp.back_view.stickytitle = true;
         temp
@@ -299,10 +306,10 @@ impl Template{
 
     fn get_media(&self, idx: usize) -> MediaContents{
         let mut media = MediaContents::default();
-        let mut frontaudiovec = Vec::<(usize, &str)>::new();
-        let mut backaudiovec  = Vec::<(usize, &str)>::new();
-        let mut frontimagevec = Vec::<(usize, &str)>::new();
-        let mut backimagevec  = Vec::<(usize, &str)>::new();
+        let mut frontaudiovec = Vec::<(usize, PathBuf)>::new();
+        let mut backaudiovec  = Vec::<(usize, PathBuf)>::new();
+        let mut frontimagevec = Vec::<(usize, PathBuf)>::new();
+        let mut backimagevec  = Vec::<(usize, PathBuf)>::new();
 
         let front_template = self.get_front_template(idx);
         let back_template  = self.get_back_template (idx);
@@ -314,18 +321,18 @@ impl Template{
             let fieldname = Self::with_braces(model.fields[i].clone());
             if let Some(path) = &field.audio{
                 front_template.match_indices(&fieldname).for_each(|foo| {
-                    frontaudiovec.push((foo.0, path));
+                    frontaudiovec.push((foo.0, path.to_owned()));
                 });
                 back_template.match_indices(&fieldname).for_each(|foo| {
-                    backaudiovec.push((foo.0, path));
+                    backaudiovec.push((foo.0, path.to_owned()));
                 });
             }
             if let Some(path) = &field.image{
                 front_template.match_indices(&fieldname).for_each(|foo| {
-                    frontimagevec.push((foo.0, path));
+                    frontimagevec.push((foo.0, path.to_owned()));
                 });
                 back_template.match_indices(&fieldname).for_each(|foo| {
-                    backimagevec.push((foo.0, path));
+                    backimagevec.push((foo.0, path.to_owned()));
                 });
             }
         }
@@ -336,16 +343,16 @@ impl Template{
         backimagevec .sort_by_key(|el| el.0);
 
         if frontaudiovec.len() > 0 {
-            media.frontaudio = Some(frontaudiovec[0].1.to_string());
+            media.frontaudio = Some(frontaudiovec[0].1.clone());
         }
         if backaudiovec.len() > 0 {
-            media.backaudio =  Some(backaudiovec[0].1.to_string());
+            media.backaudio =  Some(backaudiovec[0].1.clone());
         }
         if frontimagevec.len() > 0 {
-            media.frontimage = Some(frontimagevec[0].1.to_string());
+            media.frontimage = Some(frontimagevec[0].1.clone());
         }
         if backimagevec.len() > 0 {
-            media.backimage =  Some(backimagevec[0].1.to_string());
+            media.backimage =  Some(backimagevec[0].1.clone());
         }
         media
     }
@@ -365,41 +372,58 @@ impl Template{
 
     
 
-fn rename_media(folderpath: &String)-> Result<()>{
-    let mappath = format!("media/{}/media", folderpath);
-    let contents = fs::read_to_string(mappath).unwrap();
+fn rename_media(deckname: &String, paths: &SpekiPaths)-> Result<()>{
+    let mut mediapath = paths.media.clone();
+    mediapath.push(format!("{}/", deckname));
+    let mut medianames = mediapath.clone();
+    medianames.push("media");
+    let contents = fs::read_to_string(&medianames).unwrap();
     let jsonmodels: serde_json::Value = serde_json::from_str(&contents).unwrap();
     if let serde_json::Value::Object(ob) = jsonmodels{
+        dbg!("Im inside the media contents file now!!");
         for (key, val) in ob{
             let mut val = val.to_string();
             val.pop();
             val.remove(0);
-            let keypath = format!("media/{}/{}", folderpath, key.to_string());
-            let valpath = format!("media/{}/{}", folderpath, val);
+
+            let mut keypath = paths.media.clone();
+            let mut valpath = paths.media.clone();
+            keypath.push(format!("{}/{}", &deckname, key.to_string()));
+            valpath.push(format!("{}/{}", &deckname, val));
+
             std::fs::rename(keypath, valpath)?;
         }
+    } else {
+        dbg!("failed to open media contents", &medianames, &mediapath, &contents);
     }
     Ok(())
 }
 
-pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync::mpsc::Sender<UnzipStatus>) -> Result<String> {
+pub fn unzip_deck(paths: SpekiPaths, deckname: String, transmitter: std::sync::mpsc::Sender<UnzipStatus>) -> PathBuf {
 
-    let folderpath = format!("media/{}", &foldername);
+    let mut folderpath = paths.media.clone();
+    folderpath.push(format!("{}/", &deckname));
+
+    if !std::path::Path::new(&paths.media).exists(){
+        std::fs::create_dir(&paths.media).unwrap();
+    }
+
     if !std::path::Path::new(&folderpath).exists(){
         std::fs::create_dir(&folderpath).unwrap();
     }
 
-    let db_path = format!("media/{}/collection.anki2", foldername);
+    let mut unzipped_db = paths.media.clone();
+    unzipped_db.push(format!("{}/collection.anki2", &deckname));
 
     let _ = transmitter.send(UnzipStatus::Ongoing("Opening zip file".to_string()));
-    let file = fs::File::open(&downloc).expect(&format!("couldnt open file: {}", downloc.to_str().unwrap()));
+    let file = fs::File::open(&paths.downloc).expect(&format!("couldnt open file: {}", &paths.downloc.to_str().unwrap()));
     let _ = transmitter.send(UnzipStatus::Ongoing("Loading zip file to memory".to_string()));
     let mut archive = zip::ZipArchive::new(file).unwrap();
     let _ = transmitter.send(UnzipStatus::Ongoing("Extracting files...".to_string()));
     archive.extract(folderpath).unwrap();
     let _ = transmitter.send(UnzipStatus::Ongoing("Preparing files...".to_string()));
-    Self::rename_media(&foldername).unwrap();
-    Ok(db_path)
+    Self::rename_media(&deckname, &paths).unwrap();
+    unzipped_db
 }
 
 
@@ -433,11 +457,12 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
     }
 
 
-    fn init(&mut self, name: &String){
-        let path = format!("./media/{}/collection.anki2", &name);
-        let ankon = Arc::new(Mutex::new(Connection::open(path).unwrap()));
+    fn init(&mut self, deckname: &String, paths: &SpekiPaths){
+        let mut deckdb = paths.media.clone();
+        deckdb.push(format!("{}/collection.anki2", &deckname));
+        let ankon = Arc::new(Mutex::new(Connection::open(deckdb).unwrap()));
         self.load_models(&ankon);
-        self.load_notes(&ankon).unwrap();
+        self.load_notes(&ankon, deckname, paths).unwrap();
         self.load_cards(&ankon).unwrap();
         self.refresh_template_and_view();
     }
@@ -614,7 +639,7 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
         }
         Ok(())
     }
-    fn load_notes(&mut self, conn: &Arc<Mutex<Connection>>) -> Result<()>{
+    fn load_notes(&mut self, conn: &Arc<Mutex<Connection>>, deckname: &String, paths: &SpekiPaths) -> Result<()>{
         let guard = conn.lock().unwrap();
         let mut stmt = guard.prepare("SELECT id, mid, flds FROM notes")?;
         let foo = stmt.query_map([], |row| {
@@ -630,8 +655,8 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
                                       .split('')
                                       .map(|x| {
                                         let mut text = x.to_string();
-                                        let audio = extract_audio(&mut text, &self.folderpath);
-                                        let image = extract_image(&mut text, &self.folderpath);
+                                        let audio = extract_audio(&mut text, deckname, paths);
+                                        let image = extract_image(&mut text, deckname, paths);
                                         CardField{
                                             text,
                                             audio,
@@ -743,7 +768,6 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
 
 
 
-    
 
     fn with_cloze_braces(string:  String)->String{
         let mut formatted = "{{cloze:".to_string();
@@ -762,34 +786,48 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
 
 
     pub fn import_cards(&mut self, conn: Arc<Mutex<Connection>>, transmitter: std::sync::mpsc::SyncSender<ImportProgress>){
+        use std::time::SystemTime;
         let cardlen = self.cards.len();
         let topic   = self.topics.get_selected_id().unwrap();
 
         for idx in 0..cardlen{
+            dbg!(idx);
+
+
+
             let front_template = self.get_front_template(idx);
             let back_template  = self.get_back_template(idx);
             let frontside = self.fill_front_view(front_template, idx);
             let backside  = self.fill_back_view(back_template, idx);
             let media = self.get_media(idx);
 
+            let beforesave = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
+        //    dbg!(afterprepare);
+
+            if idx % 10 == 0 {
+            let res = transmitter.try_send(ImportProgress{
+                curr_index: idx,
+                total: cardlen,
+                });
+                dbg!(idx);
+            };
+
             card::Card::new()
-                .question(frontside.clone())
-                .answer(backside.clone())
+                .question(frontside)
+                .answer(backside)
                 .topic(topic)
                 .frontimage(media.frontimage)
                 .backimage( media.backimage)
                 .frontaudio(media.frontaudio)
                 .backaudio( media.backaudio)
                 .cardtype(CardType::Pending)
-                .save_card(&conn);
+                .quick_save(&conn);
 
-            let _ = transmitter.try_send(ImportProgress{
-                curr_index: idx,
-                total: cardlen,
-                front: frontside,
-                back: backside,
-            });
+            let aftersave = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
+            dbg!(aftersave - beforesave);
         }
+
+        dbg!("Ive now exited the loop!");
     }
 
 
@@ -895,7 +933,7 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
         self.front_view.title = frontstring;
         self.back_view.title = backstring;
 
-        draw_button(f, preview, &format!("Previewing card {} out of {}", self.viewpos + 1, self.notes.len()), selected.preview);
+        draw_button(f, preview, &format!("Previewing card {} out of {}", self.viewpos + 1, self.cards.len()), selected.preview);
         list_widget(f, &self.topics, thetopics, selected.topics, "Topics".to_string());
         self.front_template.render(f, topleft, selected.front);
         self.back_template.render(f, bottomleft, selected.back);

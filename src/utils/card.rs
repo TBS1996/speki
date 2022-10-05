@@ -8,6 +8,7 @@ use crate::utils::sql::{
 
 
 use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
 
 
 
@@ -121,10 +122,10 @@ pub struct Card{
     pub id: u32,
     pub question: String,
     pub answer: String,
-    pub frontaudio: Option<String>,
-    pub backaudio: Option<String>,
-    pub frontimage: Option<String>,
-    pub backimage: Option<String>,
+    pub frontaudio: Option<PathBuf>,
+    pub backaudio: Option<PathBuf>,
+    pub frontimage: Option<PathBuf>,
+    pub backimage: Option<PathBuf>,
     pub cardtype: CardType,
     pub suspended: bool,
     pub resolved:  bool,
@@ -179,19 +180,19 @@ impl Card {
         self.topic = topic;
         self
     }
-    pub fn frontaudio(mut self, audiopath: Option<String>) -> Self{
+    pub fn frontaudio(mut self, audiopath: Option<PathBuf>) -> Self{
         self.frontaudio = audiopath;
         self
     }
-    pub fn backaudio(mut self, audiopath: Option<String>) -> Self{
+    pub fn backaudio(mut self, audiopath: Option<PathBuf>) -> Self{
         self.backaudio = audiopath;
         self
     }
-    pub fn frontimage(mut self, imagepath: Option<String>) -> Self{
+    pub fn frontimage(mut self, imagepath: Option<PathBuf>) -> Self{
         self.frontimage = imagepath;
         self
     }
-    pub fn backimage(mut self, imagepath: Option<String>) -> Self{
+    pub fn backimage(mut self, imagepath: Option<PathBuf>) -> Self{
         self.backimage = imagepath;
         self
     }
@@ -240,6 +241,9 @@ impl Card {
         } else {
             panic!();
         }
+    }
+    pub fn quick_save(self, conn: &Arc<Mutex<Connection>>){
+        save_card(&conn, self);
     }
 
     pub fn save_card(self, conn: &Arc<Mutex<Connection>>) -> CardID{
@@ -320,7 +324,7 @@ impl Card {
             Self::play_audio(handle, path);
         }
     }
-    fn play_audio(handle: &rodio::OutputStreamHandle, path: String){
+    fn play_audio(handle: &rodio::OutputStreamHandle, path: PathBuf){
         if let Ok(file) = std::fs::File::open(path){
             let beep1 = handle.play_once(BufReader::new(file)).unwrap();
             beep1.set_volume(0.2);

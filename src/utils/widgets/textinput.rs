@@ -155,7 +155,7 @@ impl Field{
     // amount of columns in a row, and counts backward to find the first space, which is where the
     // paragraph would have wrapped. 
     fn visual_row_start(&self, row: usize) -> Vec<usize>{
-        if self.text[row].len() < self.rowlen as usize{
+        if self.text[row].len() < self.rowlen as usize && self.rowlen == 0{
             return vec![0];
         }
         let mut cons_non_space = 0;
@@ -168,6 +168,10 @@ impl Field{
                 cons_non_space = 0;
             }
             if (idx as u16 - linestart as u16) > self.rowlen{
+                if cons_non_space > (linestart as u16 + self.rowlen){
+                    dbg!(&self.text[row], cons_non_space, &linestartvec);
+                    return vec![0];
+                }
                 linestart = ((linestart as u16 + self.rowlen) - cons_non_space as u16) as usize;
                 linestartvec.push(linestart + 1);
             }

@@ -1,50 +1,35 @@
 use crate::Direction;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::time::{UNIX_EPOCH, SystemTime};
-use std::{fs::File, io::Read};
+use std::fs::File;
 use crate::MyKey;
-use crate::tabs::Widget;
 use crate::utils::widgets::button::draw_button;
 use crate::utils::widgets::message_box::draw_message;
 use crate::utils::widgets::textinput::Field;
 use crate::utils::widgets::topics::TopicList;
-use crate::utils::{
-    card::{Card, Review, Status},
-    sql::insert::save_card,
 
-};
-use tui::widgets::{ListState, Clear};
+
 use tui::{
-    backend::Backend,
-    layout::{Constraint, Direction::{Vertical, Horizontal}, Layout, Rect},
-    style::{Color, Style, Modifier},
-    widgets::{Block, Borders, ListItem, List},
-    text::Spans,
-    Frame,
+    layout::{Constraint, Direction::Vertical, Layout},
+    style::Color,
 };
 use std::sync::{Arc, Mutex};
-use crate::utils::aliases::*;
 use rusqlite::Connection;
-use csv::StringRecord;
-use anyhow::Result;
-use crate::utils::card::CardType;
 use crate::MyType;
 use reqwest;
-use std::fs;
-use crate::utils::widgets::ankimporter::{Ankimporter, ShouldQuit};
+use crate::utils::widgets::ankimporter::Ankimporter;
 use crate::utils::widgets::load_cards::{Template, LoadState, ImportProgress};
 
 
-use sanitize_filename;
 
 use crate::utils::widgets::filepicker::{FilePicker, PickState};
 use regex::Regex;
 use reqwest::header;
 use std::io::prelude::*;
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::Receiver;
 use std::sync::mpsc;
 use std::thread;
+use crate::utils::widgets::ankimporter::ShouldQuit;
+
+
 
 
 fn download_the_deck(url: String) -> String{
@@ -197,7 +182,6 @@ pub struct Importer{
     menu: Menu,
 }
 
-use crate::utils::widgets::list::list_widget;
 
 impl Importer{
     pub fn new(conn: &Arc<Mutex<Connection>>) -> Importer{
@@ -228,7 +212,7 @@ impl Importer{
                         let dlpath = std::path::Path::new("./temp/ankitemp.apkg").to_path_buf();
                         let (tx, rx): (mpsc::Sender<UnzipStatus>, Receiver<UnzipStatus>) = mpsc::channel();
                         thread::spawn( move || {
-                            Template::unzip_deck(dlpath, &foldername, tx);
+                            Template::unzip_deck(dlpath, &foldername, tx).unwrap();
                             }
                         );
                         self.menu = Menu::Unzipping(
@@ -315,14 +299,11 @@ impl Importer{
 
 
     pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, handle: &rodio::OutputStreamHandle){
-        use MyKey::*;
-        use Selection::*;
 
         
         match &mut self.menu{
             Menu::Main => self.main_keyhandler(conn, key),
             Menu::Anki(ankimporter) => {
-                use crate::utils::widgets::ankimporter::{ShouldQuit, Deck};
                 match &ankimporter.should_quit{
                     ShouldQuit::No => ankimporter.keyhandler(key, conn),
                     ShouldQuit::Yeah => {

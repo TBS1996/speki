@@ -12,7 +12,6 @@ use tui::{
 };
 
 
-use std::sync::{Arc, Mutex};
 
 use tui::text::Spans;
 use tui::style::Modifier;
@@ -26,26 +25,7 @@ pub struct CardItem{
 
 
 
-/*
-pub fn view_cards<B>(f: &mut Frame<B>, id: u32, conn: &Arc<Mutex<Connection>>, area: Rect, selected: bool)
-where
-    B: Backend,
-{
-    let thecard = fetch_card(conn, id);
-    let mut cardvec = Vec::<CardItem>::new();
 
-    for id in dep_ids{
-        cardvec.push(
-            CardItem{
-                question: fetch_card(conn, *id).question,
-                id: *id,
-            }
-        );
-    }
-    let statelist = StatefulList::with_items(cardvec);
-    list_widget(f, &statelist, area, selected)
-}
-*/
 
 impl<T> StraitList<T> for StatefulList<CardItem>{
 

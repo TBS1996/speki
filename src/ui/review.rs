@@ -260,14 +260,14 @@ where
 }
 
 
-use viuer::{print_from_file, Config};
+use viuer::Config;
 fn draw_front_image(media: &MediaContents, area: Rect){
     if area.width < 6 || area.height < 6{return}
-    let path = match &media.frontimage{
+    let _path = match &media.frontimage{
         Some(path) => path.clone(),
         None => return,
     };
-     let conf = Config {
+     let _conf = Config {
         // set offset
         x: area.x ,
         y: area.y as i16,
@@ -527,7 +527,7 @@ fn review_layout(area: Rect, showimage: bool) -> DrawReview{
             )
         .split(right);
 
-    let mut leftcolumn = Layout::default()
+    let leftcolumn = Layout::default()
         .constraints(
             [
             Constraint::Ratio(1, 2),

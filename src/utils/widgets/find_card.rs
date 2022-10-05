@@ -1,6 +1,5 @@
 use crate::utils::{aliases::*, sql::{insert::update_both, fetch::load_card_matches}, card::Card};
 use rusqlite::Connection;
-use crate::utils::sql::fetch::load_cards;
 use crate::utils::statelist::StatefulList;
 use crate::utils::widgets::textinput::Field;
 use tui::{

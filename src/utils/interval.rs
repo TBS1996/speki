@@ -1,7 +1,7 @@
 use crate::utils::{
     card::{RecallGrade, Review},
     sql::{
-        update::{update_strength},
+        update::update_strength,
         fetch::{load_cards, get_history, get_stability},
     }    
 };
@@ -10,7 +10,7 @@ use crate::utils::aliases::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::Connection;
 
-use super::sql::{fetch::fetch_card, update::set_stability};
+use super::sql::update::set_stability;
 
 use std::sync::{Arc, Mutex};
 

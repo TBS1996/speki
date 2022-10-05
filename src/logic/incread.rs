@@ -10,7 +10,7 @@ use crate::utils::aliases::*;
 use crate::utils::widgets::topics::TopicList;
 
 use tui::{
-    style::{Modifier, Style, Color},
+    style::{Style, Color},
     text::Spans,
     widgets::{Borders, Block, ListItem, List},
 };

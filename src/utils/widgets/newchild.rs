@@ -1,4 +1,3 @@
-use crate::utils::card::Status;
 use crate::utils::{aliases::*, card::Card};
 use rusqlite::Connection;
 use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};

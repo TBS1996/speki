@@ -8,7 +8,6 @@ use rusqlite::Connection;
 use crate::utils::statelist::StatefulList;
 use crate::MyKey;
 use crate::utils::sql::update::update_inc_text;
-use crate::utils::card::Status;
 use std::sync::{Arc, Mutex};
 
 

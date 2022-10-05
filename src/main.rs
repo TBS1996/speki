@@ -6,12 +6,12 @@ pub mod logic;
 pub mod events;
 pub mod utils;
 pub mod app;
-pub mod tabs;
+///pub mod tabs;
 
 
 use std::env;
 use chrono::prelude::*;
-use tabs::MyType;
+//use tabs::MyType;
 use crate::app::App;
 use crate::utils::sql::init_db;
 use crossterm::{
@@ -21,22 +21,13 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, 
         EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{
-    error::Error,
-    io,
-};
+use std::io;
 use tui::{
     backend::CrosstermBackend,
     Terminal,
 };
 
-
-use reqwest;
-
-
-use std::io::BufReader;
-use reqwest::header;
-
+pub type MyType = CrosstermBackend<std::io::Stdout>;
 
 
 
@@ -98,7 +89,7 @@ fn main() -> Result<()> {
 
 
 use std::time::Duration;
-use crossterm::{event::{read, poll}, Result};
+use crossterm::{event::poll, Result};
 fn run_app(
     terminal: &mut Terminal<MyType>,
     mut app: App,

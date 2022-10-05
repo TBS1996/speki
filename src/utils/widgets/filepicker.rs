@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use crate::tabs::Widget;
 use crate::utils::statelist::StatefulList;
 use tui::widgets::ListItem;
 use tui::widgets::List;
@@ -180,7 +179,7 @@ impl FilePicker{
     }
 
 }
-use crate::tabs::MyType;
+use crate::MyType;
 
 
 

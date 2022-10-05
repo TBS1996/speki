@@ -5,9 +5,7 @@ pub mod import;
 pub mod incread;
 
 use crate::app::App;
-use crate::tabs::Widget;
 use crate::utils::widgets::find_card::draw_find_card;
-use crate::ui::import::draw_import;
 
 
 use crate::app::PopUp;
@@ -18,7 +16,7 @@ use crate::ui::{
     browse::draw_browse,
 };
 
-use crate::tabs::MyType;
+use crate::MyType;
 use crate::utils::widgets::textinput::Field;
 use tui::{
     layout::{Constraint, Layout},
@@ -188,14 +186,12 @@ normal mode -> visual mode: v
 visual mode -> normal mode: Ctrl+c
 make extract (visual mode): Alt+x 
 make cloze (visual mode): Alt+z
-page up: Ctrl+u
-page down: Ctrl+d
 
         "#.to_string();
 
     let  import = r#"
 
-Here you can import any anki decks you want! audio included, but not sounds. Press enter to view description about the deck, and then enter again to download
+Here you can import any anki decks you want! audio included, but not yet images. Press enter to view description about the deck, and then enter again to download
 
 When inspecting the deck, you can edit the templates for the deck. The front/back view are how the cards will look like after you import them! 
 

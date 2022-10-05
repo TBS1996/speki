@@ -1,19 +1,10 @@
-use crate::utils::card::Status;
-use crate::utils::{aliases::*, card::Card};
-use rusqlite::Connection;
-use tui::widgets::Widget;
-use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};
-use crate::utils::widgets::textinput::Field;
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction::Horizontal, Layout, Rect},
     Frame,
 };
 
-use crate::utils::sql::fetch::{load_inc_text, get_topic_of_inc};
 use crate::MyKey;
-use crate::utils::misc::PopUpStatus;
-use crate::Direction;
 use crate::utils::card::RecallGrade;
 
 pub struct CardRater{

@@ -1,9 +1,8 @@
 use rusqlite::{Connection,Row, Result};
-use crate::utils::card::{Card, RecallGrade, Review, Status}; //, Topic, Review}
+use crate::utils::card::{Card, RecallGrade, Review}; //, Topic, Review}
 use crate::utils::widgets::topics::Topic;
 use crate::utils::aliases::*;
 use crate::utils::widgets::load_cards::MediaContents;
-use std::sync::MutexGuard;
 use std::sync::{Mutex, Arc};
 use std::time::{UNIX_EPOCH, SystemTime};
 
@@ -462,31 +461,6 @@ pub fn get_cardtype(conn: &Arc<Mutex<Connection>>, id: CardID) -> CardType{
         _ => panic!(),
     }
 }
-
-
-
-/*
-pub fn get_skiptime(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<u32> {
-    let mut stmt = conn.lock().unwrap().prepare("SELECT skiptime FROM unfinished_cards where id = ?")?;
-    let res = stmt.query_row([id], |nice| Ok(nice) )?;
-    Ok(res.get_unwrap(0))
-}
-
-
-pub fn get_stability(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<f32> {
-    let mut stmt = conn.lock().unwrap().prepare("SELECT stability FROM finished_cards where id = ?")?;
-    let res = stmt.query_row([id], |nice| Ok(nice) )?;
-    Ok(res.get_unwrap(0))
-}
-
-pub fn get_strength(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<f32> {
-    let mut stmt = conn.lock().unwrap().prepare("SELECT strength FROM finished_cards where id = ?")?;
-    let res = stmt.query_row([id], |nice| Ok(nice) )?;
-    Ok(res.get_unwrap(0))
-}
-*/
-
-
 
 
 

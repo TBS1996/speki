@@ -7,7 +7,8 @@ use crate::{
         browse::Browse,
         add_card::{NewCard, DepState}, incread::MainInc,
     }, 
-    utils::widgets::find_card::FindCardWidget, tabs::Widget};
+    utils::widgets::find_card::FindCardWidget};
+
 use crate::events::{
     review::review_event,
     browse::browse_event,
@@ -41,9 +42,7 @@ impl<'a> TabsState<'a> {
 
 
 use crate::utils::widgets::newchild::AddChildWidget;
-use crate::utils::widgets::filepicker::FilePicker;
 use crate::logic::import::Importer;
-use std::io::BufReader;
 use std::sync::{Arc, Mutex};
 
 

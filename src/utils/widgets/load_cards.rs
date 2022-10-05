@@ -1,48 +1,31 @@
 
 use crate::Direction;
-use crate::ui::review::draw_progress_bar;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::{UNIX_EPOCH, SystemTime};
-use std::{fs::File, io::Read};
 use crate::MyKey;
-use crate::tabs::Widget;
 use crate::utils::widgets::button::draw_button;
-use crate::utils::widgets::message_box::draw_message;
 use crate::utils::widgets::textinput::Field;
 use crate::utils::widgets::topics::TopicList;
-use crate::utils::{
-    card::{Card, Review, Status},
-    sql::insert::save_card,
 
-};
 use tui::widgets::ListState;
 use tui::{
-    backend::Backend,
-    layout::{Constraint, Direction::{Vertical, Horizontal}, Layout, Rect},
-    style::{Color, Style, Modifier},
+    layout::{Constraint, Direction::{Vertical, Horizontal}, Layout},
+    style::Style,
     widgets::{Block, Borders, ListItem, List},
     text::Spans,
-    Frame,
 };
 use crate::utils::{aliases::*, card};
 use rusqlite::Connection;
-use csv::StringRecord;
 use anyhow::Result;
 use crate::utils::card::CardType;
 use crate::MyType;
-use reqwest;
 use std::fs;
-use std::io;
-use crate::utils::widgets::ankimporter::{Ankimporter, ShouldQuit};
 use crate::utils::widgets::list::list_widget;
+
 use std::sync::{Arc, Mutex};
 
 
 
-use crate::utils::widgets::filepicker::{FilePicker, PickState};
-
-use super::progress_bar;
 
 
 
@@ -408,13 +391,13 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
 
     let db_path = format!("media/{}/collection.anki2", foldername);
 
-    transmitter.send(UnzipStatus::Ongoing("Opening zip file".to_string()));
+    let _ = transmitter.send(UnzipStatus::Ongoing("Opening zip file".to_string()));
     let file = fs::File::open(&downloc).expect(&format!("couldnt open file: {}", downloc.to_str().unwrap()));
-    transmitter.send(UnzipStatus::Ongoing("Loading zip file to memory".to_string()));
+    let _ = transmitter.send(UnzipStatus::Ongoing("Loading zip file to memory".to_string()));
     let mut archive = zip::ZipArchive::new(file).unwrap();
-    transmitter.send(UnzipStatus::Ongoing("Extracting files...".to_string()));
+    let _ = transmitter.send(UnzipStatus::Ongoing("Extracting files...".to_string()));
     archive.extract(folderpath).unwrap();
-    transmitter.send(UnzipStatus::Ongoing("Preparing files...".to_string()));
+    let _ = transmitter.send(UnzipStatus::Ongoing("Preparing files...".to_string()));
     Self::rename_media(&foldername).unwrap();
     Ok(db_path)
 }
@@ -514,9 +497,7 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
 
     fn fill_view(&self, mut template: String, viewpos: usize) -> String{
         if template.len() == 0 {return "".to_string()}
-        let mut ord = self.cards[viewpos].template_ord;
         let model = self.model_from_card_index(viewpos);
-        if model.is_cloze{ord = 0}
 
         for (val, key) in model.fields.iter().enumerate(){
 
@@ -899,6 +880,10 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
 
         };         let fieldlist = List::new(flds).block(Block::default().borders(Borders::ALL).title("Available fields"));
         f.render_stateful_widget(fieldlist, thefields, &mut ListState::default());
+        self.front_template.set_win_height(topleft.height);
+        self.front_template.set_rowlen(topleft.width);
+        self.back_template.set_win_height(bottomleft.height);
+        self.back_template.set_rowlen(bottomleft.width);
 
         let media = self.get_media(self.viewpos);
         let mut frontstring = "Front side ".to_string();
@@ -919,10 +904,6 @@ pub fn unzip_deck(downloc: PathBuf, foldername: &String, transmitter: std::sync:
         draw_button(f, button, &format!("Import cards!"), selected.import);
 
 
-        self.front_template.set_win_height(topleft.height);
-        self.front_template.set_rowlen(topleft.width);
-        self.back_template.set_win_height(bottomleft.height);
-        self.back_template.set_rowlen(bottomleft.width);
 
     }
     fn navigate(&mut self, dir: Direction){

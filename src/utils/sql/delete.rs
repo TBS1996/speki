@@ -1,5 +1,4 @@
 use rusqlite::{Connection, params, Result};
-use std::sync::MutexGuard;
 use std::sync::{Mutex, Arc};
 
 
@@ -11,8 +10,6 @@ pub fn delete_topic(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<()> {
         .execute(params![id])?;
     Ok(())
 }
-
-
 
 
 pub fn remove_unfinished(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<()> {

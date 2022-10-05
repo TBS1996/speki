@@ -2,8 +2,7 @@
 use std::time::{UNIX_EPOCH, SystemTime};
 use crate::utils::{
     card::{Card, RecallGrade},
-    sql::{fetch::{load_cards, get_strength}, update::{update_inc_skiptime, double_inc_skip_duration}},
-    interval, 
+    sql::{fetch::{load_cards, get_strength}, update::double_inc_skip_duration},
 };
 
 use rusqlite::Connection;

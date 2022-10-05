@@ -1,27 +1,21 @@
-use std::{collections::HashMap, sync::mpsc::channel, path::{Path, PathBuf}};
+use std::{collections::HashMap, path::{Path, PathBuf}};
 
 use crate::MyType;
 use reqwest;
-use crate::utils::{aliases::*, sql::insert::update_both, card::Card};
 use rusqlite::Connection;
-use crate::utils::sql::fetch::load_cards;
 use crate::utils::statelist::StatefulList;
 use crate::utils::widgets::textinput::Field;
 use tui::{
-    backend::Backend,
-    layout::{Constraint, Direction::Vertical, Layout, Rect},
-    Frame, widgets::{ListState, Clear},
+    layout::{Constraint, Direction::Vertical, Layout},
+    widgets::ListState,
 };
 use std::sync::{Arc, Mutex};
 
-use crate::utils::widgets::list::list_widget;
-use super::{message_box::draw_message, list::StraitList, load_cards::Template};
+use super::message_box::draw_message;
 use crate::MyKey;
-use crate::utils::misc::PopUpStatus;
 use tui::layout::Direction::Horizontal;
 
 use regex::*;
-use reqwest::header;
 
 use tui::{
     style::{Color, Modifier, Style},
@@ -117,7 +111,7 @@ impl Ankimporter{
         false
     }
 
-    pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>){
+    pub fn keyhandler(&mut self, key: MyKey, _conn: &Arc<Mutex<Connection>>){
         match self.menu{
             Menu::Main => {
                 match key {
@@ -160,8 +154,7 @@ impl Ankimporter{
     }
             
 
-    pub fn render(&mut self, conn: &Arc<Mutex<Connection>>, f: &mut tui::Frame<MyType>, mut area: tui::layout::Rect) {
-        let full_area = area;
+    pub fn render(&mut self, _conn: &Arc<Mutex<Connection>>, f: &mut tui::Frame<MyType>, mut area: tui::layout::Rect) {
         if let Menu::Downloading(deck) = &self.menu{
             if let Ok(prog) = deck.rx.recv(){
                 let (current, max) = prog;

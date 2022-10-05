@@ -1,11 +1,18 @@
 [package]
-name = "flash"
+name = "speki"
 version = "0.1.0"
 edition = "2021"
+authors = ["Tor Berge torberge@outlook.com"]
+license = "GNU GPLv3"
+description = "Flashcard app for your terminal"
+readme = "README.md"
+homepage = "https://speki.net/"
+repository = "https://github.com/TBS1996/speki"
+keywords = ["cli", "flashcards", "tui", "educational"]
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-#crossterm =  "0.23"
 [dependencies]
 tui = { version = "0.16", default-features = false, features = ['crossterm'] }
 serde =  { version = "1.0.137", optional = false, features = ["derive"]}
@@ -13,10 +20,17 @@ serde_derive = "1.0.137"
 serde_json = "1.0.81"
 rusqlite = "0.27.0"
 chrono = "0.4.19"
-bitflags = "1.3"
-csv = "1.1"
 rand = "0.8.5"
-queues = "1.1.0"
+anyhow = "1.0.65"
+reqwest = {version = "0.11.12", features = ["blocking", "gzip", "stream"]}
+zip = "0.6.2"
+rodio = "0.16.0"
+regex = "1.6.0"
+viuer = "0.6.1"
+sanitize-filename = "0.4.0"
+futures-util = "0.3.24"
+wikipedia = "0.3.4"
+tokio = { version = "1.21.2", features = ["full"] }
 webbrowser = "0.8.0"
 
 

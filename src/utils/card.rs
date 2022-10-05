@@ -1,13 +1,13 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::Connection;
 use crate::utils::sql::{
-    fetch::fetch_card,
-    update::{activate_card, update_status},
+    fetch::{fetch_card, get_skiptime},
 };
 
 
 
 
+use std::sync::{Arc, Mutex};
 
 
 
@@ -106,23 +106,32 @@ impl Review{
 }
 
 
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum CardType{
+    Pending,
+    Unfinished,
+    Finished,
+
+
+}
+
 #[derive(Clone, Debug)]
 pub struct Card{
+    pub id: u32,
     pub question: String,
     pub answer: String,
-    pub status: Status,
-    pub strength: f32,
-    pub stability: f32,
+    pub frontaudio: Option<String>,
+    pub backaudio: Option<String>,
+    pub frontimage: Option<String>,
+    pub backimage: Option<String>,
+    pub cardtype: CardType,
+    pub suspended: bool,
+    pub resolved:  bool,
     pub dependencies: Vec<IncID>,
     pub dependents: Vec<IncID>,
-    pub history: Vec<Review>,
     pub topic: TopicID,
-    pub future: String,
-    pub integrated: f32,
-    pub card_id: CardID,
     pub source: IncID,
-    pub skiptime: u32,
-    pub skipduration: u32,
 }
 
 
@@ -133,21 +142,20 @@ impl Card {
 
     pub fn new() -> Card{
         Card{
+            id: 0,
             question: String::new(),
             answer: String::new(),
-            status: Status::new_complete(),
-            strength: 1.0,
-            stability: 1.0,
+            frontaudio: None,
+            backaudio: None,
+            frontimage: None,
+            backimage: None,
+            cardtype: CardType::Finished,
+            suspended: false,
+            resolved: false,
             dependencies: vec![],
             dependents: vec![],
-            history: Vec::<Review>::new(),
             topic: 0,
-            future: String::new(),
-            integrated: 1.0,
-            card_id: 0,
             source: 0,
-            skiptime: 0,
-            skipduration: 1,
         }
     }
 
@@ -159,8 +167,8 @@ impl Card {
         self.answer = answer;
         self
     }
-    pub fn status(mut self, status: Status)-> Self{
-        self.status = status;
+    pub fn cardtype(mut self, cardtype: CardType)-> Self{
+        self.cardtype = cardtype;
         self
     }
     pub fn source(mut self, source: IncID) -> Self{
@@ -169,6 +177,22 @@ impl Card {
     }
     pub fn topic(mut self, topic: TopicID) -> Self{
         self.topic = topic;
+        self
+    }
+    pub fn frontaudio(mut self, audiopath: Option<String>) -> Self{
+        self.frontaudio = audiopath;
+        self
+    }
+    pub fn backaudio(mut self, audiopath: Option<String>) -> Self{
+        self.backaudio = audiopath;
+        self
+    }
+    pub fn frontimage(mut self, imagepath: Option<String>) -> Self{
+        self.frontimage = imagepath;
+        self
+    }
+    pub fn backimage(mut self, imagepath: Option<String>) -> Self{
+        self.backimage = imagepath;
         self
     }
 
@@ -183,18 +207,56 @@ impl Card {
     }
 
 
-    pub fn save_card(self, conn: &Connection) -> CardID{
+    pub fn is_complete(&self) -> bool {
+        if let CardType::Finished = self.cardtype {
+            return true
+        }
+        false
+    }
+    pub fn is_pending(&self) -> bool {
+        if let CardType::Pending = self.cardtype {
+            return true
+        }
+        false
+    }
+    pub fn is_unfinished(&self) -> bool {
+        if let CardType::Unfinished = self.cardtype {
+            return true
+        }
+        false
+    }
+
+
+    pub fn skiptime(&self, conn: &Arc<Mutex<Connection>>) -> u32{
+        if let CardType::Unfinished = self.cardtype{
+            return get_skiptime(&conn, self.id).unwrap();
+        } else {
+            panic!();
+        }
+    }
+  pub fn skipduration(&self, conn: &Arc<Mutex<Connection>>) -> u32{
+        if let CardType::Unfinished = self.cardtype{
+            return get_skipduration(&conn, self.id).unwrap();
+        } else {
+            panic!();
+        }
+    }
+
+    pub fn save_card(self, conn: &Arc<Mutex<Connection>>) -> CardID{
         let dependencies = self.dependencies.clone();
         let dependents = self.dependents.clone();
-        save_card(conn, self).unwrap();
-        let card_id = conn.last_insert_rowid() as CardID;
-        revlog_new(conn, card_id , Review::from(&RecallGrade::Decent)).unwrap();
+        let finished = self.is_complete();
+        let card_id = save_card(&conn, self);
+
+        if finished{
+            revlog_new(&conn, card_id , Review::from(&RecallGrade::Decent)).unwrap();
+        }
 
         for dependency in dependencies{
-            update_both(conn, card_id, dependency).unwrap();
+            update_both(&conn, card_id, dependency).unwrap();
         }
         for dependent in dependents{
-            update_both(conn, dependent, card_id).unwrap();
+            update_both(&conn, dependent, card_id).unwrap();
             Self::check_resolved(dependent, conn);
         }
 
@@ -203,22 +265,22 @@ impl Card {
     }
 
 
-    pub fn check_resolved(id: u32, conn: &Connection) -> bool {
+    pub fn check_resolved(id: u32, conn: &Arc<Mutex<Connection>>) -> bool {
         let mut change_detected = false;
-        let mut card = fetch_card(conn, id);
+        let mut card = fetch_card(&conn, id);
         let mut is_resolved = true;
 
         for dependency in &card.dependencies{
-           let dep_card = fetch_card(conn, *dependency);
-           if  !dep_card.status.resolved  ||!dep_card.status.complete {
+           let dep_card = fetch_card(&conn, *dependency);
+           if  !dep_card.resolved  || !dep_card.is_complete() {
                is_resolved = false;
                break;
            };
        } 
-        if card.status.resolved != is_resolved{
+        if card.resolved != is_resolved{
             change_detected = true;
-            card.status.resolved = is_resolved;
-            update_status(conn, &card.clone()).unwrap();
+            card.resolved = is_resolved;
+            set_resolved(&conn, card.id, card.resolved).unwrap();
 
             for dependent in card.dependents{
                 Card::check_resolved(dependent, conn);
@@ -227,28 +289,51 @@ impl Card {
         change_detected
     }
 
-
-
-
-    pub fn new_review(conn: &Connection, id: CardID, review: RecallGrade){
-        revlog_new(conn, id, Review::from(&review)).unwrap();
+    pub fn new_review(conn: &Arc<Mutex<Connection>>, id: CardID, review: RecallGrade){
+        revlog_new(&conn, id, Review::from(&review)).unwrap();
         super::interval::calc_stability(conn, id);
-        activate_card(conn, id).unwrap();
     }
-
-
-    pub fn toggle_complete(id: CardID, conn: &Connection) {
-        //let card.status.complete = false;
-        let mut card = fetch_card(conn, id);
-        card.status.complete = !card.status.complete;
-        update_status(conn, &card).unwrap();
+    pub fn complete_card(conn: &Arc<Mutex<Connection>>, id: CardID){
+        let card = fetch_card(&conn, id);
+        remove_unfinished(&conn, id).unwrap();
+        new_finished(&conn, id).unwrap();
+        revlog_new(&conn, id, Review::from(&RecallGrade::Decent)).unwrap();
         for dependent in card.dependents{
             Card::check_resolved(dependent, conn);
         }
     }
+
+    pub fn activate_card(conn: &Arc<Mutex<Connection>>, id: CardID){
+        remove_pending(&conn, id).unwrap();
+        new_finished(&conn, id).unwrap();
+    }
+
+    pub fn play_frontaudio(conn: &Arc<Mutex<Connection>>, id: CardID, handle: &rodio::OutputStreamHandle) {
+        let card = fetch_card(&conn, id);
+        if let Some(path) = card.frontaudio{
+            Self::play_audio(handle, path);
+        }
+    }
+    pub fn play_backaudio(conn: &Arc<Mutex<Connection>>, id: CardID, handle: &rodio::OutputStreamHandle) {
+        let card = fetch_card(&conn, id);
+        if let Some(path) = card.backaudio{
+            Self::play_audio(handle, path);
+        }
+    }
+    fn play_audio(handle: &rodio::OutputStreamHandle, path: String){
+        if let Ok(file) = std::fs::File::open(path){
+            let beep1 = handle.play_once(BufReader::new(file)).unwrap();
+            beep1.set_volume(0.2);
+            beep1.detach();
+        }
+    }
+
 }
 
 
 use crate::utils::aliases::*;
-use super::sql::insert::{save_card, update_both};
+use super::sql::{insert::{save_card, update_both}, update::set_resolved, fetch::get_skipduration};
 use super::sql::insert::revlog_new;
+use super::sql::insert::new_finished;
+use super::sql::delete::{remove_unfinished, remove_pending};
+use std::io::BufReader;

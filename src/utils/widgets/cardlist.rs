@@ -25,26 +25,7 @@ pub struct CardItem{
 
 
 
-/*
-pub fn view_cards<B>(f: &mut Frame<B>, id: u32, conn: &Connection, area: Rect, selected: bool)
-where
-    B: Backend,
-{
-    let thecard = fetch_card(conn, id);
-    let mut cardvec = Vec::<CardItem>::new();
 
-    for id in dep_ids{
-        cardvec.push(
-            CardItem{
-                question: fetch_card(conn, *id).question,
-                id: *id,
-            }
-        );
-    }
-    let statelist = StatefulList::with_items(cardvec);
-    list_widget(f, &statelist, area, selected)
-}
-*/
 
 impl<T> StraitList<T> for StatefulList<CardItem>{
 
@@ -52,7 +33,7 @@ impl<T> StraitList<T> for StatefulList<CardItem>{
         self.state.clone()
     }
 
-    fn generate_list_items(&self, selected: bool) -> List{
+    fn generate_list_items(&self, selected: bool, title: String) -> List{
         let bordercolor = if selected {Color::Red} else {Color::White};
         let style = Style::default().fg(bordercolor);
 
@@ -66,7 +47,7 @@ impl<T> StraitList<T> for StatefulList<CardItem>{
             .block(Block::default()
                    .borders(Borders::ALL)
                    .border_style(style)
-                   .title("Dependencies"));
+                   .title(title));
         
         if selected{
         items

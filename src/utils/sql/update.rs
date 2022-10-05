@@ -1,111 +1,217 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{params, Connection, Result};
-use crate::utils::card::Card;
-use crate::utils::aliases::*;
+use crate::utils::{aliases::*, widgets::textinput::CursorPos};
+use crate::utils::card::CardType;
 use rand::prelude::*;
-use super::fetch::fetch_card;
+use std::sync::{Mutex, Arc};
+use super::fetch::*;
 
 
-pub fn update_card_question(conn: &Connection, id: u32, name: String) -> Result<()>{
-    let mut stmt = conn.prepare("UPDATE cards SET question = ? WHERE id = ?")?;
-    stmt.execute(params![name, id])?;
+pub fn update_card_question(conn: &Arc<Mutex<Connection>>, id: u32, name: String) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE cards SET question = ? WHERE id = ?")?
+        .execute(params![name, id])?;
     Ok(())
 }
-pub fn update_card_answer(conn: &Connection, id: u32, name: String) -> Result<()>{
-    let mut stmt = conn.prepare("UPDATE cards SET answer = ? WHERE id = ?")?;
-    stmt.execute(params![name, id])?;
-    Ok(())
-}
-
-pub fn update_strength(conn: &Connection, card: &Card, strength: f32) -> Result<()> {
-    let mut stmt = conn.prepare("UPDATE cards SET strength = ? WHERE id = ?")?;
-    stmt.execute(params![strength, card.card_id])?;
-    Ok(())
-}
-
-
-pub fn update_stability(conn: &Connection, card: Card) -> Result<()> {
-    let stability = card.stability.clone();
-    let mut stmt = conn.prepare("UPDATE cards SET stability = ? WHERE id = ?")?;
-    stmt.execute(params![stability, card.card_id])?;
+pub fn update_card_answer(conn: &Arc<Mutex<Connection>>, id: u32, name: String) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE cards SET answer = ? WHERE id = ?")?
+        .execute(params![name, id])?;
     Ok(())
 }
 
-pub fn activate_card(conn: &Connection, id: CardID) -> Result<()> {
-    let mut stmt = conn.prepare("UPDATE cards SET initiated = 1 WHERE id = ?")?;
-    stmt.execute(params![id])?;
+pub fn update_strength(conn: &Arc<Mutex<Connection>>, id: CardID, strength: f32) -> Result<()> {
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE finished_cards SET strength = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![strength, id])?;
     Ok(())
 }
-pub fn update_status(conn: &Connection, card: &Card) -> Result<()>{
-    let initiated = card.status.initiated;
-    let complete = card.status.complete;
-    let resolved = card.status.resolved;
-    let suspended = card.status.suspended;
-    let card_id = card.card_id;
 
-    let mut stmt = conn.prepare("UPDATE cards SET (initiated, complete, resolved, suspended) = (?,?,?,?) WHERE id = ?")?;
-    stmt.execute(params![initiated, complete, resolved, suspended, card_id])?;
+pub fn set_stability(conn: &Arc<Mutex<Connection>>, id: CardID, stability: f32) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE finished_cards SET stability = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![stability, id])?;
     Ok(())
 }
 
 
-pub fn update_topic_name(conn: &Connection, id: u32, name: String) -> Result<()>{
-    let mut stmt = conn.prepare("UPDATE topics SET name = ? WHERE id = ?")?;
-    stmt.execute(params![name, id])?;
+
+pub fn set_cardtype(conn: &Arc<Mutex<Connection>>, id: CardID, cardtype: CardType) -> Result<()>{
+    let cardtype = match cardtype{
+        CardType::Pending => 0,
+        CardType::Unfinished => 1,
+        CardType::Finished => 2,
+    };
+
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE cards SET cardtype = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![cardtype, id])?;
     Ok(())
+}
+pub fn set_suspended(conn: &Arc<Mutex<Connection>>, id: CardID, suspended: bool) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE cards SET suspended = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![suspended, id])?;
+    Ok(())
+
+
+
 }
 
 
-pub fn update_topic_relpos(conn: &Connection, id: u32, relpos: u32) -> Result<()>{
-    let mut stmt = conn.prepare("UPDATE topics SET relpos = ? WHERE id = ?")?;
-    stmt.execute(params![relpos, id])?;
+pub fn set_resolved(conn: &Arc<Mutex<Connection>>, id: CardID, resolved: bool) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE cards SET resolved = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![resolved, id])?;
     Ok(())
 }
 
-pub fn update_card_source(conn: &Connection, cardid: CardID, incid: IncID) -> Result<()>{
-    let mut stmt = conn.prepare("UPDATE cards SET source = ? WHERE id = ?")?;
-    stmt.execute(params![incid, cardid])?;
-    Ok(())
-}
-pub fn update_card_topic(conn: &Connection, old_topic: u32, new_topic: u32) -> Result<()>{
-    let mut stmt = conn.prepare("UPDATE cards SET topic = ? WHERE topic = ?")?;
-    stmt.execute(params![new_topic, old_topic])?;
-    Ok(())
-}
-
-pub fn update_topic_parent(conn: &Connection, id: u32, parent: u32) -> Result<()>{
-    let mut stmt = conn.prepare("UPDATE topics SET parent = ? WHERE id = ?")?;
-    stmt.execute(params![parent, id])?;
+pub fn update_topic_name(conn: &Arc<Mutex<Connection>>, id: u32, name: String) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE topics SET name = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![name, id])?;
     Ok(())
 }
 
-pub fn update_inc_text(conn: &Connection, source: String, id: IncID) -> Result<()>{
-    let mut stmt = conn.prepare("UPDATE incread SET source = ? WHERE id = ?")?;
-    stmt.execute(params![source, id])?;
+pub fn update_topic_relpos(conn: &Arc<Mutex<Connection>>, id: u32, relpos: u32) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE topics SET relpos = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![relpos, id])?;
     Ok(())
 }
 
-pub fn update_inc_active(conn: &Connection, id: IncID, active: bool) -> Result<()>{
-    let mut stmt = conn.prepare("UPDATE incread SET active = ? WHERE id = ?")?;
-    stmt.execute(params![active, id])?;
+pub fn update_card_source(conn: &Arc<Mutex<Connection>>, cardid: CardID, incid: IncID) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE cards SET source = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![incid, cardid])?;
+    Ok(())
+
+}
+pub fn update_card_topic(conn: &Arc<Mutex<Connection>>, old_topic: u32, new_topic: u32) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE cards SET topic = ? WHERE topic = ?")
+        .unwrap()
+        .execute(params![new_topic, old_topic])?;
     Ok(())
 }
 
-pub fn double_skip_duration(conn: &Connection, id: CardID) -> Result<()>{
+pub fn update_topic_parent(conn: &Arc<Mutex<Connection>>, id: u32, parent: u32) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE topics SET parent = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![parent, id])?;
+    Ok(())
+}
+
+pub fn update_inc_text(conn: &Arc<Mutex<Connection>>, source: String, id: IncID, cursor: &CursorPos) -> Result<()>{
+    let row = cursor.row;
+    let column = cursor.column;
+
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE incread SET source = ?1, row = ?2, column = ?3 WHERE id = ?4")
+        .unwrap()
+        .execute(params![source, row, column, id])?;
+    Ok(())
+}
+
+pub fn update_inc_active(conn: &Arc<Mutex<Connection>>, id: IncID, active: bool) -> Result<()>{
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE incread SET active = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![active, id])?;
+    Ok(())
+}
+
+pub fn double_skip_duration(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<()>{
+    update_skiptime(conn, id).unwrap();
     let mut rng = rand::thread_rng();
     let mut y: f64 = rng.gen();
     y += 0.5; // y is now between 0.5 and 1.5
-    let card = fetch_card(conn, id);
-    let mut stmt = conn.prepare("UPDATE cards SET skipduration = ? WHERE id = ?")?;
-    stmt.execute(params![(card.skipduration as f64* 2 as f64 * y) as i32 + 1, id])?;
-    update_skiptime(conn, id).unwrap();
+    let skipduration = get_skipduration(conn, id).unwrap();
+    let new_skipduration = std::cmp::max((skipduration as f64 * y * 2.0) as u32, 2);
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE unfinished_cards SET skipduration = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![new_skipduration, id])?;
     Ok(())
 }
 
 
-pub fn update_skiptime(conn: &Connection, id: CardID) -> Result<()>{
+pub fn update_skiptime(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<()>{
     let unix = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
-    let mut stmt = conn.prepare("UPDATE cards SET skiptime = ? WHERE id = ?")?;
-    stmt.execute(params![unix, id])?;
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE unfinished_cards SET skiptime = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![unix, id])?;
+    Ok(())
+}
+
+
+
+pub fn double_inc_skip_duration(conn: &Arc<Mutex<Connection>>, id: IncID) -> Result<()>{
+    update_inc_skiptime(conn, id).unwrap();
+    let mut rng = rand::thread_rng();
+    let mut y: f64 = rng.gen();
+    y += 0.5; // y is now between 0.5 and 1.5
+    let skipduration = get_inc_skipduration(conn, id).unwrap();
+    let new_skipduration = std::cmp::max((skipduration as f64 * y * 2.0) as u32, 2);
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE incread SET skipduration = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![new_skipduration, id])?;
+    Ok(())
+}
+
+
+pub fn update_inc_skiptime(conn: &Arc<Mutex<Connection>>, id: IncID) -> Result<()>{
+    let unix = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
+    conn
+        .lock()
+        .unwrap()
+        .prepare("UPDATE incread SET skiptime = ? WHERE id = ?")
+        .unwrap()
+        .execute(params![unix, id])?;
     Ok(())
 }

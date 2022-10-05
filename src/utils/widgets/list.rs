@@ -17,14 +17,12 @@ use crate::utils::statelist::StatefulList;
 use tui::widgets::List;
 
 
-pub fn list_widget<B, T>(f: &mut Frame<B>, widget: &T, area: Rect, selected: bool)
+pub fn list_widget<B, T>(f: &mut Frame<B>, widget: &T, area: Rect, selected: bool, title: String)
 where
     B: Backend,
     T: StraitList<T>,
 {
-
-    
-    let items = widget.generate_list_items(selected);
+    let items = widget.generate_list_items(selected, title);
     f.render_stateful_widget(items, area, &mut widget.state());
 }
 
@@ -32,7 +30,7 @@ where
 
 
 pub trait StraitList<T> {
-    fn generate_list_items(&self, selected: bool) -> List;
+    fn generate_list_items(&self, selected: bool, title: String) -> List;
     fn state(&self) -> ListState; 
 }
 
@@ -46,7 +44,7 @@ impl<T> StraitList<T> for StatefulList<CardMatch>{
         self.state.clone()
     }
 
-    fn generate_list_items(&self, _selected: bool) -> List{
+    fn generate_list_items(&self, _selected: bool, title: String) -> List{
         let items: Vec<ListItem> = self.items.iter()
             .map(|item| {
                 let lines = vec![Spans::from((*item).question.clone())];
@@ -54,7 +52,12 @@ impl<T> StraitList<T> for StatefulList<CardMatch>{
             })
             .collect();
     
-        let items = List::new(items).block(Block::default().borders(Borders::ALL).title("Selected"));
+        let items = List::new(items)
+            .block(
+                Block::default()
+                .borders(Borders::ALL)
+                .title(title));
+
         let items = items
             .highlight_style(
                 Style::default()

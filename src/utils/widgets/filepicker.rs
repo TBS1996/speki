@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use crate::tabs::Widget;
 use crate::utils::statelist::StatefulList;
 use tui::widgets::ListItem;
 use tui::widgets::List;
@@ -24,24 +23,38 @@ enum FileType{
     File(PathBuf),
 }
 
+pub enum PickState{
+    Ongoing,
+    ExitEarly,
+    Fetch(PathBuf),
+}
 
-pub struct Directory{
+pub struct FilePicker{
     contents: StatefulList<PathBuf>,
     path: PathBuf,
+    pub state: PickState,
+    allowed_extensions: Vec<String>,
 
 }
 
 
-impl Directory{
-    pub fn new()-> Self{
-        let path = std::env::current_dir().unwrap();
-        let files = Self::fill_vec(&path);
-        let contents = StatefulList::with_items(files);
 
-        Self {
+impl FilePicker{
+    pub fn new<E>(extensions: E)-> Self
+    where
+        E: Into<Vec<String>>, 
+    {
+        let path = std::env::current_dir().unwrap();
+        let contents = StatefulList::new();
+
+        let mut me = Self {
             contents,
-            path,
-        }
+            path: path.clone(),
+            state: PickState::Ongoing,
+            allowed_extensions: extensions.into(),
+        };
+        me.fill_vec(&path);
+        me
 
         
     }
@@ -50,13 +63,21 @@ impl Directory{
         self.path.clone().into_os_string().into_string().unwrap()
     }
 
-    fn fill_vec(path: &PathBuf) -> Vec<PathBuf>{
+    fn fill_vec(&mut self, path: &PathBuf){
         let mut myvec = Vec::<PathBuf>::new();
         for entry in fs::read_dir(path).unwrap() {
             let dir = entry.unwrap();
-            myvec.push(dir.path());
+            let path = dir.path();
+            if let Some(foo) = path.extension(){
+                let extension = foo.to_str().unwrap().to_string();
+                if self.allowed_extensions.contains(&extension){
+                    myvec.push(path);
+                }
+            } else {
+                myvec.push(path);
+            }
         }
-        myvec
+        self.contents = StatefulList::with_items(myvec);
     }
     fn newdir(&mut self, newpath: PathBuf){
         let mut myvec = Vec::<PathBuf>::new();
@@ -66,7 +87,14 @@ impl Directory{
                 for entry in iter{
                     let dir = entry.unwrap().path();
                     if !dir.clone().into_os_string().into_string().unwrap().contains("/."){
-                        myvec.push(dir);
+                        if let Some(foo) = dir.extension(){
+                            let extension = foo.to_str().unwrap().to_string();
+                            if self.allowed_extensions.contains(&extension){
+                                myvec.push(dir);
+                            }
+                        } else {
+                            myvec.push(dir);
+                        }
                     }
                 }
                 self.contents = StatefulList::with_items(myvec);
@@ -97,49 +125,41 @@ impl Directory{
             self.newdir(path);
         }
     }
-
-
-}
-use crate::tabs::MyType;
-impl Widget for Directory{
-    fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
-        self.contents.render(f, area);
         
-    }
-    fn keyhandler(&mut self, key: crate::MyKey) {
+    pub fn keyhandler(&mut self, key: crate::MyKey) {
         use crate::MyKey::*;
        // dbg!(&key);
 
         match key {
-            Char('k') => self.contents.previous(),
-            Char('j') => self.contents.next(),
-            Char('h') => self.prevdir(),
-            Char('l') => self.select_dir(),
+            Char('k') | Left=> self.contents.previous(),
+            Char('j') | Down=> self.contents.next(),
+            Char('h') | Up => self.prevdir(),
+            Char('l') | Right=> self.select_dir(),
+            Enter => {
+                let idx = self.contents.state.selected().unwrap();
+                let path = self.contents.items[idx].clone();
+                if let Some(foo) = path.extension(){
+                    if foo == "apkg"{
+                        self.state = PickState::Fetch(path);
+                    }
+                } else{
+                    self.select_dir();
+                }
+            },
+            Esc => self.state = PickState::ExitEarly,
             _ => {},
             
         }
     }
-}
-
-
-fn main() {
-    for file in fs::read_dir("./change_this_path").unwrap() {
-        println!("{}", file.unwrap().path().display());
-    }
-}
 
 
 
-impl Widget for StatefulList<PathBuf>{
-    fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
-
-
-
+    pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
         let mylist = {
-            let items: Vec<ListItem> = self.items.iter()
+            let items: Vec<ListItem> = self.contents.items.iter()
                         .map(|item| {
                             let lines = Span::from(item.clone().into_os_string().into_string().unwrap());
-                            ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
+                            ListItem::new(lines).style(Style::default().fg(Color::Gray).bg(Color::Black))
                         })
                         .collect();
                 
@@ -154,65 +174,19 @@ impl Widget for StatefulList<PathBuf>{
                 };
 
 
-        f.render_stateful_widget(mylist, area, &mut self.state);
+        f.render_stateful_widget(mylist, area, &mut self.contents.state);
                     
     }
-    fn keyhandler(&mut self, _key: crate::MyKey) {
-        panic!();
-    }
 
 }
-
-/*
- 
+use crate::MyType;
 
 
-impl<T> StraitList<T> for StatefulList<FileType>{
-    fn state(&self) -> ListState {
-        self.state.clone()
-    }
 
-    fn generate_list_items(&self, _selected: bool) -> List{
-        let items: Vec<ListItem> = self.items.iter()
-            .map(|item| {
-                let lines = vec![
-                    Spans::from(
-                        match &*item {
-                            FileType::File(buf)      => buf.clone().into_os_string().into_string().unwrap(),
-                            FileType::Directory(buf) => buf.clone().into_os_string().into_string().unwrap(),
-                        }
-                    )
-                ];
-                ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
-            })
-            .collect();
-    
-        let items = List::new(items).block(Block::default().borders(Borders::ALL).title("Selected"));
-        let items = items
-            .highlight_style(
-                Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        );
-        items
+fn main() {
+    for file in fs::read_dir("./change_this_path").unwrap() {
+        println!("{}", file.unwrap().path().display());
     }
 }
 
 
-
-
-pub fn list_widget<B, T>(f: &mut Frame<B>, widget: &T, area: Rect, selected: bool)
-where
-    B: Backend,
-    T: StraitList<T>,
-{
-
-    
-    let items = widget.generate_list_items(selected);
-    f.render_stateful_widget(items, area, &mut widget.state());
-}
-
-
-
-
-*/

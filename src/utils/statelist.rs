@@ -7,6 +7,8 @@ use rusqlite::Connection;
 
 
 
+use std::sync::{Arc, Mutex};
+
 #[derive(Clone)]
 pub struct StatefulList<T> {
     pub state: ListState,
@@ -30,11 +32,11 @@ impl<T> StatefulList<T> {
         }
     }
     
-    pub fn load_cards(conn: &Connection) -> StatefulList<u32> {
-        let cardvec = load_cards(conn).unwrap();
+    pub fn load_cards(conn: &Arc<Mutex<Connection>>) -> StatefulList<u32> {
+        let cardvec = load_cards(&conn).unwrap();
         let mut items = Vec::<u32>::new();
         for card in cardvec{
-            items.push(card.card_id);
+            items.push(card.id);
         }
         
         StatefulList {
@@ -48,6 +50,22 @@ impl<T> StatefulList<T> {
         StatefulList {
             state: ListState::default(),
             items,
+        }
+    }
+
+
+    pub fn move_item_up(&mut self){
+        if let Some(idx) = self.state.selected(){
+            if idx != 0{
+                self.items.swap(idx, idx - 1);
+            }
+        }
+    }
+    pub fn move_item_down(&mut self){
+        if let Some(idx) = self.state.selected(){
+            if idx != self.items.len() - 1{
+                self.items.swap(idx, idx + 1);
+            }
         }
     }
 

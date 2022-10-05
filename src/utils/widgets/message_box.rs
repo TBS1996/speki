@@ -1,4 +1,3 @@
-
 use tui::{
     backend::Backend,
     layout::{Alignment, Rect},
@@ -22,6 +21,10 @@ where
         .borders(Borders::NONE)
         .border_style(style)
     ;
-    let paragraph = Paragraph::new(Spans::from(text)).block(block).alignment(Alignment::Center).wrap(Wrap { trim: true });
+    let paragraph = Paragraph::new(
+        Spans::from(text))
+        .block(block)
+        .alignment(Alignment::Center)
+        .wrap(Wrap { trim: true });
     f.render_widget(paragraph, area);
 }

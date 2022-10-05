@@ -16,7 +16,7 @@ use tui::{
 
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct CursorPos{
     pub row: usize,
     pub column: usize,
@@ -32,10 +32,10 @@ impl CursorPos {
 }
 
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Field {
     text: Vec<String>,
-    cursor: CursorPos,
+    pub cursor: CursorPos,
     rowlen: u16,
     window_height: u16,
     startselect: Option<CursorPos>,
@@ -45,12 +45,14 @@ pub struct Field {
     repeat: u16,
     keyvec: Vec<MyKey>,
     text_alignment: Alignment,
-    title: String,
+    pub title: String,
     preferredcol: Option<usize>,
+    pub stickytitle: bool,
+    singlebarmode: bool,
 }
 
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Mode{
     Normal,
     Insert,
@@ -74,10 +76,27 @@ impl Field{
             text_alignment: Alignment::Left,
             title: "my title".to_string(),
             preferredcol: None,
+            stickytitle: false,
+            singlebarmode: false,
+
         };
         myfield.set_insert_mode();
         myfield
     }
+
+
+    pub fn new_with_text(text: String, row: usize, column: usize) -> Self {
+        let mut field = Self::new();
+        field.replace_text(text);
+        field.cursor = CursorPos{
+            row,
+            column,
+        };
+        //field.scroll_to_cursor();
+        field
+    }
+
+
 
     fn reset_keyvec(&mut self){
         self.keyvec = vec![MyKey::Null; 5]; 
@@ -103,6 +122,7 @@ impl Field{
         self.rowlen = win_width - 2;
     }
 
+
     pub fn set_win_height(&mut self, winheight: u16){
         self.window_height = winheight - 2;
     }
@@ -127,8 +147,15 @@ impl Field{
         self.keyvec.push(key);
     }
 
+
+
+    // attempting to find the columns which correspond to the visual start of line that you see.
+    // as paragraph doesn't split inside words, it means the visual start won't simply be 
+    // multiplies of the length of the row. It therefore jumps from the previous linestart, to the
+    // amount of columns in a row, and counts backward to find the first space, which is where the
+    // paragraph would have wrapped. 
     fn visual_row_start(&self, row: usize) -> Vec<usize>{
-        if self.text[row].len() < self.rowlen as usize{
+        if self.text[row].len() < self.rowlen as usize && self.rowlen == 0{
             return vec![0];
         }
         let mut cons_non_space = 0;
@@ -141,8 +168,12 @@ impl Field{
                 cons_non_space = 0;
             }
             if (idx as u16 - linestart as u16) > self.rowlen{
-                linestart = (linestart as u16 + self.rowlen - cons_non_space as u16) as usize + 1;
-                linestartvec.push(linestart + 0);
+                if cons_non_space > (linestart as u16 + self.rowlen){
+                    dbg!(&self.text[row], cons_non_space, &linestartvec);
+                    return vec![0];
+                }
+                linestart = ((linestart as u16 + self.rowlen) - cons_non_space as u16) as usize;
+                linestartvec.push(linestart + 1);
             }
         }
         for i in 1..linestartvec.len(){
@@ -322,15 +353,8 @@ impl Field{
         self.cursor.column +=  1;
     }
 
-
-    pub fn backspace(&mut self){
-        if self.cursor.column > 0 { //&& self.text[self.cursor.row].len() > 0{
-
-
-            self.cursor.column -= 1;
-            let bytepos = self.current_bytepos();
-            self.text[self.cursor.row].remove(bytepos);
-        } else if self.cursor.row == 0 {
+    fn merge_with_row_above(&mut self){
+        if self.cursor.row == 0 {
             return;
         } else {
             self.cursor.column = self.text[self.cursor.row-1].len();
@@ -338,14 +362,18 @@ impl Field{
             self.text[self.cursor.row - 1].push_str(&current);
             self.text.remove(self.cursor.row);
             self.cursor.row -= 1;
-
         }
     }
-    pub fn delete(&mut self){
-        if self.text[self.cursor.row].len() > 1 && self.cursor.column != self.text[self.cursor.row].len() - 1{
+
+
+    pub fn backspace(&mut self){
+        if self.cursor.column > 0 { //&& self.text[self.cursor.row].len() > 0{
+            self.cursor.column -= 1;
             let bytepos = self.current_bytepos();
             self.text[self.cursor.row].remove(bytepos);
-        }
+        } else {
+            self.merge_with_row_above();
+        }   
     }
 
     fn insert_newline_above(&mut self){
@@ -404,15 +432,31 @@ impl Field{
         }
     }
 
+    pub fn delete(&mut self){
+        if self.text[self.cursor.row].len() > 1 && self.cursor.column != self.text[self.cursor.row].len() - 1{
+            let bytepos = self.current_bytepos();
+            self.text[self.cursor.row].remove(bytepos);
+        }
+    }
     // first 
     pub fn delete_previous_word(&mut self){
         let mut char_found = false;
         if self.text[self.cursor.row].len() == self.cursor.column {
             self.prev();
         }
+        if self.cursor.column == 0{
+            self.merge_with_row_above();
+            return;
+        }
         
         while self.cursor.column != 0{
-            let mychar = self.text[self.cursor.row].remove(self.cursor.column);
+            let bytecol = self.text[self.cursor.row]
+                .char_indices()
+                .nth(self.cursor.column)
+                .unwrap()
+                .0;
+            let mychar = self.text[self.cursor.row].remove(bytecol);
+
             self.cursor.column -= 1;
             if !char_found{
                 if !mychar.is_whitespace(){
@@ -438,6 +482,8 @@ impl Field{
     pub fn replace_text(&mut self, newtext: String){
 
         self.text = newtext.split('\n').map(|s| s.to_string()).collect();
+        self.cursor = CursorPos::default();
+        
     }
 
     pub fn paste(&mut self, paste: String) {
@@ -677,6 +723,11 @@ impl Field{
        panic!();
    }
 
+   fn scroll_to_cursor(&mut self){
+       let visline = self.current_abs_visual_line();
+       self.scroll = std::cmp::max(visline as i32 - 2, 0) as u16;
+   }
+
 
 
     // TODO make this function suck less
@@ -728,10 +779,16 @@ impl Field{
                     bar.push('_');
                     bar.push(' ');
                 } 
-                let splitat = std::cmp::min(splitat, bar.len() - 1);
-                //let (left, right) = bar.split_at(splitat);
-                let (left, right) = bar.split_at(bar.char_indices().nth(splitat).unwrap().0);
-                // let (first, last) = s.split_at(s.char_indices().nth(2).unwrap().0);
+                let splitat = std::cmp::min(splitat, bar.chars().count() - 1);
+
+                let (left, right) = bar.split_at(
+                    bar
+                    .char_indices()
+                    .nth(splitat)
+                    .unwrap()
+                    //.expect(&format!("error while splitting at {} len is {}", splitat, bar.len()))
+                    .0);
+
                 foo = right.to_string().clone();
                 let left = left.to_string();
                 if styled {
@@ -792,15 +849,32 @@ impl Field{
         self.cursor.column = self.text[self.cursor.row].len() -1;
     }
 
+    fn is_cursor_in_view(&self) -> bool{
+        let current_line = self.current_abs_visual_line() as u16;
+        let scroll = self.scroll as u16;
+        let winheight = self.window_height as u16;
+        (current_line > scroll) && (current_line < (scroll + winheight))
+    }
 
-pub fn draw_field<B>(& self, f: &mut Frame<B>, area: Rect, selected: bool)
+
+    fn align_to_cursor(&mut self){
+        if self.is_cursor_in_view(){return}
+        self.scroll = std::cmp::max((self.current_abs_visual_line() as i32) - 2, 0) as u16;
+    }
+
+
+pub fn render<B>(& mut self, f: &mut Frame<B>, area: Rect, selected: bool)
 where
     B: Backend,
 {
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);
 
-    let title = if selected{
+    self.set_rowlen(area.width);
+    self.set_win_height(area.height);
+    self.align_to_cursor();
+
+    let title = if !self.singlebarmode && (selected || self.stickytitle){
         &self.title
     } else {
         ""
@@ -818,6 +892,7 @@ where
 
     let paragraph = Paragraph::new(formatted_text)
         .block(block)
+       // .style(Style::default().bg(Color::Rgb(153, 76, 0)).fg(Color::White))
         .alignment(self.text_alignment)
         .scroll((self.scroll, 0))
         .wrap(Wrap { trim: true });

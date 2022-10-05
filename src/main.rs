@@ -6,12 +6,12 @@ pub mod logic;
 pub mod events;
 pub mod utils;
 pub mod app;
-pub mod tabs;
+///pub mod tabs;
 
 
 use std::env;
 use chrono::prelude::*;
-use tabs::MyType;
+//use tabs::MyType;
 use crate::app::App;
 use crate::utils::sql::init_db;
 use crossterm::{
@@ -21,24 +21,32 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, 
         EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{
-    error::Error,
-    io,
-};
+use std::io;
 use tui::{
     backend::CrosstermBackend,
     Terminal,
 };
 
+pub type MyType = CrosstermBackend<std::io::Stdout>;
 
 
 
 
 
 
-fn main() -> Result<(), Box<dyn Error>> {
+
+
+
+
+
+
+
+
+
+fn main() -> Result<()> {
+
     env::set_var("RUST_BACKTRACE", "1");
-    init_db().expect("Failed to create sqlite database");
+    let is_new_db = init_db().unwrap();  
 
 
     // setup terminal
@@ -53,8 +61,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+
+
+    
+
+
+
+
     // create app and run it
-    let app = App::new();
+    let app = App::new(is_new_db);
     let res = run_app(&mut terminal, app);
 
     // restore terminal
@@ -73,7 +88,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 
-
+use std::time::Duration;
+use crossterm::{event::poll, Result};
 fn run_app(
     terminal: &mut Terminal<MyType>,
     mut app: App,
@@ -82,15 +98,20 @@ fn run_app(
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
-        let event = event::read()?;
-        if let Some(key) = MyKey::from(event){
-            app.handle_key(key);
-        }
+         if poll(Duration::from_millis(100))? {
+            let event = event::read()?;
+            if let Some(key) = MyKey::from(event){
+                app.handle_key(key);
+            }
 
-        if app.should_quit {
-            backup();
-            return Ok(());
-        }
+            if app.should_quit {
+                backup();
+                return Ok(());
+            }
+         } else{
+             //app.handle_key(MyKey::Null);
+         }
+        
 
     }
 }
@@ -201,87 +222,5 @@ fn backup(){
         std::fs::copy(dbflash, formatted).unwrap();  // Copy foo.txt to bar.txt
     }
 }
-
-
-/*
-use tui::layout::Rect;
-use tui::Frame;
-
-
-
-
-struct MyWidget{
-    title: String,
-}
-
-
-
-struct Pane{
-    area: tui::layout::Rect,
-    content: Content,
-}
-
-enum Content{
-    Container(SplitContainer),
- //   Widget(Obs),
-}
-
-struct SplitContainer{
-    direction: tui::layout::Direction,
-    splits: Vec<Split>,
-}
-
-struct Split{
-    constraint: tui::layout::Constraint,
-    pane: Pane,
-}
-
-struct Tabs{
-    tabs: Vec<Tab>,
-    selected: usize,
-}
-
-*/
-
-
-/*
-schemass!!! 
-
-
-tabs -> 
-id, name 
-
-widgets -> 
-id, name  
-
-panes -> 
-widget or split: bool 
-widget-id or splitcontainer-id, depending on the bool
-tab_id 
-pane_id 
-
-
-splits -> 
-constraint, parent_pane, new_pane, order
-
-
-
-hmm mmhm hmhmhmmm 
-
-maybe the tab should return options for card, topic etc..  
-
-so all of the tabs can return but some of it is just options 
-
-when you call for example get_question(), the tab will search all its widgets for a 
-question widget, if it finds it, it\ll return the text, if not it will return None 
-
-
-*/
-
-
-
-
-
-
 
 

@@ -1,4 +1,3 @@
-use crate::utils::card::Status;
 use crate::utils::{aliases::*, card::Card};
 use rusqlite::Connection;
 use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};
@@ -8,12 +7,16 @@ use tui::{
     layout::{Constraint, Direction::Vertical, Layout, Rect},
     Frame,
 };
+use crate::utils::card::CardType;
+
+
 
 use crate::utils::sql::fetch::{load_inc_text, get_topic_of_inc};
 use crate::MyKey;
 use crate::utils::misc::PopUpStatus;
 use crate::Direction;
 
+use std::sync::{Arc, Mutex};
 pub enum Selection{
     Question,
     Answer,
@@ -35,7 +38,7 @@ pub struct AddChildWidget{
 }
 
 impl AddChildWidget{
-    pub fn new(conn: &Connection, purpose: Purpose) -> Self{
+    pub fn new(conn: &Arc<Mutex<Connection>>, purpose: Purpose) -> Self{
         let prompt = Self::add_prompt(conn, &purpose);
         let question = Field::new();
         let answer = Field::new();
@@ -53,29 +56,29 @@ impl AddChildWidget{
         }
     }
 
-    fn add_prompt(conn: &Connection, purpose: &Purpose) -> Field{
+    fn add_prompt(conn: &Arc<Mutex<Connection>>, purpose: &Purpose) -> Field{
         let mut prompt = Field::new();
         match purpose{
             Purpose::Source(id) => {
                 prompt.push("Add new sourced card".to_string());
-                let sourcetext = load_inc_text(conn, *id).unwrap();
+                let sourcetext = load_inc_text(&conn, *id).unwrap();
                 prompt.push(sourcetext);
             },
             Purpose::Dependency(id) => {
                 prompt.push("Add new dependent of: ".to_string());
-                let ques = fetch_question(conn, *id);
+                let ques = fetch_question(&conn, *id);
                 prompt.push(ques)
             },
             Purpose::Dependent(id) => {
                 prompt.push("Add new dependency of: ".to_string());
-                let ques = fetch_question(conn, *id);
+                let ques = fetch_question(&conn, *id);
                 prompt.push(ques)
             },
         }
         prompt
     }
 
-    pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
+    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey){
         use MyKey::*;
         match key {
             Esc => self.status = PopUpStatus::Finished,
@@ -92,11 +95,11 @@ impl AddChildWidget{
         }
     }
 
-    fn submit_card(&mut self, conn: &Connection, isfinished: bool){
+    fn submit_card(&mut self, conn: &Arc<Mutex<Connection>>, isfinished: bool){
         let topic = match self.purpose{
-            Purpose::Source(id)     => get_topic_of_inc(conn, id).unwrap(),
-            Purpose::Dependent(id)  => get_topic_of_card(conn, id),
-            Purpose::Dependency(id) => get_topic_of_card(conn, id),
+            Purpose::Source(id)     => get_topic_of_inc(&conn, id).unwrap(),
+            Purpose::Dependent(id)  => get_topic_of_card(&conn, id),
+            Purpose::Dependency(id) => get_topic_of_card(&conn, id),
         };
 
 
@@ -104,9 +107,10 @@ impl AddChildWidget{
         let answer = self.answer.return_text();
         let source = if let Purpose::Source(id) = self.purpose {id} else {0};
         let status = if isfinished{
-            Status::new_complete()
+            CardType::Finished
+
         } else {
-            Status::new_incomplete()
+            CardType::Unfinished
         };
         
 
@@ -116,7 +120,7 @@ impl AddChildWidget{
             .answer(answer)
             .topic(topic)
             .source(source)
-            .status(status);
+            .cardtype(status);
 
         match self.purpose{
             Purpose::Dependent(cid)  => {card.dependent (cid);},
@@ -129,7 +133,7 @@ impl AddChildWidget{
     }
 
 
-pub fn render<B>(&self, f: &mut Frame<B>, area: Rect)
+pub fn render<B>(&mut self, f: &mut Frame<B>, area: Rect)
 where
     B: Backend,
 {
@@ -153,9 +157,9 @@ where
         Selection::Answer => asel = true,
     }
 
-    self.prompt.draw_field(f, prompt, false);
-    self.question.draw_field(f, question, qsel);
-    self.answer.draw_field(f, answer, asel);
+    self.prompt.render(f, prompt, false);
+    self.question.render(f, question, qsel);
+    self.answer.render(f, answer, asel);
 }
 
 }

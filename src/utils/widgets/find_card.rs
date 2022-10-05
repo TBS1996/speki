@@ -1,6 +1,5 @@
-use crate::utils::{aliases::*, sql::insert::update_both, card::Card};
+use crate::utils::{aliases::*, sql::{insert::update_both, fetch::load_card_matches}, card::Card};
 use rusqlite::Connection;
-use crate::utils::sql::fetch::load_cards;
 use crate::utils::statelist::StatefulList;
 use crate::utils::widgets::textinput::Field;
 use tui::{
@@ -12,6 +11,7 @@ use tui::{
 use crate::utils::widgets::list::list_widget;
 use super::message_box::draw_message;
 use crate::MyKey;
+use std::sync::{Arc, Mutex};
 use crate::utils::misc::PopUpStatus;
 
 
@@ -39,7 +39,7 @@ pub enum CardPurpose{
 
 
 impl FindCardWidget{
-    pub fn new(conn: &Connection, prompt: String, purpose: CardPurpose) -> Self{
+    pub fn new(conn: &Arc<Mutex<Connection>>, prompt: String, purpose: CardPurpose) -> Self{
         let mut list = StatefulList::<CardMatch>::new();
         let searchterm = Field::new();
         list.reset_filter(conn, searchterm.return_text());
@@ -56,7 +56,7 @@ impl FindCardWidget{
         }
     }
 
-    pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
+    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey){
         match key {
             MyKey::Enter => self.complete(conn), 
             MyKey::Esc => self.status = PopUpStatus::Finished,
@@ -70,7 +70,7 @@ impl FindCardWidget{
     }
 
 
-    fn complete(&mut self, conn: &Connection){
+    fn complete(&mut self, conn: &Arc<Mutex<Connection>>){
         if self.list.state.selected().is_none() {return}
 
         let idx = self.list.state.selected().unwrap();
@@ -78,11 +78,11 @@ impl FindCardWidget{
 
         match self.purpose{
             CardPurpose::NewDependent(source_id) => {
-                update_both(conn, chosen_id, source_id).unwrap();
+                update_both(&conn, chosen_id, source_id).unwrap();
                 Card::check_resolved(chosen_id, conn);
             },
             CardPurpose::NewDependency(source_id) => {
-                update_both(conn, source_id, chosen_id).unwrap();
+                update_both(&conn, source_id, chosen_id).unwrap();
                 Card::check_resolved(source_id, conn);
             },
             CardPurpose::NewCloze(_topic_id) => {
@@ -98,19 +98,17 @@ impl FindCardWidget{
 
 impl StatefulList<CardMatch>{
 
-pub fn reset_filter(&mut self, conn: &Connection, mut searchterm: String){
+pub fn reset_filter(&mut self, conn: &Arc<Mutex<Connection>>, mut searchterm: String){
     let mut matching_cards = Vec::<CardMatch>::new();
-    let all_cards = load_cards(conn).unwrap();
     searchterm.pop();
+    let all_cards = load_card_matches(&conn, &searchterm).unwrap();
     for card in all_cards{
-        if card.question.to_lowercase().contains(&searchterm) || card.answer.to_lowercase().contains(&searchterm){
             matching_cards.push(
                 CardMatch{
                     question: card.question,
-                    id: card.card_id,
+                    id: card.id,
                 }
             );
-        };
         }
         self.items = matching_cards;
     }
@@ -126,7 +124,7 @@ pub fn reset_filter(&mut self, conn: &Connection, mut searchterm: String){
 
 
 
-pub fn draw_find_card<B>(f: &mut Frame<B>, widget: &FindCardWidget, area: Rect)
+pub fn draw_find_card<B>(f: &mut Frame<B>, widget: &mut FindCardWidget, area: Rect)
 where
     B: Backend,
 {
@@ -146,8 +144,8 @@ where
     let (prompt, searchbar, matchlist) = (chunks[0], chunks[1], chunks[2]);
     
     draw_message(f, prompt, &widget.prompt);
-    widget.searchterm.draw_field(f, searchbar, false);
-    list_widget(f, &widget.list, matchlist, false);
+    widget.searchterm.render(f, searchbar, false);
+    list_widget(f, &widget.list, matchlist, false, "".to_string());
 }
 
 

@@ -16,30 +16,31 @@ use tui::{
 
 type Dependency = crate::utils::CardInList;
 
+use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
 use crate::utils::widgets::list::list_widget;
 use tui::text::Spans;
 use tui::style::Modifier;
 
-pub fn view_dependencies<B>(f: &mut Frame<B>, id: u32, conn: &Connection, area: Rect, selected: bool)
+pub fn view_dependencies<B>(f: &mut Frame<B>, id: u32, conn: &Arc<Mutex<Connection>>, area: Rect, selected: bool)
 where
     B: Backend,
 {
-    let thecard = fetch_card(conn, id);
+    let thecard = fetch_card(&conn, id);
     let dep_ids = &thecard.dependencies;
     let mut dependent_vec = Vec::<Dependency>::new();
 
     for id in dep_ids{
         dependent_vec.push(
             Dependency{
-                question: fetch_card(conn, *id).question,
+                question: fetch_card(&conn, *id).question,
                 id: *id,
             }
         );
     }
     let statelist = StatefulList::with_items(dependent_vec);
-    list_widget(f, &statelist, area, selected);
+    list_widget(f, &statelist, area, selected, "Dependencies".to_string());
 }
 
 
@@ -50,7 +51,7 @@ impl<T> StraitList<T> for StatefulList<Dependency>{
         self.state.clone()
     }
 
-    fn generate_list_items(&self, selected: bool) -> List{
+    fn generate_list_items(&self, selected: bool, title: String) -> List{
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);
 
@@ -59,7 +60,13 @@ impl<T> StraitList<T> for StatefulList<Dependency>{
         ListItem::new(lines).style(Style::default())
     }).collect();
     
-    let items = List::new(items).block(Block::default().borders(Borders::ALL).border_style(style).title("Dependencies"));
+    let items = List::new(items)
+        .block(
+            Block::default()
+            .borders(Borders::ALL)
+            .border_style(style)
+            .title(title)
+            );
     
     if selected{
     items

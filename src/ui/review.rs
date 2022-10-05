@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use rusqlite::Connection;
 use tui::{
     backend::Backend,
@@ -15,7 +16,7 @@ use crate::utils::widgets::{
     message_box::draw_message,
     progress_bar::progress_bar,
     cardlist::CardItem,
-    mode_status::mode_status,
+    mode_status::mode_status, load_cards::MediaContents,
 
 };
 
@@ -87,7 +88,7 @@ where
 
 }
 
-pub fn draw_unfinished<B>(f: &mut Frame<B>, conn: &Connection, unfinished: &mut UnfCard, area: Rect)
+pub fn draw_unfinished<B>(f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, unfinished: &mut UnfCard, area: Rect)
 where
     B: Backend,
 {
@@ -100,22 +101,12 @@ where
     unfinished.answer.set_win_height(area.answer.height);
     view_dependencies(f, unfinished.id, conn, area.dependencies,selected.dependencies); 
     view_dependents(f,   unfinished.id, conn, area.dependents, selected.dependents);
-    unfinished.question.draw_field(f, area.question,  selected.question);
-    unfinished.answer.draw_field(f,   area.answer,    selected.answer);
-    /*
-    draw_button(f, area.skip,   "skip",   selected.skip);
-    draw_button(f, area.finish, "finish", selected.finish);
-
-    unfinished.question.set_rowlen(area.question.width - 2);
-    unfinished.question.set_win_height(area.question.height - 2);
-    unfinished.answer.set_rowlen(area.answer.width - 2);
-    unfinished.answer.set_win_height(area.answer.height - 2);
-
-    */
+    unfinished.question.render(f, area.question,  selected.question);
+    unfinished.answer.render(f,   area.answer,    selected.answer);
 }
 
 
-pub fn draw_incread<B>(f: &mut Frame<B>, _conn: &Connection, inc: &mut IncMode, area: Rect)
+pub fn draw_incread<B>(f: &mut Frame<B>, _conn: &Arc<Mutex<Connection>>, inc: &mut IncMode, area: Rect)
 where
     B: Backend,
 {
@@ -130,7 +121,7 @@ where
     inc.source.source.set_win_height(area.source.height);
 
 
-    inc.source.source.draw_field(f, area.source, selected.source);
+    inc.source.source.render(f, area.source, selected.source);
     let clozes: StatefulList<CardItem> = inc.source.clozes.clone();
     let list = {
         let bordercolor = if selected.clozes {Color::Red} else {Color::White};
@@ -206,7 +197,7 @@ pub fn draw_done<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
 where
     B: Backend,
 {
-    draw_message(f, area, "Nothing left to review now!");
+    draw_message(f, area, "Nothing left to review now! Press Alt+r to refresh");
 }
 
 
@@ -228,41 +219,64 @@ where
 
     let current = match app.review.mode{
         ReviewMode::Done          => 0,
-        ReviewMode::Review(_)     => app.review.for_review.review_cards.len(),
-        ReviewMode::Pending(_)    => app.review.for_review.pending_cards.len(),
-        ReviewMode::IncRead(_)    => app.review.for_review.active_increads.len(),
-        ReviewMode::Unfinished(_) => app.review.for_review.unfinished_cards.len(),
-    } as u32;
+        ReviewMode::Review(_)     => (app.review.start_qty.fin_qty as u32) - (app.review.for_review.review_cards.len() as u32),
+        ReviewMode::Pending(_)    => (app.review.start_qty.pending_qty as u32) - (app.review.for_review.pending_cards.len() as u32),
+        ReviewMode::IncRead(_)    => (app.review.start_qty.inc_qty as u32) - (app.review.for_review.active_increads.len() as u32),
+        ReviewMode::Unfinished(_) => (app.review.start_qty.unf_qty as u32) - (app.review.for_review.unfinished_cards.len() as u32),
+    };
 
     let color = modecolor(&app.review.mode);
-
-
-
-        progress_bar(f, current, target, color, area);
+    progress_bar(f, current, target, color, area, "progress");
 }
 
-pub fn draw_review<B>(f: &mut Frame<B>, conn: &Connection, review: &mut CardReview, area: Rect)
+pub fn draw_review<B>(f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, review: &mut CardReview, area: Rect)
 where
     B: Backend,
 {
     
-    let area = review_layout(area);
+    
+    let showimage = false;//review.media.frontimage.is_some() || review.media.backimage.is_some();
+    let area = review_layout(area, showimage);
     let selected = RevSelect::new(&review.selection);
+    if showimage{
+        draw_front_image(&review.media, area.frontimg);
+    }
+
 
     review.question.set_rowlen(area.question.width);
     review.answer.set_rowlen(area.answer.width);
     review.question.set_win_height(area.question.height);
     review.answer.set_win_height(area.answer.height);
 
-    review.question.draw_field(f, area.question, selected.question);
+    review.question.render(f, area.question, selected.question);
     if review.reveal{
-        review.answer.draw_field(f, area.answer, selected.answer);
+        review.answer.render(f, area.answer, selected.answer);
         review.cardrater.render(f, area.cardrater, selected.cardrater);
     } else {
         draw_button(f, area.answer,   "Space to reaveal", selected.revealbutton);
     }
     view_dependencies(f, review.id, conn, area.dependencies, selected.dependencies); 
     view_dependents(f,   review.id, conn, area.dependents, selected.dependents);
+}
+
+
+use viuer::Config;
+fn draw_front_image(media: &MediaContents, area: Rect){
+    if area.width < 6 || area.height < 6{return}
+    let _path = match &media.frontimage{
+        Some(path) => path.clone(),
+        None => return,
+    };
+     let _conf = Config {
+        // set offset
+        x: area.x ,
+        y: area.y as i16,
+        // set dimensions
+        width: Some(area.width.into()),
+        height: Some(area.height.into()),
+        ..Default::default()
+    };
+    //print_from_file(path, &conf).expect("Image printing failed.");
 
 }
 
@@ -369,6 +383,8 @@ struct DrawUnf{
 struct DrawReview{
     question: Rect,
     answer: Rect,
+    frontimg: Rect,
+    backimg: Rect,
     dependents: Rect,
     dependencies: Rect,
     cardrater: Rect,
@@ -393,11 +409,8 @@ fn inc_layout(area: Rect) -> DrawInc {
             .as_ref(),
             )
         .split(area);
-
-
     
     let (editing, rightside) = (mainvec[0], mainvec[1]);
-
     let rightvec = Layout::default()
         .direction(Vertical)
         .constraints(
@@ -459,7 +472,7 @@ fn unfinished_layout(area: Rect) -> DrawUnf {
 }
 
 
-fn review_layout(area: Rect) -> DrawReview{
+fn review_layout(area: Rect, showimage: bool) -> DrawReview{
    
 
 
@@ -524,9 +537,50 @@ fn review_layout(area: Rect) -> DrawReview{
             )
         .split(left);
 
+    let question;
+    let answer;
+    let frontimg;
+    let backimg;
+
+
+    if showimage{
+        let (up, down) = (leftcolumn[0], leftcolumn[1]);
+        let upper = Layout::default()
+                .direction(Horizontal)
+                .constraints(
+                    [
+                    Constraint::Ratio(1, 2),
+                    Constraint::Ratio(1, 2),
+                    ]
+                .as_ref(),
+                )
+            .split(up);
+        let downer = Layout::default()
+                .direction(Horizontal)
+                .constraints(
+                    [
+                    Constraint::Ratio(1, 2),
+                    Constraint::Ratio(1, 2),
+                    ]
+                .as_ref(),
+                )
+            .split(down);
+        (question, frontimg) = (upper[0], upper[1]);
+        (answer, backimg) = (downer[0], downer[1]);
+    } else {
+        question = leftcolumn[0];
+        answer = leftcolumn[1];
+        frontimg = question;
+        backimg = question;
+    }
+
+   
+
     DrawReview {
-        question: leftcolumn[0],
-        answer:   leftcolumn[1],
+        question,
+        answer,
+        frontimg, 
+        backimg, 
         dependents: rightcolumn[0],
         dependencies: rightcolumn[1],
         cardrater: bottomleftright[0],

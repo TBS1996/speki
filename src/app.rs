@@ -7,12 +7,12 @@ use crate::{
         browse::Browse,
         add_card::{NewCard, DepState}, incread::MainInc,
     }, 
-    utils::widgets::find_card::FindCardWidget, tabs::Widget};
+    utils::widgets::find_card::FindCardWidget};
+
 use crate::events::{
     review::review_event,
     browse::browse_event,
     add_card::add_card_event,
-    incread::main_inc,
 };
 
 use crate::utils::misc::PopUpStatus;
@@ -40,39 +40,10 @@ impl<'a> TabsState<'a> {
     }
 }
 
-/* 
-
-Architecture idea: 
-each tab has a trait with a keyhandler and a render function. 
-perhaps return a custom result option if needed 
-
-perhaps the tabs are a vector of tabs, you can move them around and close and open and such
-
-
-perhaps popup is a simple option 
-
-option type is one that has the same render and keyhandler trait as above 
-
-
-ok wait
-
-there should be a tab struct 
-it keeps all the widgets in it,
-and it handles navigation
-and tab-specific functions
-
-it can also handle popups, so that you can have  a popup on one tab but able to switch to other tabs
-
-
-
-
-maybe widgets like topiclist and stuff should be mutable references so that they'll stay in sync
-wait that would fuck up selection lol
-
-*/
 
 use crate::utils::widgets::newchild::AddChildWidget;
-use crate::utils::widgets::filepicker::Directory;
+use crate::logic::import::Importer;
+use std::sync::{Arc, Mutex};
 
 
 
@@ -87,38 +58,43 @@ pub enum PopUp{
 pub struct App<'a> {
     pub should_quit: bool,
     pub tabs: TabsState<'a>,
-    pub conn: Connection,
+    pub conn: Arc<Mutex<Connection>>,
     pub review: ReviewList,
     pub add_card: NewCard,
     pub browse: Browse,
     pub incread: MainInc,
-    pub debug: Directory,
+    pub importer: Importer,
     pub popup: PopUp,
+    pub audio: rodio::OutputStream,
+    pub audio_handle: rodio::OutputStreamHandle,
+    pub display_help: bool,
 }
 
-
 impl<'a> App<'a> {
-    pub fn new() -> App<'a> {
+    pub fn new(display_help: bool) -> App<'a> {
         let conn    = Connection::open("dbflash.db").expect("Failed to connect to database.");
-        let revlist = ReviewList::new(&conn);
+        let conn = Arc::new(Mutex::new(conn));
+        let (audio, audio_handle) = rodio::OutputStream::try_default().unwrap();
+        let revlist = ReviewList::new(&conn, &audio_handle);
         let browse  = Browse::new(&conn);
-        let mut addcards =  NewCard::new(&conn, DepState::None);
-        addcards.topics.next();
+        let addcards =  NewCard::new(&conn, DepState::None);
         let incread = MainInc::new(&conn);
         let popup = PopUp::None;
-        let debug = Directory::new();
-
+        let importer = Importer::new(&conn);
 
         App {
             should_quit: false,
-            tabs: TabsState::new(vec!["Review", "Add card", "Incremental reading"]),  //"Browse cards 🦀", "Incremental reading", "debug"]),
+            tabs: TabsState::new(vec!["Review", "Add card", "Incremental reading", "import"]),  
             conn,
             review: revlist,
             add_card: addcards,
             browse,
             incread,
-            debug, 
+            importer,
             popup,
+            audio,
+            audio_handle,
+            display_help,
         }
     }
 
@@ -146,6 +122,7 @@ impl<'a> App<'a> {
                 match key {
                     MyKey::Tab => self.on_right(),
                     MyKey::BackTab => self.on_left(),
+                    MyKey::F(1) => self.display_help = !self.display_help,
                     _ => {},
                 };
                  
@@ -153,11 +130,9 @@ impl<'a> App<'a> {
                 match self.tabs.index {
                     0 => review_event(self,   key),
                     1 => add_card_event(self, key),
-                    3 => browse_event(self,   key),
-                    2 => main_inc(self,       key),
-                    4 => {
-                        self.debug.keyhandler(key);
-                    },
+                    4 => browse_event(self,   key),
+                    2 => self.incread.keyhandler(&self.conn, key),
+                    3 => self.importer.keyhandler(&self.conn, key, &self.audio_handle),
                     _ => {},
                 }
             },

@@ -8,7 +8,7 @@ use rusqlite::Connection;
 use crate::utils::statelist::StatefulList;
 use crate::MyKey;
 use crate::utils::sql::update::update_inc_text;
-use crate::utils::card::Status;
+use std::sync::{Arc, Mutex};
 
 
 #[derive(Clone)]
@@ -31,34 +31,35 @@ pub struct IncRead{
 impl IncRead{
 
 
-    pub fn new(conn: &Connection, id: IncID) -> Self{
-         get_incread(conn, id).unwrap()
+    pub fn new(conn: &Arc<Mutex<Connection>>, id: IncID) -> Self{
+         get_incread(&conn, id).unwrap()
     }
     
 
-    pub fn extract(&mut self, conn: &Connection){
+    pub fn extract(&mut self, conn: &Arc<Mutex<Connection>>){
         if let Some(extract) = self.source.return_selection(){
-            new_incread(conn, self.id, self.topic, extract, true).unwrap();
-            self.extracts = StatefulList::with_items(load_extracts(conn, self.id).unwrap());
+            new_incread(&conn, self.id, self.topic, extract, true).unwrap();
+            self.extracts = StatefulList::with_items(load_extracts(&conn, self.id).unwrap());
         }
     }
-    pub fn cloze(&mut self, conn: &Connection){
+    pub fn cloze(&mut self, conn: &Arc<Mutex<Connection>>){
         if let Some(cloze) = self.source.return_selection(){
             let mut question = self.source.return_text();
             question = question.replace(&cloze, "[...]");
             let answer = cloze;
+
             Card::new()
                 .question(question)
                 .answer(answer)
                 .topic(self.topic)
                 .source(self.id)
-                .status(Status::new_complete())
+                .cardtype(super::card::CardType::Finished)
                 .save_card(conn);
                 
-            self.clozes = StatefulList::with_items(load_cloze_cards(conn, self.id).unwrap());
+            self.clozes = StatefulList::with_items(load_cloze_cards(&conn, self.id).unwrap());
         }
     }
-    pub fn keyhandler(&mut self, conn: &Connection, key: MyKey){
+    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey){
         match key {
             MyKey::Alt('x') => {
                 self.extract(conn);
@@ -75,9 +76,9 @@ impl IncRead{
 
         }
     }
-    pub fn update_text(&self, conn: &Connection){
+    pub fn update_text(&self, conn: &Arc<Mutex<Connection>>){
         let text = self.source.return_text();
-        update_inc_text(conn, text, self.id).unwrap();
+        update_inc_text(&conn, text, self.id, &self.source.cursor).unwrap();
     }
 }
 

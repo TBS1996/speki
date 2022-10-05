@@ -1,42 +1,72 @@
 use rusqlite::{params, Connection, Result};
-use crate::utils::card::{Card, Review};//, Status, Topic, Review}
+use crate::utils::card::{Card, Review, CardType};//, Status, Topic, Review}
+use crate::utils::aliases::*;
+use std::time::{SystemTime, UNIX_EPOCH};
+use crate::utils::sql::update::set_cardtype;
+use std::sync::{Arc, Mutex};
 
+pub fn save_card(conn: &Arc<Mutex<Connection>>, card: Card)-> CardID{
+    //let time_added = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
 
+    let cardtype = match card.cardtype{
+        CardType::Pending    => 0,
+        CardType::Unfinished => 1,
+        CardType::Finished   => 2,
+    } as u32;
 
-pub fn save_card(conn: &Connection, somecard: Card)-> Result<()>{
+    conn.lock().unwrap().execute(
+        "INSERT INTO cards (
+            question, 
+            answer, 
+            frontaudio, 
+            backaudio, 
+            frontimg, 
+            backimg, 
+            cardtype, 
+            suspended, 
+            resolved, 
+            topic, 
+            source
+            ) 
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
 
-    conn.execute(
-        "INSERT INTO cards (question, answer, strength, stability, topic, initiated, complete, resolved, suspended, gain, source, skiptime, skipduration) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
-        somecard.question, 
-        somecard.answer, 
-        somecard.strength, 
-        somecard.stability, 
-        somecard.topic, 
-        somecard.status.initiated, 
-        somecard.status.complete, 
-        somecard.status.resolved, 
-        somecard.status.suspended, 
-        -1.0, 
-        somecard.source,
-        somecard.skiptime,
-        somecard.skipduration,
+        card.question, 
+        card.answer, 
+        card.frontaudio,
+        card.backaudio,
+        card.frontimage,
+        card.backimage,
+        cardtype,
+        card.suspended, 
+        card.resolved, 
+        card.topic, 
+        card.source,
         ],
-    )?;
+    ).unwrap();
 
-    Ok(())
+    let id = conn.lock().unwrap().last_insert_rowid() as u32;
+
+
+    match card.cardtype{
+        CardType::Pending =>    new_pending(conn, id).unwrap(),
+        CardType::Unfinished => new_unfinished(conn, id).unwrap(),
+        CardType::Finished =>   new_finished(conn, id).unwrap(),
+    };
+
+    id
 }
 
-pub fn update_both(conn: &Connection, dependent: u32, dependency: u32) -> Result<()>{
-    conn.execute(
+pub fn update_both(conn: &Arc<Mutex<Connection>>, dependent: u32, dependency: u32) -> Result<()>{
+    conn.lock().unwrap().execute(
         "INSERT INTO dependencies (dependent, dependency) VALUES (?1, ?2)",
         params![dependent, dependency],
     )?;
     Ok(())
 }
 
-pub fn revlog_new(conn: &Connection, card_id: u32, review: Review) -> Result<()> {
-    conn.execute(
+pub fn revlog_new(conn: &Arc<Mutex<Connection>>, card_id: u32, review: Review) -> Result<()> {
+    conn.lock().unwrap().execute(
         "INSERT INTO revlog (unix, cid, grade, qtime, atime) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![review.date, card_id, review.grade as u32, review.answertime, -1],
     )?;
@@ -44,8 +74,8 @@ pub fn revlog_new(conn: &Connection, card_id: u32, review: Review) -> Result<()>
 }
 
 
-pub fn new_topic(conn: &Connection, name: String, parent: u32, pos: u32) -> Result<()>{
-    conn.execute(
+pub fn new_topic(conn: &Arc<Mutex<Connection>>, name: String, parent: u32, pos: u32) -> Result<()>{
+    conn.lock().unwrap().execute(
         "INSERT INTO topics (name, parent, relpos) VALUES (?1, ?2, ?3)",
         params![name, parent, pos],
     )?;
@@ -53,13 +83,36 @@ pub fn new_topic(conn: &Connection, name: String, parent: u32, pos: u32) -> Resu
 }
 
 
-
-pub fn new_incread(conn: &Connection, parent: u32, topic: u32, source: String, isactive: bool) -> Result<()>{
-    conn.execute(
-        "INSERT INTO incread (parent, topic, source, active) VALUES (?1, ?2, ?3, ?4)",
-        params![parent, topic, source, isactive],
+pub fn new_incread(conn: &Arc<Mutex<Connection>>, parent: u32, topic: u32, source: String, isactive: bool) -> Result<()>{
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
+    conn.lock().unwrap().execute(
+        "INSERT INTO incread (parent, topic, source, active, skiptime, skipduration, row, column) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![parent, topic, source, isactive, 1.0, now, 0, 0],
     )?;
     Ok(())
 }
 
+pub fn new_finished(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<()>{
+    conn.lock().unwrap().execute(
+        "INSERT INTO finished_cards (id, strength, stability) VALUES (?1, ?2, ?3)",
+        params![id, 1.0f32, 1.0f32],
+    )?;
+    set_cardtype(conn, id, CardType::Finished).unwrap();
+    Ok(())
+}
 
+pub fn new_unfinished(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<()>{
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
+    conn.lock().unwrap().execute(
+        "INSERT INTO unfinished_cards (id, skiptime, skipduration) VALUES (?1, ?2, ?3)",
+        params![id, now, 1],
+    )?;
+    Ok(())
+}
+pub fn new_pending(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<()>{
+    conn.lock().unwrap().execute(
+        "INSERT INTO pending_cards (id, position) VALUES (?1, ?2)",
+        params![id, 1],
+    )?;
+    Ok(())
+}

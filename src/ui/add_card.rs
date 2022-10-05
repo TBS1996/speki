@@ -33,7 +33,7 @@ where
 
     
     
-    list_widget(f, &app.add_card.topics, right, topic_selected);
+    list_widget(f, &app.add_card.topics, right, topic_selected, "Topics".to_string());
     editing(f, app, left);
   //  draw_bottom_menu(f, bottomright, app);
 }
@@ -70,54 +70,10 @@ where
 
 
     draw_message(f, chunks[0], app.add_card.prompt.as_str());
-    app.add_card.question.draw_field(f, chunks[1], isqselected);
-    app.add_card.answer.draw_field(  f, chunks[2], is_ans_selected);
+    app.add_card.question.render(f, chunks[1], isqselected);
+    app.add_card.answer.render(  f, chunks[2], is_ans_selected);
     
 }
-
-
-
-
-/*
-
-fn draw_bottom_menu<B>(f: &mut Frame<B>, area: Rect, app: &App)
-    where
-    B: Backend,
-{
-//    let chunks = Vec::new();
-
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(area);
-    
-
-
-    let isfinselected = {
-        if let TextSelect::SubmitFinished = app.add_card.selection{
-            true
-        }else{
-            false
-        }
-    };
-    let isunfinselected = {
-        if let TextSelect::SubmitUnfinished = app.add_card.selection{
-            true
-        }else{
-            false
-        }
-    };
-    draw_button(f, chunks[0], "Submit as finished",   isfinselected);
-    draw_button(f, chunks[1], "Submit as unfinished", isunfinselected);
-}
-
-
-*/ 
-
-
-
-
-
 
 
 

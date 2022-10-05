@@ -1,4 +1,4 @@
-use crate::Direction;
+use crate::{Direction, SpekiPaths};
 use std::fs::File;
 use crate::MyKey;
 use crate::utils::widgets::button::draw_button;
@@ -32,39 +32,19 @@ use crate::utils::widgets::ankimporter::ShouldQuit;
 
 
 
-fn download_the_deck(url: String) -> String{
-        if !std::path::Path::new("./temp").exists(){
-            std::fs::create_dir("./temp").unwrap();
-        } else {
-            std::fs::remove_dir_all("./temp").unwrap();
-            std::fs::create_dir("./temp").unwrap();
-        }
-
-        let downloc = "./temp/ankitemp.apkg";
-        let body = reqwest::blocking::get(url).unwrap();
-        let path = std::path::Path::new(downloc);
-        let mut file = match File::create(&path) {
-            Err(why) => panic!("couldn't create {}", why),
-            Ok(file) => file,
-        };
-        file.write_all(&(body.bytes().unwrap())).unwrap();
-        downloc.to_string()
-}
-
 #[tokio::main]
-pub async fn foo(url: String, transmitter: std::sync::mpsc::SyncSender<(u64, u64)>){
-    download_deck(url, transmitter).await;
+pub async fn foo(url: String, transmitter: std::sync::mpsc::SyncSender<(u64, u64)>, paths: SpekiPaths){
+    download_deck(url, transmitter, paths).await;
 }
 
 use futures_util::StreamExt;
-pub async fn download_deck(url: String, transmitter: std::sync::mpsc::SyncSender<(u64, u64)>){
-    if !std::path::Path::new("./temp").exists(){
-        std::fs::create_dir("./temp").unwrap();
+pub async fn download_deck(url: String, transmitter: std::sync::mpsc::SyncSender<(u64, u64)>, paths: SpekiPaths){
+    if !std::path::Path::new(&paths.tempfolder).exists(){
+        std::fs::create_dir(&paths.tempfolder).unwrap();
     } else {
-        std::fs::remove_dir_all("./temp").unwrap();
-        std::fs::create_dir("./temp").unwrap();
+        std::fs::remove_dir_all(&paths.tempfolder).unwrap();
+        std::fs::create_dir(&paths.tempfolder).unwrap();
     }
-    let downloc = "./temp/ankitemp.apkg";
 
     let client = reqwest::Client::new();
     let res = client
@@ -79,7 +59,7 @@ pub async fn download_deck(url: String, transmitter: std::sync::mpsc::SyncSender
     
 
     // download chunks
-    let mut file = File::create(&downloc).or(Err(format!("Failed to create file '{}'",downloc))).unwrap();
+    let mut file = File::create(&paths.downloc).unwrap();
     let mut downloaded: u64 = 0;
     let mut stream = res.bytes_stream();
 
@@ -196,7 +176,7 @@ impl Importer{
             menu,
         }
     }
-    pub fn render(&mut self, conn: &Arc<Mutex<Connection>>, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
+    pub fn render(&mut self, conn: &Arc<Mutex<Connection>>, f: &mut tui::Frame<MyType>, area: tui::layout::Rect, paths: &SpekiPaths) {
 
         match &mut self.menu{
             Menu::Main => self.render_main(f, area),
@@ -207,34 +187,37 @@ impl Importer{
                 match &ankimporter.should_quit{
                     ShouldQuit::No => ankimporter.render(conn, f, area),
                     ShouldQuit::Yeah => self.render_main(f, area),
-                    ShouldQuit::Takethis(tmp) => {
-                        let foldername = tmp.1.clone();
-                        let dlpath = std::path::Path::new("./temp/ankitemp.apkg").to_path_buf();
+                    ShouldQuit::Takethis(deckname) => {
                         let (tx, rx): (mpsc::Sender<UnzipStatus>, Receiver<UnzipStatus>) = mpsc::channel();
+                        let threadpaths = paths.clone();
+                        let deckname = deckname.to_string();
+                        let anotherone = deckname.clone();
                         thread::spawn( move || {
-                            Template::unzip_deck(dlpath, &foldername, tx).unwrap();
+                            Template::unzip_deck(threadpaths, deckname.clone(), tx);
                             }
                         );
                         self.menu = Menu::Unzipping(
                             Unzipper{
                                 rx,
-                                name: tmp.1.clone(),
+                                name: anotherone,
                             }
                         );
                     },
                     };
                 }
             
+
+
             Menu::Unzipping(unzipper) => {
                 if let Ok(unstat) = unzipper.rx.recv(){
                     if let UnzipStatus::Ongoing(msg) = unstat{
                         draw_message(f, area, &msg);
                     } else{
-                        let tmpl = Template::new(conn, unzipper.name.clone());
+                        let tmpl = Template::new(conn, unzipper.name.clone(), paths);
                         self.menu = Menu::LoadCards(tmpl);
                     }
                 } else {
-                    let tmpl = Template::new(conn, unzipper.name.clone());
+                    let tmpl = Template::new(conn, unzipper.name.clone(), paths);
                     self.menu = Menu::LoadCards(tmpl);
                 }
             }
@@ -247,8 +230,8 @@ impl Importer{
                 }
             },
             Menu::ImportAnki(rx) => {
-                if let Ok(prog) = rx.try_recv(){
-                    let rightcol = Layout::default()
+                if let Ok(prog) = rx.recv(){
+                        let rightcol = Layout::default()
                         .direction(Vertical)
                         .constraints(
                             [
@@ -263,14 +246,12 @@ impl Importer{
 
 
                     progbar.height = std::cmp::min(progbar.height, 5);
-
                     crate::utils::widgets::progress_bar::progress_bar(f, prog.curr_index as u32, prog.total as u32, Color::LightMagenta, progbar, "Importing cards..");
-                    Field::new_with_text(prog.front, 0, 0).render(f, rightcol[1], false);
-                    Field::new_with_text(prog.back, 0, 0).render(f, rightcol[2], false);
 
-                    if prog.curr_index == prog.total {
+                    if prog.curr_index == prog.total - 1{
                         self.menu = Menu::Anki(Ankimporter::new());
                     }
+                    
                 } else {
                         self.menu = Menu::Anki(Ankimporter::new());
                 }
@@ -298,14 +279,14 @@ impl Importer{
 
 
 
-    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, handle: &rodio::OutputStreamHandle){
+    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, handle: &rodio::OutputStreamHandle, paths: &SpekiPaths){
 
         
         match &mut self.menu{
             Menu::Main => self.main_keyhandler(conn, key),
             Menu::Anki(ankimporter) => {
                 match &ankimporter.should_quit{
-                    ShouldQuit::No => ankimporter.keyhandler(key, conn),
+                    ShouldQuit::No => ankimporter.keyhandler(key, conn, paths),
                     ShouldQuit::Yeah => {
                         self.menu = Menu::Anki(Ankimporter::new());
                     },
@@ -327,7 +308,7 @@ impl Importer{
                         foldername.pop();
                         foldername.pop();
                         let foldername = foldername.rsplit_once('/').unwrap().1.to_string();
-                        let template = Template::new(conn, foldername);
+                        let template = Template::new(conn, foldername, paths);
                         self.menu = Menu::LoadCards(template);
                         },
                     };
@@ -338,12 +319,14 @@ impl Importer{
                         tmpl.keyhandler(conn, key, handle);
                         if let LoadState::Importing = tmpl.state{
                             let mut tmpclone = tmpl.clone();
-                            let (tx, rx): (mpsc::SyncSender<ImportProgress>, Receiver<ImportProgress>) = mpsc::sync_channel(0);
+                            let (tx, rx): (mpsc::SyncSender<ImportProgress>, Receiver<ImportProgress>) = mpsc::sync_channel(5);
                             let connclone = Arc::clone(conn);
                             thread::spawn(move ||{
                                 tmpclone.import_cards(connclone, tx);
                             });
+                            std::thread::sleep(std::time::Duration::from_millis(5000));
                             self.menu = Menu::ImportAnki(rx);
+                            dbg!("@@@@@@@@@@@@@2");
 
                         }
 
@@ -382,4 +365,6 @@ impl Importer{
 
 }
   
+
+
 

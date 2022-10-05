@@ -5,6 +5,7 @@ use crate::utils::aliases::*;
 use crate::utils::widgets::load_cards::MediaContents;
 use std::sync::{Mutex, Arc};
 use std::time::{UNIX_EPOCH, SystemTime};
+use std::path::PathBuf;
 
 
 #[derive(Clone)]
@@ -114,16 +115,30 @@ pub fn row2card(row: &Row) -> Result<Card>{
     };
     let id = row.get(0)?;
 
+
+    let frontaudio: Option<String> = row.get(3)?;
+    let backaudio:  Option<String> = row.get(4)?; 
+    let frontimage: Option<String> = row.get(5)?;
+    let backimage:  Option<String> = row.get(6)?; 
+    
+    let frontaudio: Option<PathBuf> = frontaudio.map (|x| PathBuf::from(x));
+    let backaudio:  Option<PathBuf> = backaudio.map  (|x| PathBuf::from(x));
+    let frontimage: Option<PathBuf> = frontimage.map (|x| PathBuf::from(x));
+    let backimage:  Option<PathBuf> = backimage.map  (|x| PathBuf::from(x));
+
+
+
+
   //  let dependencies = get_dependencies(conn, id).unwrap();
   //  let dependents = get_depndents(conn, id).unwrap();
         Ok(Card {
             id,
             question:      row.get(1)?,
             answer:        row.get(2)?,
-            frontaudio:    row.get(3)?,
-            backaudio:     row.get(4)?,
-            frontimage:    row.get(5)?,
-            backimage:     row.get(6)?,
+            frontaudio,
+            backaudio,
+            frontimage,
+            backimage,
             cardtype,
             suspended:     row.get(8)?,
             resolved:      row.get(9)?,

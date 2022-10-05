@@ -9,7 +9,7 @@ pub mod app;
 ///pub mod tabs;
 
 
-use std::env;
+use std::{env, path::PathBuf};
 use chrono::prelude::*;
 //use tabs::MyType;
 use crate::app::App;
@@ -30,15 +30,46 @@ use tui::{
 pub type MyType = CrosstermBackend<std::io::Stdout>;
 
 
+#[derive(Clone)]
+pub struct SpekiPaths{
+    pub base: PathBuf,
+    pub database: PathBuf,
+    pub media: PathBuf,
+    pub tempfolder: PathBuf,
+    pub downloc: PathBuf,
+    pub backups: PathBuf,
 
+}
 
+impl SpekiPaths{
+    fn new(mut home: PathBuf) -> Self {
+        home.push(".speki/");
+        if !std::path::Path::new(&home).exists(){
+            std::fs::create_dir(&home).unwrap();
+        }
+        let mut database = home.clone();
+        let mut media    = home.clone();
+        let mut tempfolder     = home.clone();
+        let mut backups  = home.clone();
 
+        database.push("dbflash.db");
+        media.push("media/");
+        tempfolder.push("temp/");
+        backups.push("backups/");
 
-
-
-
-
-
+        let mut downloc = tempfolder.clone();
+        downloc.push("ankitemp.apkg");
+        
+        Self {
+            base: home,
+            database,
+            media,
+            tempfolder,
+            downloc,
+            backups,
+        }
+    }
+}
 
 
 
@@ -46,7 +77,9 @@ pub type MyType = CrosstermBackend<std::io::Stdout>;
 fn main() -> Result<()> {
 
     env::set_var("RUST_BACKTRACE", "1");
-    let is_new_db = init_db().unwrap();  
+
+    let paths = SpekiPaths::new(home::home_dir().unwrap());
+    let is_new_db = init_db(&paths.database).unwrap();  
 
 
     // setup terminal
@@ -69,7 +102,7 @@ fn main() -> Result<()> {
 
 
     // create app and run it
-    let app = App::new(is_new_db);
+    let app = App::new(is_new_db, paths);
     let res = run_app(&mut terminal, app);
 
     // restore terminal
@@ -105,7 +138,7 @@ fn run_app(
             }
 
             if app.should_quit {
-                backup();
+                backup(&app.paths);
                 return Ok(());
             }
          } else{
@@ -211,16 +244,16 @@ impl MyKey{
 
 
 
-fn backup(){
-    let dbflash = "dbflash.db";
-    if !std::path::Path::new("backups/").exists(){
-        std::fs::create_dir("backups/").unwrap();
+fn backup(paths: &SpekiPaths){
+    let mut backup_path = paths.backups.clone();
+
+    if !std::path::Path::new(&backup_path).exists(){
+        std::fs::create_dir(&backup_path).unwrap();
     }
-    if std::path::Path::new(dbflash).exists(){
-        let now: DateTime<Utc> = Utc::now();
-        let formatted = format!("./backups/backup_{}_dbflash.db", now.format("%d_%m_%Y"));
-        std::fs::copy(dbflash, formatted).unwrap();  // Copy foo.txt to bar.txt
-    }
+    let now: DateTime<Utc> = Utc::now();
+    let filename = format!("backup_{}_dbflash.db", now.format("%d_%m_%Y"));
+    backup_path.push(filename);
+    std::fs::copy(&paths.database, backup_path).unwrap();  // Copy foo.txt to bar.txt
 }
 
 

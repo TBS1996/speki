@@ -9,21 +9,21 @@ pub mod delete;
 use rusqlite::{Connection, Result};
 use crate::utils::sql::insert::new_topic;
 
-use std::sync::{Mutex, Arc};
+use std::{sync::{Mutex, Arc}, path::PathBuf};
 
 
 
 
 
-pub fn init_db() -> Result<bool>{
+pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
 
     let mut new_db = false;
-    if let Err(_) = std::fs::metadata("dbflash.db"){
+    if let Err(_) = std::fs::metadata(dbpath){
         new_db = true;
     }
 
 
-    let conn = Connection::open("dbflash.db")?;
+    let conn = Connection::open(dbpath)?;
 
     conn.execute(
         "create table if not exists cards (

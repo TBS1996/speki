@@ -33,6 +33,7 @@ wikipedia = "0.3.4"
 tokio = { version = "1.21.2", features = ["full"] }
 webbrowser = "0.8.0"
 home = "0.5.3"
+unicode-segmentation = "1.10.0"
 
 
 [dependencies.crossterm]

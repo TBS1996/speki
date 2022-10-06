@@ -1,5 +1,6 @@
 use crate::MyKey;
 use webbrowser;
+use unicode_segmentation::UnicodeSegmentation;
 
 
 use tui::{
@@ -161,8 +162,8 @@ impl Field{
         let mut cons_non_space = 0;
         let mut linestartvec: Vec<usize> = vec![0];
         let mut linestart = 0;
-        for (idx, c) in self.text[row].chars().enumerate(){
-            if c != ' '{
+        for (idx, c) in UnicodeSegmentation::graphemes(self.text[row].as_str(), true).enumerate(){
+            if !c.chars().next().unwrap().is_ascii_whitespace(){
                 cons_non_space += 1;
             } else {
                 cons_non_space = 0;
@@ -183,17 +184,14 @@ impl Field{
     }
 
     pub fn debug(&mut self){
-        //dbg!(&self.preferredcol);
-        
-
-        dbg!(&self.current_abs_visual_line(), &self.window_height, &self.scroll);
-
-       // dbg!(&self.current_abs_visual_line());
+        let wtf = self.current_visual_col(); 
+        self.visual_row_start(self.cursor.row);
+        dbg!(wtf);
     }
 
 
     fn jump_forward(&mut self, jmp: usize){
-        self.cursor.column = std::cmp::min(self.text[self.cursor.row].len(), self.cursor.column + jmp);
+        self.cursor.column = std::cmp::min(self.text[self.cursor.row].graphemes(true).count(), self.cursor.column + jmp);
     }
 
     fn jump_backward(&mut self, jmp: usize){
@@ -217,7 +215,7 @@ impl Field{
     fn end_of_first_visual_line(&self, row: usize) -> usize{
         let lines = self.visual_row_start(row);
         if lines.len() == 1 {
-            return self.text[row].len();
+            return self.text[row].graphemes(true).count();
         } else {
             return lines[1] - 2
 
@@ -235,7 +233,7 @@ impl Field{
             }
         }
 
-        if next == -1{
+        if next == -1{ // youre on the last visual line
             if self.cursor.row == self.text.len() - 1{return}
 
             let mut target = self.current_visual_col();
@@ -254,10 +252,9 @@ impl Field{
             } 
             self.cursor.row += 1;
         } else{
-           //let offset = self.cursor.column - foovec[next as usize - 1];
             let offset = self.current_visual_col();
             let mut target = foovec[next as usize] + offset;
-            let maxcol = self.text[self.cursor.row].len();
+            let maxcol = self.text[self.cursor.row].graphemes(true).count();
 
             if let Some(col) = self.preferredcol{
                 if col > target{
@@ -304,7 +301,7 @@ impl Field{
             let above_lines = self.visual_row_start(self.cursor.row - 1);
             let thelen = above_lines.len();
             let last_line_start = above_lines[thelen - 1];
-            let maxcol = self.text[self.cursor.row-1].len();
+            let maxcol = self.text[self.cursor.row-1].graphemes(true).count();
             let target = last_line_start + offset;
 
             if target > maxcol{
@@ -343,7 +340,7 @@ impl Field{
     }
 
     pub fn addchar(&mut self, c: char){
-        if self.cursor.column == self.text[self.cursor.row].len() {
+        if self.cursor.column == self.text[self.cursor.row].graphemes(true).count() {
             self.text[self.cursor.row].push(c);
             self.cursor.column += 1;
             return;
@@ -357,7 +354,7 @@ impl Field{
         if self.cursor.row == 0 {
             return;
         } else {
-            self.cursor.column = self.text[self.cursor.row-1].len();
+            self.cursor.column = self.text[self.cursor.row-1].graphemes(true).count();
             let current = self.text[self.cursor.row].clone();
             self.text[self.cursor.row - 1].push_str(&current);
             self.text.remove(self.cursor.row);
@@ -395,7 +392,7 @@ impl Field{
     }
 
     pub fn next(&mut self) {
-        if self.cursor.column < self.text[self.cursor.row].len() - 0{
+        if self.cursor.column < self.text[self.cursor.row].graphemes(true).count() - 0{
             self.cursor.column += 1;
         } else if self.cursor.row != self.text.len() - 1 {
             self.cursor.column = 0;
@@ -406,7 +403,7 @@ impl Field{
     pub fn up(&mut self){
         if self.cursor.row == 0 {return}
         self.cursor.row -= 1;
-        let line_above_max_col = self.text[self.cursor.row].len();
+        let line_above_max_col = self.text[self.cursor.row].graphemes(true).count();
         let current_col = self.cursor.column;
         self.cursor.column = std::cmp::min(current_col, line_above_max_col);
     }
@@ -414,7 +411,7 @@ impl Field{
     pub fn down(&mut self){
         if self.cursor.row == self.text.len() - 1 {return}
         self.cursor.row += 1;
-        let line_below_max_col = self.text[self.cursor.row].len();
+        let line_below_max_col = self.text[self.cursor.row].graphemes(true).count();
         let current_col = self.cursor.column;
         self.cursor.column = std::cmp::min(current_col, line_below_max_col);
 
@@ -428,12 +425,12 @@ impl Field{
             self.cursor.column -= 1;
         } else if self.cursor.row != 0{
             self.cursor.row -= 1;
-            self.cursor.column = self.text[self.cursor.row].len();
+            self.cursor.column = self.text[self.cursor.row].graphemes(true).count();
         }
     }
 
     pub fn delete(&mut self){
-        if self.text[self.cursor.row].len() > 1 && self.cursor.column != self.text[self.cursor.row].len() - 1{
+        if self.text[self.cursor.row].graphemes(true).count() > 1 && self.cursor.column != self.text[self.cursor.row].chars().count() - 1{
             let bytepos = self.current_bytepos();
             self.text[self.cursor.row].remove(bytepos);
         }
@@ -441,7 +438,7 @@ impl Field{
     // first 
     pub fn delete_previous_word(&mut self){
         let mut char_found = false;
-        if self.text[self.cursor.row].len() == self.cursor.column {
+        if self.text[self.cursor.row].graphemes(true).count() == self.cursor.column {
             self.prev();
         }
         if self.cursor.column == 0{
@@ -548,7 +545,7 @@ impl Field{
                 return;
             }
         }
-        self.cursor.column = self.text[self.cursor.row].len();
+        self.cursor.column = self.text[self.cursor.row].graphemes(true).count();
     }
 
     fn google_it(&self){
@@ -729,21 +726,37 @@ impl Field{
    }
 
 
+   fn find_grapheme_bytepos(mystr: &String, column: usize) -> usize{
+    let mut boundary = 0;
+    let mut cursor = unicode_segmentation::GraphemeCursor::new(0, mystr.len(), false);
+
+
+    for _ in 0..column{
+        if let Ok(opt) = cursor.next_boundary(mystr, 0){
+            if let Some(bnd) = opt{
+                boundary = bnd;
+            } else {return boundary};
+        } else {return boundary};
+    }
+    boundary
+}
+
+
 
     // TODO make this function suck less
     fn cursorsplit(&self, selected: bool) -> Vec<Spans>{
         let mut onemore = self.cursor.clone();
         let mut splitvec: Vec<CursorPos> = vec![];
         onemore.column += 1;
-        if self.cursor.column != self.text[self.cursor.row].len() {
+        if self.cursor.column != self.text[self.cursor.row].graphemes(true).count() {
         }
 
         if self.selection_exists(){
             splitvec.push(self.startselect.clone().unwrap());
-            if self.cursor.column != self.text[self.cursor.row].len() {
+            if self.cursor.column != self.text[self.cursor.row].graphemes(true).count() {
                 splitvec.push(onemore);
             } else {
-                onemore.column = self.text[onemore.row].len();
+                onemore.column = self.text[onemore.row].graphemes(true).count();
                 splitvec.push(self.cursor.clone());
                 //dbg!("heyy");
             }
@@ -766,28 +779,25 @@ impl Field{
             let mut foo = txt.clone();
             let mut emptyline = true;
             let mut spanvec = Vec::<Span>::new();
-            while foo.len() != 0 && splitdex != splitvec.len() && splitvec[splitdex].row == idx{
+            while foo.graphemes(true).count() != 0 && splitdex != splitvec.len() && splitvec[splitdex].row == idx{
                 let mut bar = foo.clone();
                 emptyline = false;
                 let column = splitvec[splitdex].column;
-                let offset = if splitdex == 0 || splitvec[splitdex - 1].row != idx  {0} else {splitvec[splitdex - 1].column};
+                let offset = if splitdex == 0 || splitvec[splitdex - 1].row != idx  {0} 
+                    else {splitvec[splitdex - 1].column};
 
                 let splitat = column - offset;
-                if splitat == bar.len() - 1 {
+                if splitat == bar.graphemes(true).count() - 1 {
                     bar.push(' ');
-                } else if splitat == bar.len(){
+                } else if splitat == bar.graphemes(true).count(){
                     bar.push('_');
                     bar.push(' ');
                 } 
-                let splitat = std::cmp::min(splitat, bar.chars().count() - 1);
+                let splitat = std::cmp::min(splitat, bar.graphemes(true).count() - 1);
 
                 let (left, right) = bar.split_at(
-                    bar
-                    .char_indices()
-                    .nth(splitat)
-                    .unwrap()
-                    //.expect(&format!("error while splitting at {} len is {}", splitat, bar.len()))
-                    .0);
+                    Self::find_grapheme_bytepos(&bar, splitat)
+                    );
 
                 foo = right.to_string().clone();
                 let left = left.to_string();
@@ -800,12 +810,12 @@ impl Field{
                 styled = !styled;
                 if splitdex == splitvec.len(){break}
             }
-            if selected && idx == self.cursor.row && ((foo.len() == 0 && emptyline)){ // self.cursor.column == self.text[self.cursor.row].len() {
+            if selected && idx == self.cursor.row && ((foo.graphemes(true).count() == 0 && emptyline)){ // self.cursor.column == self.text[self.cursor.row].len() {
                     spanvec.push(Span::styled("_".to_string(), Style::default().add_modifier(Modifier::REVERSED)));
                     if self.cursor.column != 0 || self.selection_exists(){
                         styled = !styled;
                     }
-                    if self.cursor.column == self.text[self.cursor.row].len() && self.cursor.column != 0{
+                    if self.cursor.column == self.text[self.cursor.row].graphemes(true).count() && self.cursor.column != 0{
                        // styled = !styled;
                     }
             }
@@ -826,7 +836,7 @@ impl Field{
     fn cursor_after(&mut self){
         self.cursor.column = std::cmp::min(
             self.cursor.column + 1,
-            self.text[self.cursor.row].len(),
+            self.text[self.cursor.row].graphemes(true).count(),
             );
         self.set_insert_mode();
     }
@@ -846,7 +856,7 @@ impl Field{
     }
 
     fn end_of_line(&mut self){
-        self.cursor.column = self.text[self.cursor.row].len() -1;
+        self.cursor.column = self.text[self.cursor.row].graphemes(true).count() -1;
     }
 
     fn is_cursor_in_view(&self) -> bool{

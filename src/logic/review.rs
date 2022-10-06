@@ -96,7 +96,7 @@ impl ForReview{
 
         for card in thecards{
             if card.is_complete(){
-                if get_strength(&conn, card.id).unwrap() < 0.999{
+                if get_strength(&conn, card.id).unwrap() < 0.9{
                     review_cards.push(card.id);
                 }
             } else if card.is_unfinished(){

@@ -393,7 +393,7 @@ fn rename_media(deckname: &String, paths: &SpekiPaths)-> Result<()>{
             std::fs::rename(keypath, valpath)?;
         }
     } else {
-        dbg!("failed to open media contents", &medianames, &mediapath, &contents);
+        panic!();
     }
     Ok(())
 }
@@ -534,7 +534,6 @@ pub fn unzip_deck(paths: SpekiPaths, deckname: String, transmitter: std::sync::m
 
             let foo = split_by_field[0];
             if foo.len() == 0{
-                dbg!(&key, &template,);
                 continue
             }
             let mut tempstring = foo.to_string(); 
@@ -806,7 +805,6 @@ pub fn unzip_deck(paths: SpekiPaths, deckname: String, transmitter: std::sync::m
                 curr_index: idx,
                 total: cardlen,
                 });
-                dbg!(idx);
             };
 
             card::Card::new()
@@ -822,7 +820,6 @@ pub fn unzip_deck(paths: SpekiPaths, deckname: String, transmitter: std::sync::m
 
         }
 
-        dbg!("Ive now exited the loop!");
     }
 
 

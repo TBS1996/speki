@@ -462,7 +462,6 @@ impl Field{
             self.cursor.column -= 1;
             let bytepos = self.current_bytepos();
             self.text[self.cursor.row].remove(bytepos);
-            dbg!(&self.rowlens, &self.visual_rows_start);
             self.rowlens[self.cursor.row] -= 1;
             self.visual_rows_start[self.cursor.row] = self.visual_row_start(self.cursor.row);
         } else {

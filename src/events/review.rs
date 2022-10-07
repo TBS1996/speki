@@ -17,20 +17,6 @@ use crate::utils::widgets::newchild::AddChildWidget;
 
 use crate::utils::widgets::newchild::Purpose;
 
-/* 
-
-
-perhaps store widgets in a 2D vec 
-each vec holds a widget with a render and keyhandler 
-
-so a struct with two fields 
-first is the 2d vec of widgets (trait objects)
-second one keeps track of position 
-
-navigation is with alt+[h,j,k,l]
-
-*/ 
-
 
 
 use std::sync::{Arc, Mutex};
@@ -259,8 +245,9 @@ fn mode_review(conn: &Arc<Mutex<Connection>>, unf: &mut CardReview, key: MyKey, 
                     unf.id, 
                     num,
             )},
-        (CardRater, Char(' ')) | (CardRater, Enter) => {
-            let num =  match unf.cardrater.selection{
+        (CardRater, Char(' ')) | (CardRater, Enter) if unf.cardrater.selection.is_some()=> {
+            let foo = unf.cardrater.selection.clone().unwrap();
+            let num =  match foo{
                 RecallGrade::None   => '1',
                 RecallGrade::Failed => '2',
                 RecallGrade::Decent => '3',
@@ -273,6 +260,7 @@ fn mode_review(conn: &Arc<Mutex<Connection>>, unf: &mut CardReview, key: MyKey, 
                     num,
             )
         },
+        (CardRater, Char(' ')) | (CardRater, Enter) => *action = Action::SkipRev(unf.question.return_text(), unf.answer.return_text(), unf.id),
         (CardRater, key) => unf.cardrater.keyhandler(key),
         (_,_) => {},
     }

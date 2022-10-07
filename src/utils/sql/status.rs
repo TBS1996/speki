@@ -16,4 +16,3 @@ pub fn update_card_question(conn: &Arc<Mutex<Connection>>, id: u32, name: String
 }
 
 
-

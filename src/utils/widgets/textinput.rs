@@ -50,6 +50,9 @@ pub struct Field {
     preferredcol: Option<usize>,
     pub stickytitle: bool,
     singlebarmode: bool,
+    visual_rows_start: Vec<Vec<usize>>,
+    should_update_linestartvec: bool,
+    rowlens: Vec<usize>,
 }
 
 
@@ -66,8 +69,8 @@ impl Field{
         let mut myfield = Field{
             text: vec![String::new()],
             cursor: CursorPos::new(),
-            rowlen: 0,
-            window_height: 0,
+            rowlen: 2,
+            window_height: 2,
             startselect: None,
             scroll: 0,
             mode: Mode::Insert,
@@ -79,11 +82,30 @@ impl Field{
             preferredcol: None,
             stickytitle: false,
             singlebarmode: false,
+            visual_rows_start: vec![],
+            should_update_linestartvec: false,
+            rowlens: vec![],
 
         };
         myfield.set_insert_mode();
         myfield
     }
+
+    fn set_visual_rows(&mut self, startingfrom: usize){
+        let mut rows: Vec<Vec<usize>> = vec![];
+        for i in startingfrom..self.text.len(){
+            rows.push(self.visual_row_start(i));
+        }
+        self.visual_rows_start = rows;
+        self.set_rowlens();
+
+    }
+
+    fn update_vis_row_below_cursor(&mut self){
+        self.set_visual_rows(self.cursor.row);
+    }
+
+
 
 
     pub fn new_with_text(text: String, row: usize, column: usize) -> Self {
@@ -150,43 +172,54 @@ impl Field{
 
 
 
-    // attempting to find the columns which correspond to the visual start of line that you see.
-    // as paragraph doesn't split inside words, it means the visual start won't simply be 
-    // multiplies of the length of the row. It therefore jumps from the previous linestart, to the
-    // amount of columns in a row, and counts backward to find the first space, which is where the
-    // paragraph would have wrapped. 
-    fn visual_row_start(&self, row: usize) -> Vec<usize>{
+
+    fn set_rowlens(&mut self){
+        let mut rowlens: Vec<usize> = vec![];
+        for i in 0..self.text.len(){
+            rowlens.push(self.text[i].graphemes(true).count());
+        }
+        self.rowlens = rowlens;
+    }
+
+
+    fn visual_row_start(&mut self, row: usize) -> Vec<usize>{
         if self.text[row].len() < self.rowlen as usize && self.rowlen == 0{
             return vec![0];
         }
-        let mut cons_non_space = 0;
+
+        let mut whitesinarow = 0;
         let mut linestartvec: Vec<usize> = vec![0];
         let mut linestart = 0;
+        let mut end_point: usize = 0;
+        let mut now_white;
+        let mut prev_white = true;
         for (idx, c) in UnicodeSegmentation::graphemes(self.text[row].as_str(), true).enumerate(){
-            if !c.chars().next().unwrap().is_ascii_whitespace(){
-                cons_non_space += 1;
-            } else {
-                cons_non_space = 0;
+            now_white = c.chars().next().unwrap().is_ascii_whitespace();
+            if now_white && prev_white {
+                whitesinarow += 1;
+            } else if now_white && !prev_white{
+                end_point = idx;
+                whitesinarow = 1;
             }
-            if (idx as u16 - linestart as u16) > self.rowlen{
-                if cons_non_space > (linestart as u16 + self.rowlen){
-                    dbg!(&self.text[row], cons_non_space, &linestartvec);
-                    return vec![0];
+
+            if idx == (linestart + self.rowlen as usize) {
+                if row == 1 {
+                eprintln!("{} > ({} + {})", idx, linestart, self.rowlen);
+            }
+                if !now_white && prev_white{
+                    linestart = idx;
+                    linestartvec.push(linestart);
+                } else {
+                    linestart = end_point + whitesinarow;
+                    linestartvec.push(linestart);
                 }
-                linestart = ((linestart as u16 + self.rowlen) - cons_non_space as u16) as usize;
-                linestartvec.push(linestart + 1);
             }
-        }
-        for i in 1..linestartvec.len(){
-            linestartvec[i] += 1;
+            prev_white = now_white;
         }
         return linestartvec;
     }
 
     pub fn debug(&mut self){
-        let wtf = self.current_visual_col(); 
-        self.visual_row_start(self.cursor.row);
-        dbg!(wtf);
     }
 
 
@@ -194,15 +227,13 @@ impl Field{
         self.cursor.column = std::cmp::min(self.text[self.cursor.row].graphemes(true).count(), self.cursor.column + jmp);
     }
 
-    fn jump_backward(&mut self, jmp: usize){
-        if jmp < self.cursor.column{
-            self.cursor.column -= jmp;
+    fn jump_backward(&mut self, jmp: usize){ if jmp < self.cursor.column{ self.cursor.column -= jmp;
         } else {
             self.cursor.column = 0;
         }
     }
 
-    fn current_visual_col(&self) -> usize {
+    fn current_visual_col(&mut self) -> usize {
         let rowstarts = self.visual_row_start(self.cursor.row);
         for i in (0..rowstarts.len()).rev(){
             if rowstarts[i] <= self.cursor.column{
@@ -212,7 +243,7 @@ impl Field{
         panic!("Oops");
     }
 
-    fn end_of_first_visual_line(&self, row: usize) -> usize{
+    fn end_of_first_visual_line(&mut self, row: usize) -> usize{
         let lines = self.visual_row_start(row);
         if lines.len() == 1 {
             return self.text[row].graphemes(true).count();
@@ -275,55 +306,114 @@ impl Field{
         }
     }
 
-    fn visual_up(&mut self){
-        let lines = self.visual_row_start(self.cursor.row);
+
+    fn get_relative_row_and_column(&self) -> (usize, usize){
         let mut offset = 0;
         let mut relative_line = 0;
 
-        for i in (0..lines.len()).rev(){
-            if lines[i] <= self.cursor.column{
+        let rowstarts = &self.visual_rows_start[self.cursor.row];
+        for i in (0..rowstarts.len()).rev(){
+            if rowstarts[i] <= self.cursor.column{
                 relative_line = i;
-                offset = self.cursor.column - lines[i];
+                offset = self.cursor.column - rowstarts[i];
                 break;
             }
         }
+        (relative_line, offset)
+    }
 
-        if relative_line > 0{
-//            dbg!(&relative_line, &offset, &lines, &self.cursor);
-            
-            self.cursor.column = std::cmp::min(
-                lines[relative_line - 1] + offset,
-                lines[relative_line] - 2 
-                );
 
-        } else {
-            if self.cursor.row == 0{return}
-            let above_lines = self.visual_row_start(self.cursor.row - 1);
-            let thelen = above_lines.len();
-            let last_line_start = above_lines[thelen - 1];
-            let maxcol = self.text[self.cursor.row-1].graphemes(true).count();
-            let target = last_line_start + offset;
+
+
+    /*
+
+
+       if you're on the highest relative line and the top row, do nothing 
+
+       if you're on the highest relative line then {
+            find the last visrowstart of row above,
+            let target = prevvisrowstart + relative column
+            let maxcol = rowlen - prevvisrowstart
 
             if target > maxcol{
-                self.cursor.column = maxcol;
-                self.preferredcol = Some(target);
+                let cursor = maxcol;
+                let preferred = target;
             } else {
-                let target = if let Some(col) = self.preferredcol {
-                    last_line_start + col
-                } else {
-                    target
-                };
-                self.cursor.column = target;
+                let cursor = target 
+                let preferred = none
+            }
+       } else {
+       
+
+            find visrowstart above;
+            let target = visrowstartabove + relative_column;
+            let maxcol = currentvisrowstart - 2;
+
+            if target > maxcol{
+                let cursor = maxcol;
+                let preferred = relative_column;
 
             }
-            self.cursor.row -= 1;
+       }
 
+       get current relative column;
+       find start of column above;
+       
+
+       
+       */
+    
+
+
+    fn length_of_row(&self, row: usize) -> usize{
+        self.text[row].graphemes(true).count()
+    }
+
+
+
+
+
+    fn visual_up(&mut self){
+        let (relrow, relcol) = self.get_relative_row_and_column();
+        let topofpage = self.cursor.row == 0 && relrow == 0;
+        let top_relative_row  = relrow == 0;
+
+        if topofpage{return}
+
+        if top_relative_row{
+            let lastlinestartabove = self.visual_rows_start[self.cursor.row - 1].last().unwrap();
+            let maxcol = self.length_of_row(self.cursor.row-1);
+            let target = lastlinestartabove + relcol;
+
+            if target > maxcol{
+                self.cursor.column = maxcol; 
+                self.preferredcol = Some(relcol);
+                self.cursor.row -= 1;
+            } else {
+                self.cursor.column = target;
+                self.preferredcol = None;
+                self.cursor.row -= 1;
+            }
+        } else {
+            let maxcol = self.visual_rows_start[self.cursor.row][relrow] - 2;
+            let target = self.visual_rows_start[self.cursor.row][relrow - 1] + relcol;
+            
+            if target > maxcol{
+                self.cursor.column = maxcol;
+                self.preferredcol = Some(relcol);
+            } else {
+                self.cursor.column = target;
+                self.preferredcol = None;
+            }
         }
 
         if (self.current_abs_visual_line() as u16)  < self.scroll{
             self.scroll_half_up();
         }
     }
+
+    
+
 
     fn current_bytepos(&self) -> usize{
         self.relative_bytepos(0)
@@ -348,6 +438,9 @@ impl Field{
         let bytepos = self.current_bytepos();
         self.text[self.cursor.row].insert(bytepos, c);
         self.cursor.column +=  1;
+        self.rowlens[self.cursor.row] += 1;
+        self.visual_rows_start[self.cursor.row] = self.visual_row_start(self.cursor.row);
+        
     }
 
     fn merge_with_row_above(&mut self){
@@ -364,12 +457,17 @@ impl Field{
 
 
     pub fn backspace(&mut self){
+        if self.rowlens[self.cursor.row] == 0 {self.set_rowlens()} // quickfix
         if self.cursor.column > 0 { //&& self.text[self.cursor.row].len() > 0{
             self.cursor.column -= 1;
             let bytepos = self.current_bytepos();
             self.text[self.cursor.row].remove(bytepos);
+            dbg!(&self.rowlens, &self.visual_rows_start);
+            self.rowlens[self.cursor.row] -= 1;
+            self.visual_rows_start[self.cursor.row] = self.visual_row_start(self.cursor.row);
         } else {
             self.merge_with_row_above();
+            self.set_visual_rows(self.cursor.row);
         }   
     }
 
@@ -392,7 +490,7 @@ impl Field{
     }
 
     pub fn next(&mut self) {
-        if self.cursor.column < self.text[self.cursor.row].graphemes(true).count() - 0{
+        if self.cursor.column < self.rowlens[self.cursor.row]{
             self.cursor.column += 1;
         } else if self.cursor.row != self.text.len() - 1 {
             self.cursor.column = 0;
@@ -477,10 +575,9 @@ impl Field{
     }
 
     pub fn replace_text(&mut self, newtext: String){
-
-        self.text = newtext.split('\n').map(|s| s.to_string()).collect();
+        self.text   = newtext.split('\n').map(|s| s.to_string()).collect();
         self.cursor = CursorPos::default();
-        
+        self.should_update_linestartvec = true;
     }
 
     pub fn paste(&mut self, paste: String) {
@@ -695,7 +792,7 @@ impl Field{
         }
     }
 
-   fn current_rel_visual_line(&self) -> usize{
+   fn current_rel_visual_line(&mut self) -> usize{
        let vislines = self.visual_row_start(self.cursor.row);
        if vislines.len() == 1 {
            return 0
@@ -708,7 +805,7 @@ impl Field{
         return vislines.len() - 1;
    }
 
-   fn current_abs_visual_line(&self) -> usize {
+   fn current_abs_visual_line(&mut self) -> usize {
        let mut lines = 0;
 
        for i in 0..self.text.len(){
@@ -758,7 +855,6 @@ impl Field{
             } else {
                 onemore.column = self.text[onemore.row].graphemes(true).count();
                 splitvec.push(self.cursor.clone());
-                //dbg!("heyy");
             }
         } else {
             splitvec.push(self.cursor.clone());
@@ -859,7 +955,7 @@ impl Field{
         self.cursor.column = self.text[self.cursor.row].graphemes(true).count() -1;
     }
 
-    fn is_cursor_in_view(&self) -> bool{
+    fn is_cursor_in_view(&mut self) -> bool{
         let current_line = self.current_abs_visual_line() as u16;
         let scroll = self.scroll as u16;
         let winheight = self.window_height as u16;
@@ -880,15 +976,26 @@ where
     let bordercolor = if selected {Color::Red} else {Color::White};
     let style = Style::default().fg(bordercolor);
 
-    self.set_rowlen(area.width);
-    self.set_win_height(area.height);
-    self.align_to_cursor();
+    if area.width -2 != self.rowlen || area.height - 2 != self.window_height{
+        self.set_rowlen(area.width);
+        self.set_win_height(area.height);
+        self.align_to_cursor();
+        self.set_visual_rows(0);
+    }
+
+    if self.should_update_linestartvec{
+        self.set_visual_rows(0);
+        self.should_update_linestartvec = false;
+        self.align_to_cursor();
+    }
 
     let title = if !self.singlebarmode && (selected || self.stickytitle){
         &self.title
     } else {
         ""
     };
+
+    
 
     
     let block = Block::default().borders(Borders::ALL).border_style(style).title(Span::styled(
@@ -899,8 +1006,7 @@ where
     ));
 
     let formatted_text = self.cursorsplit(selected);
-
-    let paragraph = Paragraph::new(formatted_text)
+      let paragraph = Paragraph::new(formatted_text)
         .block(block)
        // .style(Style::default().bg(Color::Rgb(153, 76, 0)).fg(Color::White))
         .alignment(self.text_alignment)
@@ -930,22 +1036,30 @@ where
         match key {
             Alt('g') => self.google_it(),
             Alt('p') => self.debug(),
-            Ctrl('w') => self.delete_previous_word(),
-            Backspace => self.backspace(),
             End => self.goto_end_visual_line(),
             Home => self.goto_start_visual_line(),
-            Delete => self.delete(),
-            Right => self.next(),
-            Left => self.prev(),
             Down => self.visual_down(),
+            Left => self.prev(),
             Up => self.visual_up(),
-            Ctrl('c') => self.set_normal_mode(),
-            Char(c) => self.addchar(c),
-            Enter => self.newline(),
             Ctrl('u') => self.scroll_half_up(),
             Ctrl('d') => self.scroll_half_down(),
-            Paste(paste) => self.paste(paste),
-            _ => {},
+            Ctrl('c') => self.set_normal_mode(),
+            Right => self.next(),
+
+            Char(c) => self.addchar(c),
+            Backspace => self.backspace(),
+
+            key => { // these modify the text 
+                match key {
+                    Ctrl('w') => self.delete_previous_word(),
+                    Delete => self.delete(),
+                    Enter => self.newline(),
+                    Paste(paste) => self.paste(paste),
+                    _ => {},
+                }
+                self.set_visual_rows(0);
+
+            },
         }
     }
     fn normal_keyhandler(&mut self, key: MyKey){
@@ -958,8 +1072,6 @@ where
             Char('e') => self.end_of_next_word(),
             Char('b') => self.start_of_previous_word(),
             Char('Y') => self.copy_right(),
-            Char('D') => self.delete_right_of_cursor(),
-            Char('p') => self.paste_buffer(),
             Char('k') | Up    => self.visual_up(),
             Char('j') | Down  => self.visual_down(),
             Char('h') | Left  => self.prev(),
@@ -968,14 +1080,21 @@ where
             Char('v') => self.set_visual_mode(),
             Ctrl('u') => self.scroll_half_up(),
             Ctrl('d') => self.scroll_half_down(),
-            Char('O') => self.insert_newline_above(),
-            Char('o') => self.insert_newline_below(),
             Char('^') => self.start_of_line(),
             Char('$') => self.end_of_line(),
-            Char('x') => self.delete(),
-       //     Char('m') => self.replace_one_char('n'),
-          //  Ctrl(c) => self.left_char_match(c),
-            _ => {}
+            
+            key => {
+                match key{
+                    Char('D') => self.delete_right_of_cursor(),
+                    Char('p') => self.paste_buffer(),
+                    Char('O') => self.insert_newline_above(),
+                    Char('o') => self.insert_newline_below(),
+                    Char('x') => self.delete(),
+                    _ => {},
+                }
+                self.set_visual_rows(0);
+            },
+
         }
     }
     fn visual_keyhandler(&mut self, key: MyKey){

@@ -3,7 +3,6 @@ use std::fs::File;
 use crate::MyKey;
 use crate::utils::widgets::button::draw_button;
 use crate::utils::widgets::message_box::draw_message;
-use crate::utils::widgets::textinput::Field;
 use crate::utils::widgets::topics::TopicList;
 
 
@@ -324,10 +323,7 @@ impl Importer{
                             thread::spawn(move ||{
                                 tmpclone.import_cards(connclone, tx);
                             });
-                            std::thread::sleep(std::time::Duration::from_millis(5000));
                             self.menu = Menu::ImportAnki(rx);
-                            dbg!("@@@@@@@@@@@@@2");
-
                         }
 
                     },

@@ -16,7 +16,7 @@ use crate::ui::{
     browse::draw_browse,
 };
 
-use crate::{MyType, SpekiPaths};
+use crate::MyType;
 use crate::utils::widgets::textinput::Field;
 use tui::{
     layout::{Constraint, Layout},

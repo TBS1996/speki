@@ -35,7 +35,6 @@ pub struct CardReview{
     pub selection: ReviewSelection,
     pub cardrater: CardRater,
     pub media: MediaContents,
-//    pub select_card: FindCardWidget,
 }
 
 
@@ -95,6 +94,8 @@ impl ForReview{
         let active_increads  = load_active_inc(&conn).unwrap();
 
         for card in thecards{
+            if !card.resolved{continue}
+
             if card.is_complete(){
                 if get_strength(&conn, card.id).unwrap() < 0.9{
                     review_cards.push(card.id);

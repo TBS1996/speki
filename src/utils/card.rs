@@ -1,8 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::Connection;
-use crate::utils::sql::{
-    fetch::{fetch_card, get_skiptime},
-};
+use crate::utils::sql::fetch::{fetch_card, get_skiptime};
 
 
 
@@ -241,9 +239,6 @@ impl Card {
         } else {
             panic!();
         }
-    }
-    pub fn quick_save(self, conn: &Arc<Mutex<Connection>>){
-        save_card(&conn, self);
     }
 
     pub fn save_card(self, conn: &Arc<Mutex<Connection>>) -> CardID{

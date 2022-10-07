@@ -43,7 +43,15 @@ pub struct SpekiPaths{
 
 impl SpekiPaths{
     fn new(mut home: PathBuf) -> Self {
-        home.push(".speki/");
+        home.push(".local/");
+        if !std::path::Path::new(&home).exists(){
+            std::fs::create_dir(&home).unwrap();
+        }
+        home.push("share/");
+        if !std::path::Path::new(&home).exists(){
+            std::fs::create_dir(&home).unwrap();
+        }
+        home.push("speki/");
         if !std::path::Path::new(&home).exists(){
             std::fs::create_dir(&home).unwrap();
         }
@@ -131,7 +139,7 @@ fn run_app(
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
-         if poll(Duration::from_millis(100))? {
+         if poll(Duration::from_millis(102))? {
             let event = event::read()?;
             if let Some(key) = MyKey::from(event){
                 app.handle_key(key);
@@ -174,6 +182,7 @@ pub enum MyKey{
     Alt(char),
     Null,
     Nav(Direction),
+    DeleteCard,
 }
 
 
@@ -186,6 +195,7 @@ pub enum Direction{
 }
 
 
+// TODO make it recursive, so a modifier key can have any other keys inside it
 impl MyKey{
     fn from(event: event::Event) -> Option<MyKey>{
         use event::Event::*;
@@ -213,6 +223,8 @@ impl MyKey{
             if modifiers == event::KeyModifiers::CONTROL{
                 if let KeyCode::Char(c) = key.code{
                     return Some(MyKey::Ctrl(c));
+                } else if let KeyCode::Delete  = key.code{
+                    return Some(MyKey::DeleteCard); 
                 }
             } 
             let key = match key.code{

@@ -62,61 +62,6 @@ pub fn save_card(conn: &Arc<Mutex<Connection>>, card: Card)-> CardID{
     id
 }
 
-pub fn quick_save_pending(conn: &Connection, card: Card){
-    //let time_added = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
-    
-    let frontaudio: Option<String> = card.frontaudio.map(|x| x.into_os_string().into_string().unwrap());
-    let backaudio:  Option<String> = card.backaudio.map (|x| x.into_os_string().into_string().unwrap());
-    let frontimage: Option<String> = card.frontimage.map(|x| x.into_os_string().into_string().unwrap());
-    let backimage:  Option<String> = card.backimage.map (|x| x.into_os_string().into_string().unwrap());
-
-    let cardtype = match card.cardtype{
-        CardType::Pending    => 0,
-        CardType::Unfinished => 1,
-        CardType::Finished   => 2,
-    } as u32;
-
-    conn.execute(
-        "INSERT INTO cards (
-            question, 
-            answer, 
-            frontaudio, 
-            backaudio, 
-            frontimg, 
-            backimg, 
-            cardtype, 
-            suspended, 
-            resolved, 
-            topic, 
-            source
-            ) 
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-
-        params![
-        card.question, 
-        card.answer, 
-        frontaudio,
-        backaudio,
-        frontimage,
-        backimage,
-        cardtype,
-        card.suspended, 
-        card.resolved, 
-        card.topic, 
-        card.source,
-        ],
-    ).unwrap();
-
-    let id = conn.last_insert_rowid() as u32;
-
-      conn.execute(
-        "INSERT INTO pending_cards (id, position) VALUES (?1, ?2)",
-        params![id, 1],
-    ).unwrap();
- }
-
-
-
 
 pub fn update_both(conn: &Arc<Mutex<Connection>>, dependent: u32, dependency: u32) -> Result<()>{
     conn.lock().unwrap().execute(

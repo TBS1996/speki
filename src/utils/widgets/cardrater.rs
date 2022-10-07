@@ -8,7 +8,7 @@ use crate::MyKey;
 use crate::utils::card::RecallGrade;
 
 pub struct CardRater{
-    pub selection: RecallGrade,
+    pub selection: Option<RecallGrade>,
 }
 
 
@@ -16,23 +16,29 @@ pub struct CardRater{
 
 impl CardRater{
     pub fn new()-> CardRater{
-        CardRater { selection: RecallGrade::Decent}
+        CardRater { selection: Some(RecallGrade::Decent)}
     }
 
     fn left(&mut self){
-        self.selection = match &self.selection{
-            RecallGrade::None   => RecallGrade::None,
-            RecallGrade::Failed => RecallGrade::None,
-            RecallGrade::Decent => RecallGrade::Failed,
-            RecallGrade::Easy   => RecallGrade::Decent,
+        let selection = if let Some(selection) = &self.selection{
+            selection
+        } else{return};
+        self.selection = match selection{
+            RecallGrade::None   => Some(RecallGrade::None),
+            RecallGrade::Failed => Some(RecallGrade::None),
+            RecallGrade::Decent => Some(RecallGrade::Failed),
+            RecallGrade::Easy   => Some(RecallGrade::Decent),
         }
     }
     fn right(&mut self){
-        self.selection = match &self.selection{
-            RecallGrade::None   => RecallGrade::Failed,
-            RecallGrade::Failed => RecallGrade::Decent,
-            RecallGrade::Decent => RecallGrade::Easy,
-            RecallGrade::Easy   => RecallGrade::Easy,
+        let selection = if let Some(selection) = &self.selection{
+            selection
+        } else{return};
+        self.selection = match selection{
+            RecallGrade::None   => Some(RecallGrade::Failed),
+            RecallGrade::Failed => Some(RecallGrade::Decent),
+            RecallGrade::Decent => Some(RecallGrade::Easy),
+            RecallGrade::Easy   => Some(RecallGrade::Easy),
         }
     }
 
@@ -52,7 +58,6 @@ impl CardRater{
         B: Backend,
     {
 
-    let selection = Selection::new(&self.selection);
 
     let style = if selected {Style::default().fg(Color::Red)} else {Style::default().fg(Color::White)};
 
@@ -61,7 +66,16 @@ impl CardRater{
         .border_style(style);
     let inner_area = outerblock.inner(area);
     f.render_widget(outerblock, area);
-        
+
+
+
+    let selection = if let Some(selection) = &self.selection{
+        Selection::new(selection)
+    } else {
+        draw_rate(f, inner_area, "continue", selected);
+        return;
+    };
+
      let chunks = Layout::default()
             .direction(Horizontal)
             .constraints([

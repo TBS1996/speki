@@ -257,7 +257,7 @@ pub fn fetch_media(conn: &Arc<Mutex<Connection>>, id: CardID) -> MediaContents{
 
    */
 pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<IncRead>{
-    let extracts = load_extracts(conn, id).unwrap();
+    let extracts    = load_extracts(conn, id).unwrap();
     let cloze_cards = load_cloze_cards(conn, id).unwrap();
     conn
         .lock()
@@ -461,6 +461,17 @@ pub fn get_strength(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<f32> {
     |row| row.get(0),
     )
 }
+
+
+pub fn is_resolved(conn: &Arc<Mutex<Connection>>, id: CardID) -> bool{
+    conn.lock().unwrap().query_row(
+    "select resolved FROM cards WHERE id=?",
+    [id],
+    |row| row.get(0),
+    ).unwrap()
+}
+
+
 
 
 //use crate::utils::card::CardType;

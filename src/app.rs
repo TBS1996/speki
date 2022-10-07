@@ -43,7 +43,7 @@ impl<'a> TabsState<'a> {
 
 use crate::utils::widgets::newchild::AddChildWidget;
 use crate::logic::import::Importer;
-use std::{sync::{Arc, Mutex}, path::PathBuf};
+use std::sync::{Arc, Mutex};
 
 
 
@@ -53,7 +53,6 @@ pub enum PopUp{
     AddChild(AddChildWidget),
 }
 
-use home;
 
 pub struct App<'a> {
     pub should_quit: bool,

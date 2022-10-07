@@ -17,8 +17,10 @@ use crate::utils::widgets::{
     progress_bar::progress_bar,
     cardlist::CardItem,
     mode_status::mode_status, load_cards::MediaContents,
-
 };
+
+
+use crate::utils::sql::fetch::is_resolved;
 
 use crate::{
     app::App,
@@ -240,6 +242,15 @@ where
     let selected = RevSelect::new(&review.selection);
     if showimage{
         draw_front_image(&review.media, area.frontimg);
+    }
+
+    let resolved = is_resolved(conn, review.id);
+    if !resolved && !review.reveal{
+        review.selection = ReviewSelection::Answer;
+    }
+    if !resolved{
+        review.reveal = true;
+        review.cardrater.selection = None;
     }
 
 

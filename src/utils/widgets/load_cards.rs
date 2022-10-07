@@ -380,7 +380,6 @@ fn rename_media(deckname: &String, paths: &SpekiPaths)-> Result<()>{
     let contents = fs::read_to_string(&medianames).unwrap();
     let jsonmodels: serde_json::Value = serde_json::from_str(&contents).unwrap();
     if let serde_json::Value::Object(ob) = jsonmodels{
-        dbg!("Im inside the media contents file now!!");
         for (key, val) in ob{
             let mut val = val.to_string();
             val.pop();
@@ -786,12 +785,11 @@ pub fn unzip_deck(paths: SpekiPaths, deckname: String, transmitter: std::sync::m
 
 
     pub fn import_cards(&mut self, conn: Arc<Mutex<Connection>>, transmitter: std::sync::mpsc::SyncSender<ImportProgress>){
-        use std::time::SystemTime;
         let cardlen = self.cards.len();
         let topic   = self.topics.get_selected_id().unwrap();
 
         for idx in 0..cardlen{
-            dbg!(idx);
+            //dbg!(idx);
 
 
 
@@ -801,11 +799,10 @@ pub fn unzip_deck(paths: SpekiPaths, deckname: String, transmitter: std::sync::m
             let backside  = self.fill_back_view(back_template, idx);
             let media = self.get_media(idx);
 
-            let beforesave = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
         //    dbg!(afterprepare);
 
             if idx % 10 == 0 {
-            let res = transmitter.try_send(ImportProgress{
+            let _ = transmitter.try_send(ImportProgress{
                 curr_index: idx,
                 total: cardlen,
                 });
@@ -821,10 +818,8 @@ pub fn unzip_deck(paths: SpekiPaths, deckname: String, transmitter: std::sync::m
                 .frontaudio(media.frontaudio)
                 .backaudio( media.backaudio)
                 .cardtype(CardType::Pending)
-                .quick_save(&conn);
+                .save_card(&conn);
 
-            let aftersave = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
-            dbg!(aftersave - beforesave);
         }
 
         dbg!("Ive now exited the loop!");

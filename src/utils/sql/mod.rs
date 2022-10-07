@@ -131,7 +131,7 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
         new_topic(&conn, String::from("root"), 0, 0)?;
         Card::new()
             .question("How do you navigate between widgets?".to_string())
-            .answer("Alt+(arrowkey)".to_string())
+            .answer("Alt+(h/j/k/l) ... or alt+arrowkeys".to_string())
             .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
         Card::new()

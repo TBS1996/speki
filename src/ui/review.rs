@@ -13,10 +13,10 @@ use crate::utils::widgets::{
     view_dependents::view_dependents,
     view_dependencies::view_dependencies,
     button::draw_button,
-    message_box::draw_message,
+    //message_box::draw_message,
     progress_bar::progress_bar,
     cardlist::CardItem,
-    mode_status::mode_status, load_cards::MediaContents,
+    mode_status::mode_status, textinput::Field,
 };
 
 
@@ -199,7 +199,9 @@ pub fn draw_done<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
 where
     B: Backend,
 {
-    draw_message(f, area, "Nothing left to review now! Press Alt+r to refresh");
+    let mut field = Field::new();
+    field.replace_text("Nothing left to review now!\n\nYou could import anki cards from the import page, or add new cards manually.\n\nIf you've imported cards, press Alt+r here to refresh".to_string());
+    field.render(f, area, false);
 }
 
 
@@ -237,12 +239,9 @@ where
 {
     
     
-    let showimage = false;//review.media.frontimage.is_some() || review.media.backimage.is_some();
-    let area = review_layout(area, showimage);
+    let area = review_layout(area, false);
     let selected = RevSelect::new(&review.selection);
-    if showimage{
-        draw_front_image(&review.media, area.frontimg);
-    }
+ 
 
     let resolved = is_resolved(conn, review.id);
     if !resolved && !review.reveal{
@@ -270,26 +269,6 @@ where
     view_dependents(f,   review.id, conn, area.dependents, selected.dependents);
 }
 
-
-use viuer::Config;
-fn draw_front_image(media: &MediaContents, area: Rect){
-    if area.width < 6 || area.height < 6{return}
-    let _path = match &media.frontimage{
-        Some(path) => path.clone(),
-        None => return,
-    };
-     let _conf = Config {
-        // set offset
-        x: area.x ,
-        y: area.y as i16,
-        // set dimensions
-        width: Some(area.width.into()),
-        height: Some(area.height.into()),
-        ..Default::default()
-    };
-    //print_from_file(path, &conf).expect("Image printing failed.");
-
-}
 
 
 

@@ -1,6 +1,6 @@
 [package]
 name = "speki"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["Tor Berge torberge@outlook.com"]
 license = "GPL-2.0-only"
@@ -26,7 +26,6 @@ reqwest = {version = "0.11.12", features = ["blocking", "gzip", "stream"]}
 zip = "0.6.2"
 rodio = "0.16.0"
 regex = "1.6.0"
-viuer = "0.6.1"
 sanitize-filename = "0.4.0"
 futures-util = "0.3.24"
 wikipedia = "0.3.4"

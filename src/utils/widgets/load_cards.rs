@@ -980,7 +980,7 @@ pub fn unzip_deck(paths: SpekiPaths, deckname: String, transmitter: std::sync::m
                 self.update_template();
                 self.refresh_template_and_view();
             },
-            (Preview, Char('l')) => {
+            (Preview, Char('l')) | (Preview, Right) => {
                 if self.viewpos < self.notes.len() - 1{
                     self.viewpos += 1;
                     self.refresh_template_and_view();
@@ -988,7 +988,7 @@ pub fn unzip_deck(paths: SpekiPaths, deckname: String, transmitter: std::sync::m
                     self.play_back_audio(handle);
                 }
             },
-            (Preview, Char('h')) => {
+            (Preview, Char('h')) | (Preview, Left) => {
                 if self.viewpos > 0{
                     self.viewpos -= 1;
                     self.refresh_template_and_view();

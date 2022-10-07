@@ -94,7 +94,7 @@ impl ForReview{
         let active_increads  = load_active_inc(&conn).unwrap();
 
         for card in thecards{
-            if !card.resolved{continue}
+            if !card.resolved || card.suspended {continue}
 
             if card.is_complete(){
                 if get_strength(&conn, card.id).unwrap() < 0.9{

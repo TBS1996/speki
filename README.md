@@ -23,7 +23,7 @@ yay -S speki
 
 ### Cargo
 
-Unsure if this will work on windows, but here's the cargo option:
+If you're not using an arch-based distro, you can download speki through cargo itself.
 
 ```bash
 cargo install speki

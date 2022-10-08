@@ -3,7 +3,7 @@
 
 Flashcards for your terminal
 
-![Demo]()
+[![Watch the video](https://github.com/TBS1996/speki/blob/main/media/demogif.GIF?raw=true)](https://webmshare.com/play/dP0Yd)
 
 ## Installation
 

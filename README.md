@@ -143,13 +143,14 @@ move topic below topic under `l`
 
 ## Glossary  
 
-Pending card `Card has not yet been activated`
-Unfinished card `Card does not have an answer`
-Finished card `Card has a proper answer`
-Unresolved card `One or more dependencies of the card is either unfinished or unresolved`
-Incremental reading `A way of converting longform texts into flashcards`
-Suspended card `Card won't show up in the learning process`
-
+  
+Pending card `Card has not yet been activated`  
+Unfinished card `Card does not have an answer`  
+Finished card `Card has a proper answer`  
+Unresolved card `One or more dependencies of the card is either unfinished or unresolved`  
+Incremental reading `A way of converting longform texts into flashcards`  
+Suspended card `Card won't show up in the learning process`  
+  
 
 ## Future plans
 

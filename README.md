@@ -3,7 +3,7 @@
 
 Flashcards for your terminal
 
-[![Watch the video](https://github.com/TBS1996/speki/blob/main/media/demogif.GIF?raw=true)](https://webmshare.com/play/dP0Yd)
+![Demo]()
 
 ## Installation
 
@@ -12,7 +12,7 @@ After installation, run the program by typing  `speki` in your terminal.
 
 ### AUR
 
-Package is simply named "speki" in the aur. Can be found [here](https://aur.archlinux.org/packages/speki). If 
+Package is simply named "speki" in the aur. Can be found [here](https://aur.archlinux.org/packages/speki).  
 
 if you're using yay:
 
@@ -23,13 +23,22 @@ yay -S speki
 
 ### Cargo
 
-If you're not using an arch-based distro, you can download speki through cargo itself.
+Unsure if this will work on windows, but here's the cargo option:
 
 ```bash
 cargo install speki
 ```
 
 You can get cargo by [installing rust](https://www.rust-lang.org/tools/install)
+
+### Ubuntu
+
+If you get the following error on ubuntu: 
+`--- stderr thread 'main' panicked at '"pkg-config" "--libs" "--cflags" "alsa" did not exit successfully: exit status: 1 error: could not find system library 'alsa' required by the 'alsa-sys' crate `
+
+Try installing `libasound2-dev` 
+If you get the same error on another distro, try finding the equivalent to that dependency and installing it.
+
 
 ## Features
 
@@ -71,74 +80,83 @@ If you want to read more about incremental reading, you can check out [this](htt
 
 ### Universal
 
-switch between tabs `tab/shift+tab`  
-switch between widgets: `Alt+(h|j|k|l)`  
-quit: `Alt+q`  
-toggle help menu: `F1`  
+switch between tabs `tab/shift+tab`
+switch between widgets: `Alt+(h|j|k|l)`
+quit: `Alt+q`
+toggle help menu: `F1`
 
 
 ### Per tab
 
 #### Review
 
-skip unfinished card `Alt+s`  
-mark unfinished card as finished `Alt+f`  
-suspend card `Alt+i`  
-mark incremental text as done `Alt+d`  
-skip incremental text `Alt+s`  
-rate recall grade (worst..best) `1..4`  
-add new card as dependency `Alt+Y`  
-add existing card as dependency `Alt+y`  
-add new card as dependent `Alt+T`  
-add existing card as dependent `Alt+t`  
+skip unfinished card `Alt+s`
+mark unfinished card as finished `Alt+f`
+suspend card `Alt+i`
+mark incremental text as done `Alt+d`
+skip incremental text `Alt+s`
+rate recall grade (worst..best) `1..4`
+add new card as dependency `Alt+Y`
+add existing card as dependency `Alt+y`
+add new card as dependent `Alt+T`
+add existing card as dependent `Alt+t`
 
 #### Add card
 
-add card as finished `Alt+f`  
-add card as unfinished `Alt+u`  
+add card as finished `Alt+f`
+add card as unfinished `Alt+u`
 
 #### incremental reading 
 
-add wikipedia page (from sources or extracts list) `Alt+w`  
+add wikipedia page (from sources or extracts list) `Alt+w`
 
 #### import 
 
-download deck that you've revealed description of `Enter`  
-switch front and back template `Alt+s`  
-change which card to preview (on preview button) `h/l`  
+download deck that you've revealed description of `Enter`
+switch front and back template `Alt+s`
+change which card to preview (on preview button) `h/l`
 
 
 ### Per widget
 
 #### Textinput
 
-insert-mode -> normal-mode `Ctrl+c`  
-normal-mode -> insert-mode `i`  
-normal-mode -> visual-mode `v`  
-visual-mode -> normal-mode `Ctrl+c`  
-page-up -> `Ctrl+u`  
-page-down -> `Ctrl+d`  
-extract (from visual mode) `Alt+x`  
-cloze-deletion (from visual mode) `Alt+z`  
-delete right of line (from command mode) `D`  
+insert-mode -> normal-mode `Ctrl+c`
+normal-mode -> insert-mode `i`
+normal-mode -> visual-mode `v`
+visual-mode -> normal-mode `Ctrl+c`
+page-up -> `Ctrl+u`
+page-down -> `Ctrl+d`
+extract (from visual mode) `Alt+x`
+cloze-deletion (from visual mode) `Alt+z`
+delete right of line (from command mode) `D`
 
 #### Topics
 
-move cursor up/down `k/j`  
-move topic up/down `K/J`  
-delete topic `Del`  
-edit topic name `e`  
-add new child topic `a`  
-move topic up the hiarchy `h`  
-move topic below topic under `l`  
+move cursor up/down `k/j`
+move topic up/down `K/J`
+delete topic `Del`
+edit topic name `e`
+add new child topic `a`
+move topic up the hiarchy `h`
+move topic below topic under `l`
+
+## Glossary  
+
+Pending card `Card has not yet been activated`
+Unfinished card `Card does not have an answer`
+Finished card `Card has a proper answer`
+Unresolved card `One or more dependencies of the card is either unfinished or unresolved`
+Incremental reading `A way of converting longform texts into flashcards`
+Suspended card `Card won't show up in the learning process`
 
 
 ## Future plans
 
-* Add tab where you can browse and filter all cards and perform actions on them  
-* Add image suport for terminals that enable this  
-* Machine-Learning algorithm for spaced repetition  
-* Visualize dependency graph  
+* Add tab where you can browse and filter all cards and perform actions on them
+* Add image suport for terminals that enable this
+* Machine-Learning algorithm for spaced repetition
+* Visualize dependency graph
 
 
 

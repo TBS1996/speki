@@ -263,7 +263,7 @@ where
         review.answer.render(f, area.answer, selected.answer);
         review.cardrater.render(f, area.cardrater, selected.cardrater);
     } else {
-        draw_button(f, area.answer,   "Space to reaveal", selected.revealbutton);
+        draw_button(f, area.answer,   "Space to reveal", selected.revealbutton);
     }
     view_dependencies(f, review.id, conn, area.dependencies, selected.dependencies); 
     view_dependents(f,   review.id, conn, area.dependents, selected.dependents);

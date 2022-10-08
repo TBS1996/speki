@@ -3,7 +3,7 @@
 
 Flashcards for your terminal
 
-[![Watch the video](https://github.com/TBS1996/speki/blob/main/media/demogif.GIF?raw=true)](https://webmshare.com/play/dP0Yd)
+[![Watch the video](https://github.com/TBS1996/speki/blob/main/media/demogif.GIF?raw=true)](https://webmshare.com/play/BenP1)
 
 ## Installation
 
@@ -39,6 +39,10 @@ If you get the following error on ubuntu:
 Try installing `libasound2-dev` 
 If you get the same error on another distro, try finding the equivalent to that dependency and installing it.
 
+### Windows  
+
+
+
 
 ## Features
 
@@ -61,10 +65,10 @@ You have the answer to your question, but you don't understand the answer? You c
 For example, if you read this and you want to memorize it:  
 `Alpha particles consist of two protons and two neutrons`
 
-Let's pretend you don't know what protons or neutrons are. If you were to memorize this sentence in that case, the knowledge would be completely useless to you. In speki however, you can add the two following cards as dependencies: 
-`What is a proton?`
-`What is a neutron?`
-
+Let's pretend you don't know what protons or neutrons are. If you were to memorize this sentence in that case, the knowledge would be completely useless to you. In speki however, you can add the two following cards as dependencies:   
+`What is a proton?`  
+`What is a neutron?`  
+  
 If you add them as dependencies, the original card will be marked as **unresolved**, meaning it has unfinished dependencies. When it is unresolved, you will not be asked to answer it, but you'll be asked to learn what a proton and neutron is, when you've figured out their meanings, the alpha particles card will become **resolved** and you can review it as normal. This system ensures that no matter how complicated things you add, you'll never end up memorizing something you don't understand, as long as you mark your dependencies correctly. 
 
 It also works recursively, meaning in the previous example, if you found the answer to "what is a proton" but didn't understand it, that card would itself have dependencies. The dependency-graph could go on indefinitively, but if you keep on the dependencies would eventually all resolve  and you'd finally learn the top-most card. This closely mirrors how your brain works, as everything you know is dependent on other pieces of knowledge. It also eliminates the need for making mind maps, as this is basically a more accurate type of mind maps.
@@ -80,66 +84,66 @@ If you want to read more about incremental reading, you can check out [this](htt
 
 ### Universal
 
-switch between tabs `tab/shift+tab`
-switch between widgets: `Alt+(h|j|k|l)`
-quit: `Alt+q`
-toggle help menu: `F1`
+switch between tabs `tab/shift+tab`  
+switch between widgets: `Alt+(h|j|k|l)`  
+quit: `Alt+q`  
+toggle help menu: `F1`  
 
 
 ### Per tab
 
 #### Review
-
-skip unfinished card `Alt+s`
-mark unfinished card as finished `Alt+f`
-suspend card `Alt+i`
-mark incremental text as done `Alt+d`
-skip incremental text `Alt+s`
-rate recall grade (worst..best) `1..4`
-add new card as dependency `Alt+Y`
-add existing card as dependency `Alt+y`
-add new card as dependent `Alt+T`
-add existing card as dependent `Alt+t`
-
+   
+skip unfinished card `Alt+s`  
+mark unfinished card as finished `Alt+f`  
+suspend card `Alt+i`  
+mark incremental text as done `Alt+d`  
+skip incremental text `Alt+s`  
+rate recall grade (worst..best) `1..4`  
+add new card as dependency `Alt+Y`  
+add existing card as dependency `Alt+y`  
+add new card as dependent `Alt+T`  
+add existing card as dependent `Alt+t`  
+  
 #### Add card
 
-add card as finished `Alt+f`
-add card as unfinished `Alt+u`
+add card as finished `Alt+f`  
+add card as unfinished `Alt+u`  
 
 #### incremental reading 
 
-add wikipedia page (from sources or extracts list) `Alt+w`
+add wikipedia page (from sources or extracts list) `Alt+w`  
 
 #### import 
 
-download deck that you've revealed description of `Enter`
-switch front and back template `Alt+s`
-change which card to preview (on preview button) `h/l`
+download deck that you've revealed description of `Enter`  
+switch front and back template `Alt+s`  
+change which card to preview (on preview button) `h/l`  
 
 
 ### Per widget
 
 #### Textinput
 
-insert-mode -> normal-mode `Ctrl+c`
-normal-mode -> insert-mode `i`
-normal-mode -> visual-mode `v`
-visual-mode -> normal-mode `Ctrl+c`
-page-up -> `Ctrl+u`
-page-down -> `Ctrl+d`
-extract (from visual mode) `Alt+x`
-cloze-deletion (from visual mode) `Alt+z`
-delete right of line (from command mode) `D`
+insert-mode -> normal-mode `Ctrl+c`  
+normal-mode -> insert-mode `i`  
+normal-mode -> visual-mode `v`  
+visual-mode -> normal-mode `Ctrl+c`  
+page-up -> `Ctrl+u`  
+page-down -> `Ctrl+d`  
+extract (from visual mode) `Alt+x`  
+cloze-deletion (from visual mode) `Alt+z`  
+delete right of line (from command mode) `D`  
 
 #### Topics
 
-move cursor up/down `k/j`
-move topic up/down `K/J`
-delete topic `Del`
-edit topic name `e`
-add new child topic `a`
-move topic up the hiarchy `h`
-move topic below topic under `l`
+move cursor up/down `k/j`  
+move topic up/down `K/J`  
+delete topic `Del`  
+edit topic name `e`  
+add new child topic `a`  
+move topic up the hiarchy `h`  
+move topic below topic under `l`  
 
 ## Glossary  
 

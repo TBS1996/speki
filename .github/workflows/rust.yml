@@ -1,6 +1,5 @@
 name: Release
-on:
-  push:
+
     
 env:
   BIN_NAME: speki

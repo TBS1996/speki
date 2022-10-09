@@ -45,6 +45,9 @@ impl SpekiPaths{
     fn new(mut home: PathBuf) -> Self {
         if cfg!(windows){
             home.push(".speki/");
+            if !std::path::Path::new(&home).exists(){
+                std::fs::create_dir(&home).unwrap();
+            }
         } else {
             home.push(".local/");
             if !std::path::Path::new(&home).exists(){

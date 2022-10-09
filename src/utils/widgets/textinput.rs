@@ -1,5 +1,4 @@
 use crate::MyKey;
-use webbrowser;
 use unicode_segmentation::UnicodeSegmentation;
 
 
@@ -644,13 +643,6 @@ impl Field{
         self.cursor.column = self.text[self.cursor.row].graphemes(true).count();
     }
 
-    fn google_it(&self){
-        let text = self.return_text();
-        let text = text.replace(" ", "+");
-        let mut base_url = "http://www.google.com/search?q=".to_string();
-        base_url.push_str(&text);
-        webbrowser::open(&base_url).unwrap_or_else(|_|{});
-    }
 
 
     fn scroll_half_down(&mut self) {
@@ -1033,7 +1025,6 @@ where
     fn insert_keyhandler(&mut self, key: MyKey){
         use MyKey::*;
         match key {
-            Alt('g') => self.google_it(),
             Alt('p') => self.debug(),
             End => self.goto_end_visual_line(),
             Home => self.goto_start_visual_line(),

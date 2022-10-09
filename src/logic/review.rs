@@ -111,6 +111,7 @@ impl ForReview{
         }
 
         unfinished_cards.shuffle(&mut thread_rng());
+        pending_cards.shuffle(&mut thread_rng());
         review_cards.shuffle(&mut thread_rng());
 
         ForReview{

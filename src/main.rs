@@ -43,17 +43,21 @@ pub struct SpekiPaths{
 
 impl SpekiPaths{
     fn new(mut home: PathBuf) -> Self {
-        home.push(".local/");
-        if !std::path::Path::new(&home).exists(){
-            std::fs::create_dir(&home).unwrap();
-        }
-        home.push("share/");
-        if !std::path::Path::new(&home).exists(){
-            std::fs::create_dir(&home).unwrap();
-        }
-        home.push("speki/");
-        if !std::path::Path::new(&home).exists(){
-            std::fs::create_dir(&home).unwrap();
+        if cfg!(windows){
+            home.push(".speki/");
+        } else {
+            home.push(".local/");
+            if !std::path::Path::new(&home).exists(){
+                std::fs::create_dir(&home).unwrap();
+            }
+            home.push("share/");
+            if !std::path::Path::new(&home).exists(){
+                std::fs::create_dir(&home).unwrap();
+            }
+            home.push("speki/");
+            if !std::path::Path::new(&home).exists(){
+                std::fs::create_dir(&home).unwrap();
+            }
         }
         let mut database = home.clone();
         let mut media    = home.clone();

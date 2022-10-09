@@ -32,13 +32,13 @@ tokio = { version = "1.21.2", features = ["full"] }
 webbrowser = "0.8.0"
 home = "0.5.3"
 unicode-segmentation = "1.10.0"
-#rusqlite = "0.27.0"
+rusqlite = "0.27.0"
 
 
 [dependencies.crossterm]
 version = "0.25.0"
 features = ["event-stream"] 
 
-[dependencies.rusqlite]
-version="0.27.0"
-features=["bundled"] 
+#[dependencies.rusqlite]
+#version="0.27.0"
+#features=["bundled"] 

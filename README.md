@@ -7,8 +7,10 @@ Flashcards for your terminal
 
 ## Installation
 
-Currently only two systems to install it outside cloning the repo.
-After installation, run the program by typing  `speki` in your terminal.
+### Windows  
+
+[Click to download binary](https://github.com/TBS1996/speki/releases/download/v0.1.6/speki.exe)
+
 
 ### AUR
 
@@ -38,10 +40,6 @@ If you get the following error on ubuntu:
 
 Try installing `libasound2-dev` 
 If you get the same error on another distro, try finding the equivalent to that dependency and installing it.
-
-### Windows  
-
-
 
 
 ## Features

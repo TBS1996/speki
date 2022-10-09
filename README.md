@@ -27,12 +27,13 @@ yay -S speki
 
 ### Cargo
 
-Unsure if this will work on windows, but here's the cargo option:
-
+For something that will work on any distro as long as you have cargo installed, try this:  
+  
 ```bash
 cargo install speki
 ```
-
+   
+Note that this won't install all the necessary dependencies, for example look at the note on ubuntu right below.
 You can get cargo by [installing rust](https://www.rust-lang.org/tools/install)
 
 ### Ubuntu

@@ -1,376 +1,369 @@
-use std::sync::{Arc, Mutex};
+use crate::{
+    logic::review::ReviewList,
+    utils::{
+        incread::IncListItem,
+        widgets::{
+            button::draw_button,
+            cardlist::CardItem,
+            mode_status::mode_status,
+            //message_box::draw_message,
+            progress_bar::progress_bar,
+            textinput::Field,
+            view_dependencies::view_dependencies,
+            //   card_status::card_status,
+            view_dependents::view_dependents,
+        }, misc::centered_rect,
+    },
+};
 use rusqlite::Connection;
+use std::sync::{Arc, Mutex};
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction::{Vertical, Horizontal}, Layout, Rect},
-    style::{Color, Style, Modifier},
-    widgets::{Block, Borders, ListItem, List},
+    layout::{
+        Constraint,
+        Direction::{Horizontal, Vertical},
+        Layout, Rect,
+    },
+    style::{Color, Modifier, Style},
     text::Spans,
+    widgets::{Block, Borders, List, ListItem, Clear},
     Frame,
 };
-use crate::utils::widgets::{
- //   card_status::card_status,
-    view_dependents::view_dependents,
-    view_dependencies::view_dependencies,
-    button::draw_button,
-    //message_box::draw_message,
-    progress_bar::progress_bar,
-    cardlist::CardItem,
-    mode_status::mode_status, textinput::Field,
-};
-
 
 use crate::utils::sql::fetch::is_resolved;
 
 use crate::{
-    app::App,
     logic::review::{
-        ReviewMode,
-        ReviewSelection,
-        CardReview,
-        UnfCard,
-        IncMode,
-        UnfSelection,
-        IncSelection,
+        CardReview, IncMode, IncSelection, ReviewMode, ReviewSelection, UnfCard, UnfSelection,
     },
-    utils::{
-        statelist::StatefulList,
-        incread::IncListItem,
-        misc::modecolor,
-    }
+    utils::{misc::modecolor, statelist::StatefulList},
 };
 
+impl ReviewList {
+    pub fn render<B>(&mut self, f: &mut Frame<B>, area: Rect, conn: &Arc<Mutex<Connection>>)
+    where
+        B: Backend,
+    {
+        let chunks = Layout::default()
+            .direction(Vertical)
+            .constraints([Constraint::Max(4), Constraint::Ratio(7, 10)].as_ref())
+            .split(area);
 
-//use crate::utils::widgets::find_card::draw_find_card;
+        let (progbar, mut area) = (chunks[0], chunks[1]);
 
-pub fn main_review<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+        let chunks = Layout::default()
+            .direction(Vertical)
+            .constraints([Constraint::Min(1), Constraint::Ratio(7, 10)].as_ref())
+            .split(progbar);
 
-    let chunks = Layout::default()
-        .direction(Vertical)
-        .constraints(
-            [
-            Constraint::Max(4),
-            Constraint::Ratio(7, 10),
-            ]
-            .as_ref(),
-            )
-        .split(area);
+        let (status, progbar) = (chunks[0], chunks[1]);
 
-    let (progbar, area) = (chunks[0], chunks[1]);
+        mode_status(f, status, &self.mode, &self.for_review, &self.start_qty);
+        self.draw_progress_bar(f, progbar);
 
-    let chunks = Layout::default()
-        .direction(Vertical)
-        .constraints(
-            [
-            Constraint::Min(1),
-            Constraint::Ratio(7, 10),
-            ]
-            .as_ref(),
-            )
-        .split(progbar);
+        match &mut self.mode {
+            ReviewMode::Done => Self::draw_done(f, area),
+            ReviewMode::Review(review) => review.render(f, conn, area),
+            ReviewMode::Pending(pending) => pending.render(f, conn, area),
+            ReviewMode::Unfinished(unfinished) => unfinished.render(f, conn, area),
+            ReviewMode::IncRead(inc) => inc.render(f, conn, area),
+        }
 
-    let (status, progbar) = (chunks[0], chunks[1]);
+    if let Some(popup) = &mut self.popup{
+        if area.height > 10 && area.width > 10{
+            area = centered_rect(80, 70, area);
+            f.render_widget(Clear, area); //this clears out the background
+            area.x += 2;
+            area.y += 2;
+            area.height -= 4;
+            area.width -= 4;
+        }
+        
 
-
-
-    mode_status(f, status, &app.review.mode, &app.review.for_review, &app.review.start_qty);
-    draw_progress_bar(f, app, progbar);
-
-
-    match &mut app.review.mode{
-        ReviewMode::Done                   => draw_done(f, app, area),
-        ReviewMode::Review(review)         => draw_review(f, &app.conn, review, area),
-        ReviewMode::Pending(pending)       => draw_review(f, &app.conn, pending, area),
-        ReviewMode::Unfinished(unfinished) => draw_unfinished(f, &app.conn, unfinished, area),
-        ReviewMode::IncRead(inc)           => draw_incread(f, &app.conn,  inc, area),
+        match popup{
+            crate::logic::review::PopUp::AddChild(child) => child.render(f, area),
+            crate::logic::review::PopUp::CardSelecter(cardselecter) => cardselecter.render(f, area),
+        }
     }
 
-}
-
-pub fn draw_unfinished<B>(f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, unfinished: &mut UnfCard, area: Rect)
-where
-    B: Backend,
-{
-
-    let area = unfinished_layout(area);
-    let selected = UnfSelect::new(&unfinished.selection);
-    unfinished.question.set_rowlen(area.question.width);
-    unfinished.answer.set_rowlen(area.answer.width);
-    unfinished.question.set_win_height(area.question.height);
-    unfinished.answer.set_win_height(area.answer.height);
-    view_dependencies(f, unfinished.id, conn, area.dependencies,selected.dependencies); 
-    view_dependents(f,   unfinished.id, conn, area.dependents, selected.dependents);
-    unfinished.question.render(f, area.question,  selected.question);
-    unfinished.answer.render(f,   area.answer,    selected.answer);
-}
-
-
-pub fn draw_incread<B>(f: &mut Frame<B>, _conn: &Arc<Mutex<Connection>>, inc: &mut IncMode, area: Rect)
-where
-    B: Backend,
-{
-
-    let area = inc_layout(area);
-    let selected = IncSelect::new(&inc.selection);
-
-//    _app.review.incread.unwrap().source.draw_field(f, editing, "hey", Alignment::Left, false);
-
-
-    inc.source.source.set_rowlen(area.source.width);
-    inc.source.source.set_win_height(area.source.height);
-
-
-    inc.source.source.render(f, area.source, selected.source);
-    let clozes: StatefulList<CardItem> = inc.source.clozes.clone();
-    let list = {
-        let bordercolor = if selected.clozes {Color::Red} else {Color::White};
-        let style = Style::default().fg(bordercolor);
-
-        let items: Vec<ListItem> = clozes.items.iter().map(|card| {
-            let lines = vec![Spans::from(card.question.clone())];
-            ListItem::new(lines)
-                .style(Style::default())})
-            .collect();
-        
-        let items = List::new(items)
-            .block(Block::default()
-                   .borders(Borders::ALL)
-                   .border_style(style)
-                   .title("Clozes"));
-        
-        if selected.clozes{
-        items
-            .highlight_style(
-                Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        )}
-        else {items}
-    };
-    let mut state = clozes.state;
-    f.render_stateful_widget(list, area.clozes, &mut state);
-
-
-    let clozes: StatefulList<IncListItem> = inc.source.extracts.clone();
-    let list = {
-        let bordercolor = if selected.extracts {Color::Red} else {Color::White};
-        let style = Style::default().fg(bordercolor);
-
-        let items: Vec<ListItem> = clozes.items.iter().map(|card| {
-            let lines = vec![Spans::from(card.text.clone())];
-            ListItem::new(lines)
-                .style(Style::default())})
-            .collect();
-        
-        let items = List::new(items)
-            .block(Block::default()
-                   .borders(Borders::ALL)
-                   .border_style(style)
-                   .title("Extracts"));
-        
-        if selected.extracts{
-        items
-            .highlight_style(
-                Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        )}
-        else {items}
-    };
-    let mut state = clozes.state;
-    f.render_stateful_widget(list, area.extracts, &mut state);
-
-
-//draw_button(f, area.next,   "next", selected.skip);
-//draw_button(f, area.finish, "done", selected.complete);
-
-}
-
-
-
-
-
-
-
-pub fn draw_done<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
-where
-    B: Backend,
-{
-    let mut field = Field::new();
-    field.replace_text("Nothing left to review now!\n\nYou could import anki cards from the import page, or add new cards manually.\n\nIf you've imported cards, press Alt+r here to refresh".to_string());
-    field.render(f, area, false);
-}
-
-
-
-
-pub fn draw_progress_bar<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
-    
-
-    let target = match app.review.mode{
-        ReviewMode::Done          => return,
-        ReviewMode::Review(_)     => app.review.start_qty.fin_qty,
-        ReviewMode::Pending(_)    => app.review.start_qty.pending_qty,
-        ReviewMode::IncRead(_)    => app.review.start_qty.inc_qty,
-        ReviewMode::Unfinished(_) => app.review.start_qty.unf_qty,
-    } as u32;
-
-    let current = match app.review.mode{
-        ReviewMode::Done          => 0,
-        ReviewMode::Review(_)     => (app.review.start_qty.fin_qty as u32) - (app.review.for_review.review_cards.len() as u32),
-        ReviewMode::Pending(_)    => (app.review.start_qty.pending_qty as u32) - (app.review.for_review.pending_cards.len() as u32),
-        ReviewMode::IncRead(_)    => (app.review.start_qty.inc_qty as u32) - (app.review.for_review.active_increads.len() as u32),
-        ReviewMode::Unfinished(_) => (app.review.start_qty.unf_qty as u32) - (app.review.for_review.unfinished_cards.len() as u32),
-    };
-
-    let color = modecolor(&app.review.mode);
-    progress_bar(f, current, target, color, area, "progress");
-}
-
-pub fn draw_review<B>(f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, review: &mut CardReview, area: Rect)
-where
-    B: Backend,
-{
-    
-    
-    let area = review_layout(area, false);
-    let selected = RevSelect::new(&review.selection);
- 
-
-    let resolved = is_resolved(conn, review.id);
-    if !resolved && !review.reveal{
-        review.selection = ReviewSelection::Answer;
     }
-    if !resolved{
-        review.reveal = true;
-        review.cardrater.selection = None;
+    pub fn draw_done<B>(f: &mut Frame<B>, area: Rect)
+    where
+        B: Backend,
+    {
+        let mut field = Field::new();
+        field.replace_text("Nothing left to review now!\n\nYou could import anki cards from the import page, or add new cards manually.\n\nIf you've imported cards, press Alt+r here to refresh".to_string());
+        field.render(f, area, false);
     }
 
+    pub fn draw_progress_bar<B>(&mut self, f: &mut Frame<B>, area: Rect)
+    where
+        B: Backend,
+    {
+        let target = match self.mode {
+            ReviewMode::Done => return,
+            ReviewMode::Review(_) => self.start_qty.fin_qty,
+            ReviewMode::Pending(_) => self.start_qty.pending_qty,
+            ReviewMode::IncRead(_) => self.start_qty.inc_qty,
+            ReviewMode::Unfinished(_) => self.start_qty.unf_qty,
+        } as u32;
 
-    review.question.set_rowlen(area.question.width);
-    review.answer.set_rowlen(area.answer.width);
-    review.question.set_win_height(area.question.height);
-    review.answer.set_win_height(area.answer.height);
+        let current = match self.mode {
+            ReviewMode::Done => 0,
+            ReviewMode::Review(_) => {
+                (self.start_qty.fin_qty as u32) - (self.for_review.review_cards.len() as u32)
+            }
+            ReviewMode::Pending(_) => {
+                (self.start_qty.pending_qty as u32) - (self.for_review.pending_cards.len() as u32)
+            }
+            ReviewMode::IncRead(_) => {
+                (self.start_qty.inc_qty as u32) - (self.for_review.active_increads.len() as u32)
+            }
+            ReviewMode::Unfinished(_) => {
+                (self.start_qty.unf_qty as u32) - (self.for_review.unfinished_cards.len() as u32)
+            }
+        };
 
-    review.question.render(f, area.question, selected.question);
-    if review.reveal{
-        review.answer.render(f, area.answer, selected.answer);
-        review.cardrater.render(f, area.cardrater, selected.cardrater);
-    } else {
-        draw_button(f, area.answer,   "Space to reveal", selected.revealbutton);
+        let color = modecolor(&self.mode);
+        progress_bar(f, current, target, color, area, "progress");
     }
-    view_dependencies(f, review.id, conn, area.dependencies, selected.dependencies); 
-    view_dependents(f,   review.id, conn, area.dependents, selected.dependents);
 }
 
+impl UnfCard {
+    pub fn render<B>(&mut self, f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, area: Rect)
+    where
+        B: Backend,
+    {
+        let area = unfinished_layout(area);
+        let selected = UnfSelect::new(&self.selection);
+        self.question.set_rowlen(area.question.width);
+        self.answer.set_rowlen(area.answer.width);
+        self.question.set_win_height(area.question.height);
+        self.answer.set_win_height(area.answer.height);
+        view_dependencies(f, self.id, conn, area.dependencies, selected.dependencies);
+        view_dependents(f, self.id, conn, area.dependents, selected.dependents);
+        self.question.render(f, area.question, selected.question);
+        self.answer.render(f, area.answer, selected.answer);
+    }
+}
 
+impl IncMode {
+    pub fn render<B>(&mut self, f: &mut Frame<B>, _conn: &Arc<Mutex<Connection>>, area: Rect)
+    where
+        B: Backend,
+    {
+        let area = inc_layout(area);
+        let selected = IncSelect::new(&self.selection);
 
+        self.source.source.set_rowlen(area.source.width);
+        self.source.source.set_win_height(area.source.height);
 
-struct IncSelect{
-    source:   bool,
+        self.source.source.render(f, area.source, selected.source);
+        let clozes: StatefulList<CardItem> = self.source.clozes.clone();
+        let list = {
+            let bordercolor = if selected.clozes {
+                Color::Red
+            } else {
+                Color::White
+            };
+            let style = Style::default().fg(bordercolor);
+
+            let items: Vec<ListItem> = clozes
+                .items
+                .iter()
+                .map(|card| {
+                    let lines = vec![Spans::from(card.question.clone())];
+                    ListItem::new(lines).style(Style::default())
+                })
+                .collect();
+
+            let items = List::new(items).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(style)
+                    .title("Clozes"),
+            );
+
+            if selected.clozes {
+                items.highlight_style(
+                    Style::default()
+                        .bg(Color::DarkGray)
+                        .add_modifier(Modifier::BOLD),
+                )
+            } else {
+                items
+            }
+        };
+        let mut state = clozes.state;
+        f.render_stateful_widget(list, area.clozes, &mut state);
+
+        let clozes: StatefulList<IncListItem> = self.source.extracts.clone();
+        let list = {
+            let bordercolor = if selected.extracts {
+                Color::Red
+            } else {
+                Color::White
+            };
+            let style = Style::default().fg(bordercolor);
+
+            let items: Vec<ListItem> = clozes
+                .items
+                .iter()
+                .map(|card| {
+                    let lines = vec![Spans::from(card.text.clone())];
+                    ListItem::new(lines).style(Style::default())
+                })
+                .collect();
+
+            let items = List::new(items).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(style)
+                    .title("Extracts"),
+            );
+
+            if selected.extracts {
+                items.highlight_style(
+                    Style::default()
+                        .bg(Color::DarkGray)
+                        .add_modifier(Modifier::BOLD),
+                )
+            } else {
+                items
+            }
+        };
+        let mut state = clozes.state;
+        f.render_stateful_widget(list, area.extracts, &mut state);
+    }
+}
+
+impl CardReview {
+    pub fn render<B>(&mut self, f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, area: Rect)
+    where
+        B: Backend,
+    {
+        let area = review_layout(area, false);
+        let selected = RevSelect::new(&self.selection);
+
+        let resolved = is_resolved(conn, self.id);
+        if !resolved && !self.reveal {
+            self.selection = ReviewSelection::Answer;
+        }
+        if !resolved {
+            self.reveal = true;
+            self.cardrater.selection = None;
+        }
+
+        self.question.set_rowlen(area.question.width);
+        self.answer.set_rowlen(area.answer.width);
+        self.question.set_win_height(area.question.height);
+        self.answer.set_win_height(area.answer.height);
+
+        self.question.render(f, area.question, selected.question);
+        if self.reveal {
+            self.answer.render(f, area.answer, selected.answer);
+            self.cardrater.render(f, area.cardrater, selected.cardrater);
+        } else {
+            draw_button(f, area.answer, "Space to reveal", selected.revealbutton);
+        }
+        view_dependencies(f, self.id, conn, area.dependencies, selected.dependencies);
+        view_dependents(f, self.id, conn, area.dependents, selected.dependents);
+    }
+}
+
+struct IncSelect {
+    source: bool,
     extracts: bool,
-    clozes:   bool,
+    clozes: bool,
 }
 
-impl IncSelect{
-    fn new(choice: &IncSelection) -> Self{
+impl IncSelect {
+    fn new(choice: &IncSelection) -> Self {
         use IncSelection::*;
 
-        let mut sel = IncSelect{
+        let mut sel = IncSelect {
             source: false,
             extracts: false,
             clozes: false,
         };
 
-        match choice{
+        match choice {
             Source => sel.source = true,
             Extracts => sel.extracts = true,
-            Clozes   => sel.clozes = true,
+            Clozes => sel.clozes = true,
         }
         sel
     }
 }
-struct RevSelect{
+struct RevSelect {
     question: bool,
     answer: bool,
     dependents: bool,
     dependencies: bool,
     revealbutton: bool,
     cardrater: bool,
-
 }
 
-impl RevSelect{
-    fn new(choice: &ReviewSelection) -> Self{
+impl RevSelect {
+    fn new(choice: &ReviewSelection) -> Self {
         use ReviewSelection::*;
 
-        let mut sel = RevSelect{
-            question: false, 
-            answer: false, 
+        let mut sel = RevSelect {
+            question: false,
+            answer: false,
             dependents: false,
-            dependencies: false, 
+            dependencies: false,
             revealbutton: false,
             cardrater: false,
         };
 
-        match choice{
-            Question     => sel.question = true,
-            Answer       => sel.answer = true,
+        match choice {
+            Question => sel.question = true,
+            Answer => sel.answer = true,
             Dependencies => sel.dependencies = true,
-            Dependents   => sel.dependents = true,
+            Dependents => sel.dependents = true,
             RevealButton => sel.revealbutton = true,
-            CardRater    => sel.cardrater = true,
+            CardRater => sel.cardrater = true,
         }
         sel
     }
 }
 
-
-struct UnfSelect{
+struct UnfSelect {
     question: bool,
     answer: bool,
     dependents: bool,
     dependencies: bool,
 }
 
-impl UnfSelect{
-    fn new(choice: &UnfSelection) -> Self{
+impl UnfSelect {
+    fn new(choice: &UnfSelection) -> Self {
         use UnfSelection::*;
 
-        let mut sel = UnfSelect{
-            question: false, 
-            answer:    false, 
-            dependents:   false,
-            dependencies: false, 
+        let mut sel = UnfSelect {
+            question: false,
+            answer: false,
+            dependents: false,
+            dependencies: false,
         };
 
-        match choice{
-            Question     => sel.question = true,
-            Answer       => sel.answer = true,
+        match choice {
+            Question => sel.question = true,
+            Answer => sel.answer = true,
             Dependencies => sel.dependencies = true,
-            Dependents   => sel.dependents = true,
+            Dependents => sel.dependents = true,
         }
         sel
     }
 }
 
-
-
-
-
-struct DrawUnf{
+struct DrawUnf {
     question: Rect,
     answer: Rect,
     dependencies: Rect,
     dependents: Rect,
 }
-struct DrawReview{
+struct DrawReview {
     question: Rect,
     answer: Rect,
     frontimg: Rect,
@@ -380,57 +373,42 @@ struct DrawReview{
     cardrater: Rect,
 }
 
-struct DrawInc{
+struct DrawInc {
     source: Rect,
     extracts: Rect,
     clozes: Rect,
 }
 
-
 fn inc_layout(area: Rect) -> DrawInc {
-    
     let mainvec = Layout::default()
         .direction(Horizontal)
-        .constraints(
-            [
-            Constraint::Ratio(3, 4),
-            Constraint::Ratio(1, 4),
-            ]
-            .as_ref(),
-            )
+        .constraints([Constraint::Ratio(3, 4), Constraint::Ratio(1, 4)].as_ref())
         .split(area);
-    
+
     let (editing, rightside) = (mainvec[0], mainvec[1]);
     let rightvec = Layout::default()
         .direction(Vertical)
         .constraints(
             [
-            Constraint::Ratio(1, 9),
-            Constraint::Ratio(4, 9),
-            Constraint::Ratio(4, 9),
+                Constraint::Ratio(1, 9),
+                Constraint::Ratio(4, 9),
+                Constraint::Ratio(4, 9),
             ]
             .as_ref(),
-            )
+        )
         .split(rightside);
 
-    DrawInc { 
+    DrawInc {
         source: editing,
         extracts: rightvec[1],
         clozes: rightvec[2],
     }
 }
 
-
 fn unfinished_layout(area: Rect) -> DrawUnf {
-  
     let leftright = Layout::default()
         .direction(Horizontal)
-        .constraints(
-            [
-            Constraint::Ratio(2, 3),
-            Constraint::Ratio(1, 3),
-            ]
-                     .as_ref(),)
+        .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
         .split(area);
 
     let left = leftright[0];
@@ -438,69 +416,37 @@ fn unfinished_layout(area: Rect) -> DrawUnf {
 
     let rightcolumn = Layout::default()
         .direction(Vertical)
-        .constraints([Constraint::Ratio(1, 2),Constraint::Ratio(1, 2)]
-                     .as_ref(),)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
         .split(right);
 
     let leftcolumn = Layout::default()
-        .constraints([Constraint::Ratio(1, 2),Constraint::Ratio(1, 2)]
-                     .as_ref(),)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
         .split(left);
 
-
-
-
-    DrawUnf{
+    DrawUnf {
         question: leftcolumn[0],
-        answer:   leftcolumn[1],
+        answer: leftcolumn[1],
         dependents: rightcolumn[0],
         dependencies: rightcolumn[1],
-
-
     }
-
 }
 
-
-fn review_layout(area: Rect, showimage: bool) -> DrawReview{
-   
-
-
+fn review_layout(area: Rect, showimage: bool) -> DrawReview {
     let updown = Layout::default()
         .direction(Vertical)
-        .constraints(
-            [
-            Constraint::Ratio(9, 10),
-            Constraint::Min(5),
-            ]
-            .as_ref(),
-            )
+        .constraints([Constraint::Ratio(9, 10), Constraint::Min(5)].as_ref())
         .split(area);
 
     let (up, down) = (updown[0], updown[1]);
 
     let leftright = Layout::default()
         .direction(Horizontal)
-        .constraints(
-            [
-            Constraint::Ratio(2, 3),
-            Constraint::Ratio(1, 3),
-            ]
-            .as_ref(),
-            )
+        .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
         .split(up);
-
-
 
     let bottomleftright = Layout::default()
         .direction(Horizontal)
-        .constraints(
-            [
-            Constraint::Ratio(2, 3),
-            Constraint::Ratio(1, 3),
-            ]
-            .as_ref(),
-            )
+        .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
         .split(down);
 
     let left = leftright[0];
@@ -508,23 +454,11 @@ fn review_layout(area: Rect, showimage: bool) -> DrawReview{
 
     let rightcolumn = Layout::default()
         .direction(Vertical)
-        .constraints(
-            [
-            Constraint::Ratio(1, 2),
-            Constraint::Ratio(1, 2)
-            ]
-            .as_ref(),
-            )
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
         .split(right);
 
     let leftcolumn = Layout::default()
-        .constraints(
-            [
-            Constraint::Ratio(1, 2),
-            Constraint::Ratio(1, 2),
-            ]
-            .as_ref(),
-            )
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
         .split(left);
 
     let question;
@@ -532,28 +466,15 @@ fn review_layout(area: Rect, showimage: bool) -> DrawReview{
     let frontimg;
     let backimg;
 
-
-    if showimage{
+    if showimage {
         let (up, down) = (leftcolumn[0], leftcolumn[1]);
         let upper = Layout::default()
-                .direction(Horizontal)
-                .constraints(
-                    [
-                    Constraint::Ratio(1, 2),
-                    Constraint::Ratio(1, 2),
-                    ]
-                .as_ref(),
-                )
+            .direction(Horizontal)
+            .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
             .split(up);
         let downer = Layout::default()
-                .direction(Horizontal)
-                .constraints(
-                    [
-                    Constraint::Ratio(1, 2),
-                    Constraint::Ratio(1, 2),
-                    ]
-                .as_ref(),
-                )
+            .direction(Horizontal)
+            .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
             .split(down);
         (question, frontimg) = (upper[0], upper[1]);
         (answer, backimg) = (downer[0], downer[1]);
@@ -564,16 +485,13 @@ fn review_layout(area: Rect, showimage: bool) -> DrawReview{
         backimg = question;
     }
 
-   
-
     DrawReview {
         question,
         answer,
-        frontimg, 
-        backimg, 
+        frontimg,
+        backimg,
         dependents: rightcolumn[0],
         dependencies: rightcolumn[1],
         cardrater: bottomleftright[0],
     }
-
 }

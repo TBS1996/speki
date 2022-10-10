@@ -7,15 +7,10 @@ use crate::{
         browse::Browse,
         add_card::{NewCard, DepState}, incread::MainInc,
     }, 
-    utils::widgets::find_card::FindCardWidget, SpekiPaths};
+    SpekiPaths};
 
-use crate::events::{
-    review::review_event,
-    browse::browse_event,
-    add_card::add_card_event,
-};
+use crate::events::browse::browse_event;
 
-use crate::utils::misc::PopUpStatus;
 
 pub struct TabsState<'a> {
     pub titles: Vec<&'a str>,
@@ -41,17 +36,11 @@ impl<'a> TabsState<'a> {
 }
 
 
-use crate::utils::widgets::newchild::AddChildWidget;
 use crate::logic::import::Importer;
 use std::sync::{Arc, Mutex};
 
 
 
-pub enum PopUp{
-    None,
-    CardSelecter(FindCardWidget),
-    AddChild(AddChildWidget),
-}
 
 
 pub struct App<'a> {
@@ -63,7 +52,6 @@ pub struct App<'a> {
     pub browse: Browse,
     pub incread: MainInc,
     pub importer: Importer,
-    pub popup: PopUp,
     pub audio: rodio::OutputStream,
     pub audio_handle: rodio::OutputStreamHandle,
     pub display_help: bool,
@@ -79,7 +67,6 @@ impl<'a> App<'a> {
         let browse  = Browse::new(&conn);
         let addcards =  NewCard::new(&conn, DepState::None);
         let incread = MainInc::new(&conn);
-        let popup = PopUp::None;
         let importer = Importer::new(&conn);
 
         App {
@@ -91,7 +78,6 @@ impl<'a> App<'a> {
             browse,
             incread,
             importer,
-            popup,
             audio,
             audio_handle,
             display_help,
@@ -109,50 +95,24 @@ impl<'a> App<'a> {
     }
 
 
-    pub fn handle_key(&mut self, key: MyKey) {
-        use PopUp::*;
-
-
-        if let MyKey::Alt('q') = key{
-            self.should_quit = true;
-            return;
-        }
-
-        match &mut self.popup{
-            None => {
-                match key {
-                    MyKey::Tab => self.on_right(),
-                    MyKey::BackTab => self.on_left(),
-                    MyKey::F(1) => self.display_help = !self.display_help,
-                    _ => {},
-                };
-                 
-
-                match self.tabs.index {
-                    0 => review_event(self,   key),
-                    1 => add_card_event(self, key),
-                    4 => browse_event(self,   key),
-                    2 => self.incread.keyhandler(&self.conn, key),
-                    3 => self.importer.keyhandler(&self.conn, key, &self.audio_handle, &self.paths),
-                    _ => {},
-                }
-            },
-            AddChild(addchild) => {
-                addchild.keyhandler(&self.conn, key);
-                if let PopUpStatus::Finished = addchild.status{
-                    self.popup = None;
-                    return;
-                }
-            },
-            CardSelecter(findcard) => {
-                findcard.keyhandler(&self.conn, key);
-                if let PopUpStatus::Finished = findcard.status{
-                    self.popup = None;
-                    return;
-                }
-            },
+    pub fn keyhandler(&mut self, key: MyKey) {
+        match key {
+            MyKey::Tab => self.on_right(),
+            MyKey::BackTab => self.on_left(),
+            MyKey::F(1) => self.display_help = !self.display_help,
+            MyKey::Alt('q') => self.should_quit = true,
+            _ => {},
+        };
+        match self.tabs.index {
+            0 => self.review.keyhandler(&self.conn, key, &self.audio_handle),
+            1 => self.add_card.keyhandler(&self.conn, key),
+            2 => self.incread.keyhandler(&self.conn, key),
+            3 => self.importer.keyhandler(&self.conn, key, &self.audio_handle, &self.paths),
+            4 => browse_event(self,   key),
+            _ => {},
         }
     }
 }
 
 use crate::MyKey;
+

@@ -1,56 +1,36 @@
-pub mod review;
 pub mod add_card;
 pub mod browse;
 pub mod import;
 pub mod incread;
+pub mod review;
 
 use crate::app::App;
-use crate::utils::widgets::find_card::draw_find_card;
 
+use crate::ui::browse::draw_browse;
 
-use crate::app::PopUp;
-
-use crate::ui::{
-    review::main_review,
-    add_card::draw_add_card,
-    browse::draw_browse,
-};
-
-use crate::MyType;
 use crate::utils::widgets::textinput::Field;
+use crate::MyType;
 use tui::{
     layout::{Constraint, Layout},
     style::{Color, Style},
     text::{Span, Spans},
-    widgets::{
-        Block, Borders, Tabs},
+    widgets::{Block, Borders, Tabs},
     Frame,
 };
 
-
-
 pub fn draw(f: &mut Frame<MyType>, app: &mut App) {
-
     let mut area = f.size();
-    if app.display_help{
+    if app.display_help {
         area = render_help(f, app, area);
     }
 
-    
     let chunks = Layout::default()
-        .constraints(
-            [
-            Constraint::Length(3), 
-            Constraint::Min(0),
-            ]
-            .as_ref())
+        .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
         .split(area);
 
+    let block = Block::default().style(Style::default().bg(Color::Rgb(20, 31, 31)));
 
-    let block = Block::default()
-        .style(Style::default().bg(Color::Rgb(20, 31, 31)));
-
-    f.render_widget(block, f.size()); 
+    f.render_widget(block, f.size());
 
     let titles = app
         .tabs
@@ -61,54 +41,37 @@ pub fn draw(f: &mut Frame<MyType>, app: &mut App) {
 
     let tabs = Tabs::new(titles)
         .block(Block::default().borders(Borders::ALL))
-      //  .style(Style::default().bg(Color::Blue))
+        //  .style(Style::default().bg(Color::Blue))
         .highlight_style(Style::default().fg(Color::Yellow))
         .select(app.tabs.index);
 
-
-    match &mut app.popup{
-        PopUp::CardSelecter(cardfinder) => draw_find_card(f, cardfinder, chunks[1]),
-        PopUp::AddChild(addchild) => addchild.render(f,  chunks[1]),
-        PopUp::None => {
-            f.render_widget(tabs, chunks[0]);
-            match app.tabs.index {
-                0 => main_review(f,   app, chunks[1]),
-                1 => draw_add_card(f, app, chunks[1]),
-                2 => app.incread.render(f,  chunks[1]),
-                3 => app.importer.render(&app.conn, f, chunks[1], &app.paths),
-                4 => draw_browse(f,   app, chunks[1]),
-                //3 => app.debug.render(f, chunks[1]),
-                _ => {},
-            };
-        },
+    f.render_widget(tabs, chunks[0]);
+    match app.tabs.index {
+        0 => app.review.render(f, chunks[1], &app.conn),
+        1 => app.add_card.render(f, chunks[1]),
+        2 => app.incread.render(f, chunks[1]),
+        3 => app.importer.render(&app.conn, f, chunks[1], &app.paths),
+        4 => draw_browse(f, app, chunks[1]),
+        //3 => app.debug.render(f, chunks[1]),
+        _ => {}
     };
 }
 
-use tui::layout::Rect;
 use tui::layout::Direction;
+use tui::layout::Rect;
 
-
-fn render_help(f: &mut Frame<MyType>, app: &mut App, area: Rect) -> Rect{
+fn render_help(f: &mut Frame<MyType>, app: &mut App, area: Rect) -> Rect {
     let mut field = Field::new();
     field.replace_text(help_msg(app));
     let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(
-                [
-                Constraint::Ratio(2, 3),
-                Constraint::Ratio(1, 3),
-                ]
-            .as_ref(),
-            )
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
         .split(area);
     field.render(f, chunks[1], false);
     chunks[0]
 }
 
-
-fn help_msg(app: &mut App) -> String{
-
-
+fn help_msg(app: &mut App) -> String {
     let mut help = r#"
 @@@@@@@@@@@@@@@@@@@@@@@@
 @F1 TO TOGGLE HELP MENU@
@@ -120,10 +83,10 @@ move between widgets: Alt + arrow-keys (or vim-keys)
 quit: Alt+q
 
 
-        "#.to_string();
+        "#
+    .to_string();
 
-
-    let  review = r#"
+    let review = r#"
     
 Skip card => Alt+s
 Add old card as dependent: Alt+t
@@ -134,11 +97,10 @@ suspend card: Alt+i
 rate card: 1,2,3,4
 
 
-        "#.to_string();
+        "#
+    .to_string();
 
-
-
-    let  revinc = r#"
+    let revinc = r#"
     
 Mark text as done: Alt+d
 skip text: Alt+s
@@ -146,9 +108,10 @@ make extract (visual mode): Alt+x
 make cloze (visual mode): Alt+z
 add child card(in text widget): Alt+a
 
-        "#.to_string();
+        "#
+    .to_string();
 
-    let  revunf = r#"
+    let revunf = r#"
     
 Skip card: Alt+s
 complete card: Alt+f
@@ -158,10 +121,10 @@ add old card as dependency: Alt+y
 add new card as dependency: Alt+Y
 suspend card: Alt+i
 
-        "#.to_string();
+        "#
+    .to_string();
 
-
-    let  addcard = r#"
+    let addcard = r#"
 Topic of card is as selected in the topic widget.
 
 Upper textbox is question, lower is answer.
@@ -169,10 +132,10 @@ Upper textbox is question, lower is answer.
 add card as finished: Alt+f
 Add card as unfinished: Alt+u    
 
-        "#.to_string();
+        "#
+    .to_string();
 
-
-    let  increading = r#"
+    let increading = r#"
 
 Sources are the top level texts with the topic that is currently selected.
 Extracts are the extracts taken from the currently focused text.
@@ -187,7 +150,8 @@ visual mode -> normal mode: Ctrl+c
 make extract (visual mode): Alt+x 
 make cloze (visual mode): Alt+z
 
-        "#.to_string();
+        "#
+    .to_string();
 
     let  import = r#"
 
@@ -200,25 +164,19 @@ If you don't want to import the selected deck, press escape!
 
         "#.to_string();
 
-
-
-    match app.tabs.index{
-        0 => {
-            match app.review.mode{
-                ReviewMode::Review(_) | ReviewMode::Pending(_) => help.push_str(&review),
-                ReviewMode::Unfinished(_) => help.push_str(&revunf),
-                ReviewMode::IncRead(_) => help.push_str(&revinc),
-                _ => {},
-                
-            }
+    match app.tabs.index {
+        0 => match app.review.mode {
+            ReviewMode::Review(_) | ReviewMode::Pending(_) => help.push_str(&review),
+            ReviewMode::Unfinished(_) => help.push_str(&revunf),
+            ReviewMode::IncRead(_) => help.push_str(&revinc),
+            _ => {}
         },
         1 => help.push_str(&addcard),
         2 => help.push_str(&increading),
         3 => help.push_str(&import),
-        _ => {},
+        _ => {}
     }
     help
 }
-
 
 use crate::logic::review::ReviewMode;

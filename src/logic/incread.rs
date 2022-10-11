@@ -1,12 +1,17 @@
+use crate::app::Tab;
 use crate::utils::sql::update::update_inc_text;
 use crate::Direction;
 use crate::MyKey;
+use crate::MyType;
+use crate::SpekiPaths;
 
 use crate::utils::aliases::*;
 use crate::utils::statelist::StatefulList;
 use crate::utils::widgets::list::StraitList;
 use crate::utils::widgets::topics::TopicList;
+use tui::layout::Rect;
 use tui::widgets::ListState;
+use tui::Frame;
 
 use tui::{
     style::{Color, Style},
@@ -61,13 +66,13 @@ use rusqlite::Connection;
 impl MainInc {
     pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
         let items = load_inc_items(conn, 1).unwrap();
-        let foo = StatefulList::with_items(items);
+        let inclist = StatefulList::with_items(items);
         let mut topics = TopicList::new(conn);
         topics.next();
         let focused: Option<IncRead> = None;
         let menu = Menu::Main;
         MainInc {
-            inclist: foo,
+            inclist,
             focused,
             selection: Selection::List,
             extracts: StatefulList::<IncListItem>::new(),
@@ -115,60 +120,6 @@ impl MainInc {
 
     pub fn reload_extracts(&mut self, conn: &Arc<Mutex<Connection>>, id: IncID) {
         self.extracts.items = load_extracts(conn, id).unwrap();
-    }
-
-    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey) {
-        use crate::MyKey::*;
-        use Selection::*;
-        if let MyKey::Nav(dir) = &key {
-            self.nav_inc(conn, dir);
-            return;
-        } else if let MyKey::Alt('a') = &key {
-            self.create_source(conn, "".to_string());
-            return;
-        } else if let Menu::WikiSelect(wiki) = &mut self.menu {
-            match key {
-                Esc => self.menu = Menu::Main,
-                Enter => {
-                    let text = wiki.searchbar.return_text();
-                    let wiki = wikipedia::Wikipedia::<wikipedia::http::default::Client>::default();
-                    let page = wiki.page_from_title(text);
-                    if let Ok(content) = page.get_content() {
-                        self.create_source(conn, content);
-                        self.menu = Menu::Main;
-                    }
-                }
-                key => wiki.searchbar.keyhandler(key),
-            }
-            return;
-        }
-
-        match (&self.selection, key) {
-            (Extracts, Enter) => self.new_focus(conn),
-            (Extracts, Char('k')) | (Extracts, Up) => self.extracts.previous(),
-            (Extracts, Char('j')) | (Extracts, Down) => self.extracts.next(),
-            (Topics, key) => {
-                self.topics.keyhandler(key, conn);
-                self.reload_inc_list(conn);
-            }
-            (List, Enter) => self.new_focus(conn),
-            (List, Char('k')) | (List, Up) => self.inclist.previous(),
-            (List, Char('j')) | (List, Down) => self.inclist.next(),
-            (Incread, key) => {
-                if let Some(focused) = &mut self.focused {
-                    let incid = focused.id;
-                    focused.keyhandler(conn, key.clone());
-                    if let MyKey::Alt('x') = &key {
-                        self.reload_extracts(conn, incid)
-                    }
-                }
-            }
-            (_, Alt('w')) => {
-                let wiki = WikiSelect::new();
-                self.menu = Menu::WikiSelect(wiki);
-            }
-            (_, _) => {}
-        }
     }
 
     fn nav_inc(&mut self, conn: &Arc<Mutex<Connection>>, dir: &Direction) {
@@ -237,6 +188,90 @@ impl<T> StraitList<T> for StatefulList<IncListItem> {
             )
         } else {
             items
+        }
+    }
+}
+
+/*
+    fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &rodio::OutputStreamHandle, paths: &SpekiPaths);
+    fn render(&mut self, f: &mut Frame<MyType>, area: Rect, conn: &Arc<Mutex<Connection>>, paths: &SpekiPaths);
+
+*/
+
+impl Tab for MainInc {
+    fn get_title(&self) -> String {
+        "Incremental reading".to_string()
+    }
+    fn keyhandler(
+        &mut self,
+        conn: &Arc<Mutex<Connection>>,
+        key: MyKey,
+        audio: &rodio::OutputStreamHandle,
+        paths: &SpekiPaths,
+    ) {
+        use crate::MyKey::*;
+        use Selection::*;
+        if let MyKey::Nav(dir) = &key {
+            self.nav_inc(conn, dir);
+            return;
+        } else if let MyKey::Alt('a') = &key {
+            self.create_source(conn, "".to_string());
+            return;
+        } else if let Menu::WikiSelect(wiki) = &mut self.menu {
+            match key {
+                Esc => self.menu = Menu::Main,
+                Enter => {
+                    let text = wiki.searchbar.return_text();
+                    let wiki = wikipedia::Wikipedia::<wikipedia::http::default::Client>::default();
+                    let page = wiki.page_from_title(text);
+                    if let Ok(content) = page.get_content() {
+                        self.create_source(conn, content);
+                        self.menu = Menu::Main;
+                    }
+                }
+                key => wiki.searchbar.keyhandler(key),
+            }
+            return;
+        }
+
+        match (&self.selection, key) {
+            (Extracts, Enter) => self.new_focus(conn),
+            (Extracts, Char('k')) | (Extracts, Up) => self.extracts.previous(),
+            (Extracts, Char('j')) | (Extracts, Down) => self.extracts.next(),
+            (Topics, key) => {
+                self.topics.keyhandler(key, conn);
+                self.reload_inc_list(conn);
+            }
+            (List, Enter) => self.new_focus(conn),
+            (List, Char('k')) | (List, Up) => self.inclist.previous(),
+            (List, Char('j')) | (List, Down) => self.inclist.next(),
+            (Incread, key) => {
+                if let Some(focused) = &mut self.focused {
+                    let incid = focused.id;
+                    focused.keyhandler(conn, key.clone());
+                    if let MyKey::Alt('x') = &key {
+                        self.reload_extracts(conn, incid)
+                    }
+                }
+            }
+            (_, Alt('w')) => {
+                let wiki = WikiSelect::new();
+                self.menu = Menu::WikiSelect(wiki);
+            }
+            (_, _) => {}
+        }
+    }
+
+    fn render(
+        &mut self,
+        f: &mut Frame<MyType>,
+        area: Rect,
+        conn: &Arc<Mutex<Connection>>,
+        paths: &SpekiPaths,
+    ) {
+        match &self.menu {
+            crate::logic::incread::Menu::Main => self.main_render(f, area),
+            crate::logic::incread::Menu::WikiSelect(_) => self.wiki_render(f, area),
         }
     }
 }

@@ -1,29 +1,48 @@
 use rusqlite::Connection;
-
+use tui::{
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
+    text::{Span, Spans},
+    widgets::{Block, Borders, Tabs},
+    Frame,
+};
 
 use crate::{
     logic::{
+        add_card::{DepState, NewCard},
+        incread::MainInc,
         review::ReviewList,
-        browse::Browse,
-        add_card::{NewCard, DepState}, incread::MainInc,
-    }, 
-    SpekiPaths};
+    },
+    utils::widgets::textinput::Field,
+    MyType, SpekiPaths,
+};
 
-use crate::events::browse::browse_event;
-
-
-pub struct TabsState<'a> {
-    pub titles: Vec<&'a str>,
+pub struct TabsState {
+    pub tabs: Vec<Box<dyn Tab>>,
     pub index: usize,
 }
 
+impl TabsState {
+    pub fn new(
+        conn: &Arc<Mutex<Connection>>,
+        audio_handle: &rodio::OutputStreamHandle,
+    ) -> TabsState {
+        let mut tabs: Vec<Box<dyn Tab>> = vec![];
 
-impl<'a> TabsState<'a> {
-    pub fn new(titles: Vec<&'a str>) -> TabsState {
-        TabsState { titles, index: 0}
+        let revlist = ReviewList::new(conn, audio_handle);
+        let addcards = NewCard::new(conn, DepState::None);
+        let incread = MainInc::new(conn);
+        let importer = Importer::new(conn);
+
+        tabs.push(Box::new(revlist));
+        tabs.push(Box::new(addcards));
+        tabs.push(Box::new(incread));
+        tabs.push(Box::new(importer));
+
+        TabsState { tabs, index: 0 }
     }
     pub fn next(&mut self) {
-        if self.index < self.titles.len() - 1 {
+        if self.index < self.tabs.len() - 1 {
             self.index += 1;
         }
     }
@@ -33,86 +52,145 @@ impl<'a> TabsState<'a> {
             self.index -= 1;
         }
     }
-}
 
+    fn swap_left(&mut self) {
+        if self.index == 0 {
+            return;
+        }
+        self.tabs.swap(self.index, self.index - 1);
+        self.previous();
+    }
+    fn swap_right(&mut self) {
+        if self.index == self.tabs.len() - 1 {
+            return;
+        }
+        self.tabs.swap(self.index, self.index + 1);
+        self.next();
+    }
+
+    fn keyhandler(
+        &mut self,
+        conn: &Arc<Mutex<Connection>>,
+        key: MyKey,
+        audio: &rodio::OutputStreamHandle,
+        paths: &SpekiPaths,
+    ) {
+        self.tabs[self.index].keyhandler(conn, key, audio, paths);
+    }
+}
 
 use crate::logic::import::Importer;
 use std::sync::{Arc, Mutex};
 
-
-
-
-
-pub struct App<'a> {
+pub struct App {
+    pub tabs: TabsState,
     pub should_quit: bool,
-    pub tabs: TabsState<'a>,
+    pub display_help: bool,
     pub conn: Arc<Mutex<Connection>>,
-    pub review: ReviewList,
-    pub add_card: NewCard,
-    pub browse: Browse,
-    pub incread: MainInc,
-    pub importer: Importer,
     pub audio: rodio::OutputStream,
     pub audio_handle: rodio::OutputStreamHandle,
-    pub display_help: bool,
     pub paths: SpekiPaths,
 }
 
-impl<'a> App<'a> {
-    pub fn new(display_help: bool, paths: SpekiPaths) -> App<'a> {
-        let conn    = Connection::open(&paths.database).expect("Failed to connect to database.");
-        let conn = Arc::new(Mutex::new(conn));
+impl App {
+    pub fn new(display_help: bool, paths: SpekiPaths) -> App {
+        let conn = Arc::new(Mutex::new(
+            Connection::open(&paths.database).expect("Failed to connect to database."),
+        ));
         let (audio, audio_handle) = rodio::OutputStream::try_default().unwrap();
-        let revlist = ReviewList::new(&conn, &audio_handle);
-        let browse  = Browse::new(&conn);
-        let addcards =  NewCard::new(&conn, DepState::None);
-        let incread = MainInc::new(&conn);
-        let importer = Importer::new(&conn);
 
+        let tabs = TabsState::new(&conn, &audio_handle);
         App {
+            tabs,
+            display_help,
             should_quit: false,
-            tabs: TabsState::new(vec!["Review", "Add card", "Incremental reading", "import"]),  
             conn,
-            review: revlist,
-            add_card: addcards,
-            browse,
-            incread,
-            importer,
             audio,
             audio_handle,
-            display_help,
             paths,
         }
     }
 
-
-    pub fn on_right(&mut self) {
-        self.tabs.next();
-    }
-
-    pub fn on_left(&mut self) {
-        self.tabs.previous();
-    }
-
-
     pub fn keyhandler(&mut self, key: MyKey) {
         match key {
-            MyKey::Tab => self.on_right(),
-            MyKey::BackTab => self.on_left(),
+            MyKey::Tab => self.tabs.next(),
+            MyKey::BackTab => self.tabs.previous(),
+            MyKey::SwapTab => self.tabs.swap_right(),
+            MyKey::BackSwapTab => self.tabs.swap_left(),
             MyKey::F(1) => self.display_help = !self.display_help,
             MyKey::Alt('q') => self.should_quit = true,
-            _ => {},
+            _ => {}
         };
-        match self.tabs.index {
-            0 => self.review.keyhandler(&self.conn, key, &self.audio_handle),
-            1 => self.add_card.keyhandler(&self.conn, key),
-            2 => self.incread.keyhandler(&self.conn, key),
-            3 => self.importer.keyhandler(&self.conn, key, &self.audio_handle, &self.paths),
-            4 => browse_event(self,   key),
-            _ => {},
+        self.tabs
+            .keyhandler(&self.conn, key, &self.audio_handle, &self.paths);
+    }
+
+    pub fn draw(&mut self, f: &mut Frame<MyType>) {
+        let mut area = f.size();
+        if self.display_help {
+            area = self.render_help(f, area);
         }
+
+        let chunks = Layout::default()
+            .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+            .split(area);
+
+        let block = Block::default().style(Style::default().bg(Color::Rgb(20, 31, 31)));
+        f.render_widget(block, f.size());
+
+        let titles = self
+            .tabs
+            .tabs
+            .iter()
+            .map(|t| {
+                Spans::from(Span::styled(
+                    t.get_title(),
+                    Style::default().fg(Color::Green),
+                ))
+            })
+            .collect();
+
+        let tabs = Tabs::new(titles)
+            .block(Block::default().borders(Borders::ALL))
+            .highlight_style(Style::default().fg(Color::Yellow))
+            .select(self.tabs.index);
+
+        f.render_widget(tabs, chunks[0]);
+        self.tabs.tabs[self.tabs.index].render(f, chunks[1], &self.conn, &self.paths);
+    }
+
+    fn render_help(&self, f: &mut Frame<MyType>, area: Rect) -> Rect {
+        let mut field = Field::new();
+        let help_msg = self.tabs.tabs[self.tabs.index].get_manual();
+        field.replace_text(help_msg);
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
+            .split(area);
+        field.render(f, chunks[1], false);
+        chunks[0]
     }
 }
 
 use crate::MyKey;
 
+pub trait Tab {
+    fn keyhandler(
+        &mut self,
+        conn: &Arc<Mutex<Connection>>,
+        key: MyKey,
+        audio: &rodio::OutputStreamHandle,
+        paths: &SpekiPaths,
+    );
+    fn render(
+        &mut self,
+        f: &mut Frame<MyType>,
+        area: Rect,
+        conn: &Arc<Mutex<Connection>>,
+        paths: &SpekiPaths,
+    );
+    fn get_title(&self) -> String;
+    fn get_manual(&self) -> String {
+        String::new()
+    }
+}

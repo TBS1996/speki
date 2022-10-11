@@ -225,7 +225,7 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
             .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
         Card::new()
-            .question("When happens when you mark an incremental reading text as done?".to_string())
+            .question("What happens when you mark an incremental reading text as done?".to_string())
             .answer("It won't show up in review again".to_string())
             .cardtype(super::card::CardType::Pending)
             .save_card(&conn);

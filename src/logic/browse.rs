@@ -1,10 +1,8 @@
-use crate::utils::{
-    statelist::StatefulList,    //   StatefulList,
-};
+use crate::utils::statelist::StatefulList;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
-
+/*
 pub enum BrowseCursor{
     Filtered,
     Selected,
@@ -18,7 +16,7 @@ pub struct Browse{
 }
 
 impl Browse {
-    pub fn new(conn: &Arc<Mutex<Connection>>) -> Self{ 
+    pub fn new(conn: &Arc<Mutex<Connection>>) -> Self{
         Browse {
             filtered: StatefulList::<u32>::load_cards(conn),
             selected: StatefulList::<u32>::load_empty(),
@@ -40,7 +38,7 @@ impl Browse {
             }
         }
     }
-    
+
     pub fn deselect(&mut self){
         if let Some(index) = self.selected.state.selected(){
             let card = self.selected.items.remove(index);
@@ -56,4 +54,4 @@ impl Browse {
         }
     }
 }
-
+*/

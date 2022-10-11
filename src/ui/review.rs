@@ -2,6 +2,7 @@ use crate::{
     logic::review::ReviewList,
     utils::{
         incread::IncListItem,
+        misc::{centered_rect, split_leftright, split_updown},
         widgets::{
             button::draw_button,
             cardlist::CardItem,
@@ -12,7 +13,7 @@ use crate::{
             view_dependencies::view_dependencies,
             //   card_status::card_status,
             view_dependents::view_dependents,
-        }, misc::centered_rect,
+        },
     },
 };
 use rusqlite::Connection;
@@ -26,7 +27,7 @@ use tui::{
     },
     style::{Color, Modifier, Style},
     text::Spans,
-    widgets::{Block, Borders, List, ListItem, Clear},
+    widgets::{Block, Borders, Clear, List, ListItem},
     Frame,
 };
 
@@ -38,96 +39,6 @@ use crate::{
     },
     utils::{misc::modecolor, statelist::StatefulList},
 };
-
-impl ReviewList {
-    pub fn render<B>(&mut self, f: &mut Frame<B>, area: Rect, conn: &Arc<Mutex<Connection>>)
-    where
-        B: Backend,
-    {
-        let chunks = Layout::default()
-            .direction(Vertical)
-            .constraints([Constraint::Max(4), Constraint::Ratio(7, 10)].as_ref())
-            .split(area);
-
-        let (progbar, mut area) = (chunks[0], chunks[1]);
-
-        let chunks = Layout::default()
-            .direction(Vertical)
-            .constraints([Constraint::Min(1), Constraint::Ratio(7, 10)].as_ref())
-            .split(progbar);
-
-        let (status, progbar) = (chunks[0], chunks[1]);
-
-        mode_status(f, status, &self.mode, &self.for_review, &self.start_qty);
-        self.draw_progress_bar(f, progbar);
-
-        match &mut self.mode {
-            ReviewMode::Done => Self::draw_done(f, area),
-            ReviewMode::Review(review) => review.render(f, conn, area),
-            ReviewMode::Pending(pending) => pending.render(f, conn, area),
-            ReviewMode::Unfinished(unfinished) => unfinished.render(f, conn, area),
-            ReviewMode::IncRead(inc) => inc.render(f, conn, area),
-        }
-
-    if let Some(popup) = &mut self.popup{
-        if area.height > 10 && area.width > 10{
-            area = centered_rect(80, 70, area);
-            f.render_widget(Clear, area); //this clears out the background
-            area.x += 2;
-            area.y += 2;
-            area.height -= 4;
-            area.width -= 4;
-        }
-        
-
-        match popup{
-            crate::logic::review::PopUp::AddChild(child) => child.render(f, area),
-            crate::logic::review::PopUp::CardSelecter(cardselecter) => cardselecter.render(f, area),
-        }
-    }
-
-    }
-    pub fn draw_done<B>(f: &mut Frame<B>, area: Rect)
-    where
-        B: Backend,
-    {
-        let mut field = Field::new();
-        field.replace_text("Nothing left to review now!\n\nYou could import anki cards from the import page, or add new cards manually.\n\nIf you've imported cards, press Alt+r here to refresh".to_string());
-        field.render(f, area, false);
-    }
-
-    pub fn draw_progress_bar<B>(&mut self, f: &mut Frame<B>, area: Rect)
-    where
-        B: Backend,
-    {
-        let target = match self.mode {
-            ReviewMode::Done => return,
-            ReviewMode::Review(_) => self.start_qty.fin_qty,
-            ReviewMode::Pending(_) => self.start_qty.pending_qty,
-            ReviewMode::IncRead(_) => self.start_qty.inc_qty,
-            ReviewMode::Unfinished(_) => self.start_qty.unf_qty,
-        } as u32;
-
-        let current = match self.mode {
-            ReviewMode::Done => 0,
-            ReviewMode::Review(_) => {
-                (self.start_qty.fin_qty as u32) - (self.for_review.review_cards.len() as u32)
-            }
-            ReviewMode::Pending(_) => {
-                (self.start_qty.pending_qty as u32) - (self.for_review.pending_cards.len() as u32)
-            }
-            ReviewMode::IncRead(_) => {
-                (self.start_qty.inc_qty as u32) - (self.for_review.active_increads.len() as u32)
-            }
-            ReviewMode::Unfinished(_) => {
-                (self.start_qty.unf_qty as u32) - (self.for_review.unfinished_cards.len() as u32)
-            }
-        };
-
-        let color = modecolor(&self.mode);
-        progress_bar(f, current, target, color, area, "progress");
-    }
-}
 
 impl UnfCard {
     pub fn render<B>(&mut self, f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, area: Rect)
@@ -386,18 +297,8 @@ fn inc_layout(area: Rect) -> DrawInc {
         .split(area);
 
     let (editing, rightside) = (mainvec[0], mainvec[1]);
-    let rightvec = Layout::default()
-        .direction(Vertical)
-        .constraints(
-            [
-                Constraint::Ratio(1, 9),
-                Constraint::Ratio(4, 9),
-                Constraint::Ratio(4, 9),
-            ]
-            .as_ref(),
-        )
-        .split(rightside);
 
+    let rightvec = split_updown([10, 40, 40], rightside);
     DrawInc {
         source: editing,
         extracts: rightvec[1],
@@ -406,22 +307,12 @@ fn inc_layout(area: Rect) -> DrawInc {
 }
 
 fn unfinished_layout(area: Rect) -> DrawUnf {
-    let leftright = Layout::default()
-        .direction(Horizontal)
-        .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
-        .split(area);
-
+    let leftright = split_leftright([66, 33], area);
     let left = leftright[0];
     let right = leftright[1];
 
-    let rightcolumn = Layout::default()
-        .direction(Vertical)
-        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-        .split(right);
-
-    let leftcolumn = Layout::default()
-        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-        .split(left);
+    let rightcolumn = split_updown([50, 50], right);
+    let leftcolumn = split_updown([50, 50], left);
 
     DrawUnf {
         question: leftcolumn[0],
@@ -439,27 +330,14 @@ fn review_layout(area: Rect, showimage: bool) -> DrawReview {
 
     let (up, down) = (updown[0], updown[1]);
 
-    let leftright = Layout::default()
-        .direction(Horizontal)
-        .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
-        .split(up);
-
-    let bottomleftright = Layout::default()
-        .direction(Horizontal)
-        .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
-        .split(down);
+    let leftright = split_leftright([66, 33], up);
+    let bottomleftright = split_leftright([66, 33], down);
 
     let left = leftright[0];
     let right = leftright[1];
 
-    let rightcolumn = Layout::default()
-        .direction(Vertical)
-        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-        .split(right);
-
-    let leftcolumn = Layout::default()
-        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-        .split(left);
+    let rightcolumn = split_updown([50, 50], right);
+    let leftcolumn = split_updown([50, 50], left);
 
     let question;
     let answer;
@@ -468,14 +346,8 @@ fn review_layout(area: Rect, showimage: bool) -> DrawReview {
 
     if showimage {
         let (up, down) = (leftcolumn[0], leftcolumn[1]);
-        let upper = Layout::default()
-            .direction(Horizontal)
-            .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-            .split(up);
-        let downer = Layout::default()
-            .direction(Horizontal)
-            .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-            .split(down);
+        let upper = split_leftright([50, 50], up);
+        let downer = split_leftright([50, 50], down);
         (question, frontimg) = (upper[0], upper[1]);
         (answer, backimg) = (downer[0], downer[1]);
     } else {

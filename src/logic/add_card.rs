@@ -1,10 +1,17 @@
+use crate::app::Tab;
 use crate::utils::card::CardType;
+use crate::utils::misc::{split_leftright, split_updown};
+use crate::utils::widgets::list::list_widget;
+use crate::utils::widgets::message_box::draw_message;
 use crate::utils::{aliases::*, sql::fetch::load_inc_title};
 use crate::utils::{
     card::Card, sql::fetch::fetch_card, widgets::find_card::FindCardWidget,
     widgets::textinput::Field,
 };
+use crate::{MyKey, MyType, SpekiPaths};
 use rusqlite::Connection;
+use tui::layout::Rect;
+use tui::Frame;
 
 #[derive(Clone)]
 pub enum DepState {
@@ -129,19 +136,67 @@ impl NewCard {
         }
 
         card.save_card(conn);
-        self.reset(DepState::None, conn);
-    }
-
-    pub fn reset(&mut self, state: DepState, conn: &Arc<Mutex<Connection>>) {
-        self.prompt = NewCard::make_prompt(&state, conn);
-        self.question = Field::new();
-        self.answer = Field::new();
-        self.state = state;
-        self.selection = TextSelect::Question;
+        //self.reset(DepState::None, conn);
+        *self = Self::new(conn, DepState::None);
     }
 
     pub fn uprow(&mut self) {}
     pub fn downrow(&mut self) {}
     pub fn home(&mut self) {}
     pub fn end(&mut self) {}
+}
+
+impl Tab for NewCard {
+    fn keyhandler(
+        &mut self,
+        conn: &Arc<Mutex<Connection>>,
+        key: MyKey,
+        audio: &rodio::OutputStreamHandle,
+        paths: &SpekiPaths,
+    ) {
+        use MyKey::*;
+        use TextSelect::*;
+        match (&self.selection, key) {
+            (_, Nav(dir)) => self.navigate(dir),
+            (_, Alt('f')) => self.submit_card(conn, true),
+            (_, Alt('u')) => self.submit_card(conn, false),
+            (Question, key) => self.question.keyhandler(key),
+            (Answer, key) => self.answer.keyhandler(key),
+            (Topic, key) => self.topics.keyhandler(key, conn),
+            (_, _) => {}
+        }
+    }
+    fn render(
+        &mut self,
+        f: &mut Frame<MyType>,
+        area: Rect,
+        conn: &Arc<Mutex<Connection>>,
+        paths: &SpekiPaths,
+    ) {
+        let chunks = split_leftright([75, 15], area);
+        let left = chunks[0];
+        let right = chunks[1];
+
+        list_widget(
+            f,
+            &self.topics,
+            right,
+            matches!(&self.selection, TextSelect::Topic),
+            "Topics".to_string(),
+        );
+
+        let chunks = split_updown([10, 37, 37], left);
+
+        draw_message(f, chunks[0], self.prompt.as_str());
+        self.question.render(
+            f,
+            chunks[1],
+            matches!(&self.selection, TextSelect::Question),
+        );
+        self.answer
+            .render(f, chunks[2], matches!(&self.selection, TextSelect::Answer));
+    }
+    fn get_title(&self) -> String {
+        "Add card".to_string()
+    }
 }

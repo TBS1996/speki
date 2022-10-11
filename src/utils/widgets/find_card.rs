@@ -55,7 +55,7 @@ impl FindCardWidget {
         }
     }
 
-    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey) -> PopUpStatus{
+    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey) -> PopUpStatus {
         match key {
             MyKey::Enter => self.complete(conn),
             MyKey::Esc => self.status = PopUpStatus::Finished,

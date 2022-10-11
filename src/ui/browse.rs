@@ -1,17 +1,15 @@
-
 use crate::utils::sql::fetch::fetch_card;
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::Spans,
-    widgets::{Block, Borders, ListItem, List},
+    widgets::{Block, Borders, List, ListItem},
     Frame,
 };
 
 use crate::app::App;
-use crate::logic::browse::BrowseCursor;
-
+/*
 pub fn draw_browse<B>(f: &mut Frame<B>, _app: &mut App, area: Rect)
 where
     B: Backend,
@@ -37,7 +35,7 @@ where
         let lines = vec![Spans::from(fetch_card(&_app.conn, *id).question.clone())];
         ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Cyan))
     }).collect();
-    
+
     let mut items = List::new(items).block(Block::default().borders(Borders::ALL).title("Filtered"));
 
     if let BrowseCursor::Filtered = _app.browse.cursor{
@@ -48,7 +46,7 @@ where
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">>> ");
-        
+
     }
     f.render_stateful_widget(items, area, &mut _app.browse.filtered.state);
 
@@ -64,10 +62,10 @@ where
         let lines = vec![Spans::from(fetch_card(&_app.conn, *id).question)];
         ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::Red))
     }).collect();
-    
 
 
-    
+
+
     let mut items = List::new(items).block(Block::default().borders(Borders::ALL).title("Selected"));
 
 
@@ -79,9 +77,11 @@ where
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">>> ");
-        
+
     }
 
     f.render_stateful_widget(items, area, &mut _app.browse.selected.state);
 
 }
+
+*/

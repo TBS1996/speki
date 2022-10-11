@@ -3,7 +3,7 @@
 
 Flashcards for your terminal
 
-[![Watch the video](https://github.com/TBS1996/speki.net/blob/main/static/demogif.GIF?raw=true)](https://webmshare.com/play/BenP1)
+[![Watch the video](https://github.com/TBS1996/speki.net/blob/main/static/demogif.GIF?raw=true)](https://giant.gfycat.com/DampVastChamois.mp4)
 
 ## Installation
 
@@ -169,3 +169,4 @@ Suspended card `Card won't show up in the learning process`
 ## Feedback/Contributions
 
 I'm very open to any feedback or PRs, feel free to open an issue if there's anything you're wondering, and i'll make sure to get back to you!
+

@@ -1,4 +1,3 @@
-
 use crate::{app::Tab, tabs::incread::logic::MainInc, utils::misc::split_leftright};
 use tui::{
     backend::Backend,
@@ -6,13 +5,12 @@ use tui::{
     Frame,
 };
 
-use crate::utils::widgets::list::list_widget;
-use crate::utils::widgets::message_box::draw_message;
+use crate::widgets::list::list_widget;
+use crate::widgets::message_box::draw_message;
 
 use crate::tabs::incread::logic::Selection;
 
 impl MainInc {
-
     pub fn wiki_render<B>(&mut self, f: &mut Frame<B>, area: Rect)
     where
         B: Backend,
@@ -94,5 +92,3 @@ impl MainInc {
         );
     }
 }
-
-

@@ -1,14 +1,14 @@
-use crate::utils::widgets::button::draw_button;
-use crate::utils::widgets::textinput::Field;
-use crate::utils::widgets::topics::TopicList;
+use crate::widgets::button::draw_button;
+use crate::widgets::textinput::Field;
+use crate::widgets::topics::TopicList;
 use crate::MyKey;
 use crate::{Direction, SpekiPaths};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::utils::card::CardType;
-use crate::utils::widgets::list::list_widget;
 use crate::utils::{aliases::*, card};
+use crate::widgets::list::list_widget;
 use crate::MyType;
 use anyhow::Result;
 use rusqlite::Connection;

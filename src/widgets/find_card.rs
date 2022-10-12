@@ -1,5 +1,5 @@
 use crate::utils::statelist::StatefulList;
-use crate::utils::widgets::textinput::Field;
+use crate::widgets::textinput::Field;
 use crate::utils::{
     aliases::*,
     card::Card,
@@ -14,7 +14,7 @@ use tui::{
 
 use super::message_box::draw_message;
 use crate::utils::misc::PopUpStatus;
-use crate::utils::widgets::list::list_widget;
+use crate::widgets::list::list_widget;
 use crate::MyKey;
 use std::sync::{Arc, Mutex};
 

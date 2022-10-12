@@ -1,13 +1,13 @@
 use crate::app::Tab;
-use crate::utils::widgets::button::draw_button;
-use crate::utils::widgets::message_box::draw_message;
-use crate::utils::widgets::topics::TopicList;
+use crate::widgets::button::draw_button;
+use crate::widgets::message_box::draw_message;
+use crate::widgets::topics::TopicList;
 use crate::MyKey;
 use crate::{utils::misc::split_updown, Direction, SpekiPaths};
 use std::fs::File;
 
-use crate::utils::widgets::ankimporter::Ankimporter;
-use crate::utils::widgets::load_cards::{ImportProgress, LoadState, Template};
+use crate::widgets::ankimporter::Ankimporter;
+use crate::widgets::load_cards::{ImportProgress, LoadState, Template};
 use crate::MyType;
 use reqwest;
 use rusqlite::Connection;
@@ -17,8 +17,8 @@ use tui::{
     style::Color,
 };
 
-use crate::utils::widgets::ankimporter::ShouldQuit;
-use crate::utils::widgets::filepicker::{FilePicker, PickState};
+use crate::widgets::ankimporter::ShouldQuit;
+use crate::widgets::filepicker::{FilePicker, PickState};
 use regex::Regex;
 use reqwest::header;
 use std::io::prelude::*;
@@ -154,7 +154,7 @@ struct Unzipper {
     name: String,
 }
 
-use crate::utils::widgets::load_cards::UnzipStatus;
+use crate::widgets::load_cards::UnzipStatus;
 enum Menu {
     Main,
     Anki(Ankimporter),
@@ -364,7 +364,7 @@ If you don't want to import the selected deck, press escape!
                     let mut progbar = rightcol[0];
 
                     progbar.height = std::cmp::min(progbar.height, 5);
-                    crate::utils::widgets::progress_bar::progress_bar(
+                    crate::widgets::progress_bar::progress_bar(
                         f,
                         prog.curr_index as u32,
                         prog.total as u32,

@@ -1,21 +1,22 @@
+use crate::widgets::{
+    button::draw_button,
+    cardlist::CardItem,
+    mode_status::mode_status,
+    //message_box::draw_message,
+    progress_bar::progress_bar,
+    textinput::Field,
+    view_dependencies::view_dependencies,
+    //   card_status::card_status,
+    view_dependents::view_dependents,
+};
 use crate::{
     tabs::review::logic::ReviewList,
     utils::{
         incread::IncListItem,
         misc::{centered_rect, split_leftright, split_updown},
-        widgets::{
-            button::draw_button,
-            cardlist::CardItem,
-            mode_status::mode_status,
-            //message_box::draw_message,
-            progress_bar::progress_bar,
-            textinput::Field,
-            view_dependencies::view_dependencies,
-            //   card_status::card_status,
-            view_dependents::view_dependents,
-        },
     },
 };
+
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use tui::{

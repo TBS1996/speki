@@ -26,7 +26,7 @@ pub trait StraitList<T> {
     fn state(&self) -> ListState;
 }
 
-use crate::utils::widgets::find_card::CardMatch;
+use crate::widgets::find_card::CardMatch;
 
 impl<T> StraitList<T> for StatefulList<CardMatch> {
     fn state(&self) -> ListState {

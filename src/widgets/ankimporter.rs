@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::utils::statelist::StatefulList;
-use crate::utils::widgets::textinput::Field;
+use crate::widgets::textinput::Field;
 use crate::{MyType, SpekiPaths};
 use reqwest;
 use rusqlite::Connection;
@@ -155,7 +155,7 @@ impl Ankimporter {
                 let (current, max) = prog;
                 let percent = ((current as f32 / max as f32) * 100.0) as u32;
                 area.height = std::cmp::min(area.height, 7);
-                crate::utils::widgets::progress_bar::progress_bar(
+                crate::widgets::progress_bar::progress_bar(
                     f,
                     percent,
                     100 as u32,

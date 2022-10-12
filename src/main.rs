@@ -4,6 +4,7 @@
 pub mod app;
 pub mod tabs;
 pub mod utils;
+pub mod widgets;
 use chrono::prelude::*;
 ///pub mod tabs;
 use std::{env, path::PathBuf};

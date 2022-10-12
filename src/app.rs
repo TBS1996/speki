@@ -15,7 +15,8 @@ use crate::{
         incread::logic::MainInc,
         review::logic::ReviewList,
     },
-    utils::{misc::split_leftright, widgets::textinput::Field},
+    utils::misc::split_leftright,
+    widgets::textinput::Field,
     MyType, SpekiPaths,
 };
 
@@ -187,7 +188,8 @@ previous tab: Shift+Tab,
 move between widgets: Alt + arrow-keys (or vim-keys)
 quit: Alt+q
 
-"#.to_string();
+"#
+        .to_string();
 
         let help_msg = self.tabs.tabs[self.tabs.index].get_manual();
         msg.push_str(&help_msg);

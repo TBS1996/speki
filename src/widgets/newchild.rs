@@ -1,7 +1,7 @@
 use crate::utils::card::CardType;
 use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};
-use crate::utils::widgets::textinput::Field;
 use crate::utils::{aliases::*, card::Card};
+use crate::widgets::textinput::Field;
 use rusqlite::Connection;
 use tui::{
     backend::Backend,

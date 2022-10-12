@@ -7,8 +7,8 @@ use crate::SpekiPaths;
 
 use crate::utils::aliases::*;
 use crate::utils::statelist::StatefulList;
-use crate::utils::widgets::list::StraitList;
-use crate::utils::widgets::topics::TopicList;
+use crate::widgets::list::StraitList;
+use crate::widgets::topics::TopicList;
 use tui::layout::Rect;
 use tui::widgets::ListState;
 use tui::Frame;
@@ -21,7 +21,7 @@ use tui::{
 
 use crate::utils::incread::IncListItem;
 use crate::utils::incread::IncRead;
-use crate::utils::widgets::textinput::Field;
+use crate::widgets::textinput::Field;
 use std::sync::{Arc, Mutex};
 
 #[derive(PartialEq)]

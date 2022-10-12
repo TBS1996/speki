@@ -10,23 +10,23 @@ use crate::{
                 update_card_question, update_inc_text,
             },
         },
+    },
+    MyType, SpekiPaths,
+};
+use crate::
         widgets::{
             find_card::{CardPurpose, FindCardWidget},
             mode_status::mode_status,
             newchild::{AddChildWidget, Purpose},
-            progress_bar::{self, progress_bar},
+            progress_bar::progress_bar,
             textinput::CursorPos,
-        },
-    },
-    MyType, SpekiPaths,
-};
-
+        };
 use crate::utils::aliases::*;
 use crate::utils::incread::IncRead;
 use crate::utils::sql::update::update_inc_active;
-use crate::utils::widgets::cardrater::CardRater;
-use crate::utils::widgets::load_cards::MediaContents;
-use crate::utils::widgets::textinput::Field;
+use crate::widgets::cardrater::CardRater;
+use crate::widgets::load_cards::MediaContents;
+use crate::widgets::textinput::Field;
 use rand::prelude::*;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};

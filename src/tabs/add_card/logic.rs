@@ -1,14 +1,12 @@
-
 use crate::app::Tab;
 use crate::utils::card::CardType;
 use crate::utils::misc::{split_leftright, split_updown};
-use crate::utils::widgets::list::list_widget;
-use crate::utils::widgets::message_box::draw_message;
 use crate::utils::{aliases::*, sql::fetch::load_inc_title};
-use crate::utils::{
-    card::Card, sql::fetch::fetch_card, widgets::find_card::FindCardWidget,
-    widgets::textinput::Field,
-};
+use crate::utils::{card::Card, sql::fetch::fetch_card};
+use crate::widgets::find_card::FindCardWidget;
+use crate::widgets::list::list_widget;
+use crate::widgets::message_box::draw_message;
+use crate::widgets::textinput::Field;
 use crate::{MyKey, MyType, SpekiPaths};
 use rusqlite::Connection;
 use tui::layout::Rect;
@@ -30,7 +28,7 @@ pub enum TextSelect {
     ChooseCard(FindCardWidget),
 }
 
-use crate::utils::widgets::topics::TopicList;
+use crate::widgets::topics::TopicList;
 
 //#[derive(Clone)]
 pub struct NewCard {

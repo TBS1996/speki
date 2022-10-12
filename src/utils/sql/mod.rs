@@ -200,11 +200,6 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
             .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
         Card::new()
-            .question("What is the website for speki?".to_string())
-            .answer("speki.net".to_string())
-            .cardtype(super::card::CardType::Pending)
-            .save_card(&conn);
-        Card::new()
             .question("How do you take extracts in incremental reading?".to_string())
             .answer("Alt+x in visual mode".to_string())
             .cardtype(super::card::CardType::Pending)

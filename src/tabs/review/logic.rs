@@ -35,12 +35,6 @@ use tui::{
     Frame,
 };
 
-
-
-
-
-
-
 pub enum ReviewMode {
     Review(CardReview),
     Pending(CardReview),
@@ -72,8 +66,7 @@ impl ForReview {
             }
 
             if card.is_complete() {
-                dbg!("turning off strength");
-                if get_strength(conn, card.id).unwrap() < 1.9 {
+                if get_strength(conn, card.id).unwrap() < 0.9 {
                     review_cards.push(card.id);
                 }
             } else if card.is_unfinished() {
@@ -525,14 +518,12 @@ pub fn draw_done(f: &mut Frame<crate::MyType>, area: Rect) {
     field.render(f, area, false);
 }
 
-
 pub fn mode_done(key: MyKey, action: &mut Action) {
     match key {
         MyKey::Alt('r') => *action = Action::Refresh,
         _ => {}
     }
 }
-
 
 pub enum Action {
     IncNext(String, TopicID, CursorPos),
@@ -555,4 +546,3 @@ use crate::MyKey;
 use super::reviewmodes::finished::{CardReview, ReviewSelection};
 use super::reviewmodes::incread::{IncMode, IncSelection};
 use super::reviewmodes::unfinished::{UnfCard, UnfSelection};
-

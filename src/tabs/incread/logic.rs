@@ -127,7 +127,6 @@ impl MainInc {
         use Selection::*;
 
         let focused = self.focused.is_some();
-        // println!("@");
 
         match (&self.selection, dir) {
             (Incread, Right) => {
@@ -290,9 +289,6 @@ make cloze (visual mode): Alt+z
         _conn: &Arc<Mutex<Connection>>,
         _paths: &SpekiPaths,
     ) {
-        match &self.menu {
-            crate::tabs::incread::logic::Menu::Main => self.main_render(f, area),
-            crate::tabs::incread::logic::Menu::WikiSelect(_) => self.wiki_render(f, area),
-        }
+        self.main_render(f, area);
     }
 }

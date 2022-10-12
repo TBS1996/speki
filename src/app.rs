@@ -31,10 +31,9 @@ impl TabsState {
         audio_handle: &rodio::OutputStreamHandle,
     ) -> TabsState {
         let mut tabs: Vec<Box<dyn Tab>> = vec![];
-
-        let revlist = MainReview::new(conn, audio_handle);
+        let revlist  = MainReview::new(conn, audio_handle);
         let addcards = NewCard::new(conn, DepState::None);
-        let incread = MainInc::new(conn);
+        let incread  = MainInc::new(conn);
         let importer = Importer::new(conn);
 
         tabs.push(Box::new(revlist));

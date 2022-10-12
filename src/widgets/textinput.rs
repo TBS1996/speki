@@ -173,9 +173,6 @@ impl Field {
             }
 
             if idx == (linestart + self.rowlen as usize) {
-                if row == 1 {
-                    eprintln!("{} > ({} + {})", idx, linestart, self.rowlen);
-                }
                 if !now_white && prev_white {
                     linestart = idx;
                     linestartvec.push(linestart);
@@ -186,7 +183,7 @@ impl Field {
             }
             prev_white = now_white;
         }
-        return linestartvec;
+        linestartvec
     }
 
     pub fn debug(&mut self) {}

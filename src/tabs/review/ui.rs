@@ -1,15 +1,13 @@
+use crate::utils::{
+    incread::IncListItem,
+    misc::{split_leftright, split_updown},
+};
 use crate::widgets::{
     button::draw_button,
     cardlist::CardItem,
     view_dependencies::view_dependencies,
     //   card_status::card_status,
     view_dependents::view_dependents,
-};
-use crate::{
-    utils::{
-        incread::IncListItem,
-        misc::{split_leftright, split_updown},
-    },
 };
 
 use rusqlite::Connection;
@@ -29,11 +27,12 @@ use tui::{
 
 use crate::utils::sql::fetch::is_resolved;
 
-use crate::{
-    tabs::review::logic::{
-        CardReview, IncMode, IncSelection, ReviewSelection, UnfCard, UnfSelection,
-    },
-    utils::{statelist::StatefulList},
+use crate::utils::statelist::StatefulList;
+
+use super::reviewmodes::{
+    finished::{CardReview, ReviewSelection},
+    incread::IncMode,
+    unfinished::{UnfCard, UnfSelection},
 };
 
 impl UnfCard {
@@ -177,7 +176,7 @@ impl CardReview {
         view_dependents(f, self.id, conn, area.dependents, selected.dependents);
     }
 }
-
+use super::reviewmodes::incread::IncSelection;
 struct IncSelect {
     source: bool,
     extracts: bool,

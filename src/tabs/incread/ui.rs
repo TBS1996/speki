@@ -1,4 +1,4 @@
-use crate::{app::Tab, tabs::incread::logic::MainInc, utils::misc::split_leftright};
+use crate::{tabs::incread::logic::MainInc, utils::misc::split_leftright};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},

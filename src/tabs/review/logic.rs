@@ -1,3 +1,15 @@
+use crate::utils::aliases::*;
+use crate::utils::incread::IncRead;
+use crate::utils::sql::update::update_inc_active;
+use crate::widgets::cardrater::CardRater;
+use crate::widgets::textinput::Field;
+use crate::widgets::{
+    find_card::{CardPurpose, FindCardWidget},
+    mode_status::mode_status,
+    newchild::{AddChildWidget, Purpose},
+    progress_bar::progress_bar,
+    textinput::CursorPos,
+};
 use crate::{
     app::Tab,
     utils::{
@@ -6,27 +18,13 @@ use crate::{
         sql::{
             fetch::{get_cardtype, get_strength, load_cards},
             update::{
-                double_inc_skip_duration, double_skip_duration, set_suspended, update_card_answer,
+                double_inc_skip_duration, double_skip_duration, update_card_answer,
                 update_card_question, update_inc_text,
             },
         },
     },
     MyType, SpekiPaths,
 };
-use crate::
-        widgets::{
-            find_card::{CardPurpose, FindCardWidget},
-            mode_status::mode_status,
-            newchild::{AddChildWidget, Purpose},
-            progress_bar::progress_bar,
-            textinput::CursorPos,
-        };
-use crate::utils::aliases::*;
-use crate::utils::incread::IncRead;
-use crate::utils::sql::update::update_inc_active;
-use crate::widgets::cardrater::CardRater;
-use crate::widgets::load_cards::MediaContents;
-use crate::widgets::textinput::Field;
 use rand::prelude::*;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
@@ -37,50 +35,11 @@ use tui::{
     Frame,
 };
 
-pub enum ReviewSelection {
-    Question,
-    Answer,
-    Dependencies,
-    Dependents,
-    RevealButton,
-    CardRater,
-}
 
-pub struct CardReview {
-    pub id: CardID,
-    pub question: Field,
-    pub answer: Field,
-    pub reveal: bool,
-    pub selection: ReviewSelection,
-    pub cardrater: CardRater,
-    pub media: MediaContents,
-}
 
-pub struct UnfCard {
-    pub id: CardID,
-    pub question: Field,
-    pub answer: Field,
-    pub selection: UnfSelection,
-}
 
-pub enum UnfSelection {
-    Question,
-    Answer,
-    Dependencies,
-    Dependents,
-}
 
-pub struct IncMode {
-    pub id: IncID,
-    pub source: IncRead,
-    pub selection: IncSelection,
-}
 
-pub enum IncSelection {
-    Source,
-    Clozes,
-    Extracts,
-}
 
 pub enum ReviewMode {
     Review(CardReview),
@@ -601,177 +560,14 @@ pub fn draw_done(f: &mut Frame<crate::MyType>, area: Rect) {
     field.render(f, area, false);
 }
 
-impl CardReview {
-    fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, action: &mut Action) {
-        use MyKey::*;
-        use ReviewSelection::*;
-
-        if let MyKey::Nav(dir) = &key {
-            self.rev_nav(dir);
-            return;
-        }
-        match (&self.selection, key) {
-            (_, Alt('s')) => {
-                *action = Action::SkipRev(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
-                )
-            }
-            (_, Alt('t')) => *action = Action::NewDependent(self.id),
-            (_, Alt('y')) => *action = Action::NewDependency(self.id),
-            (_, Alt('T')) => *action = Action::AddDependent(self.id),
-            (_, Alt('Y')) => *action = Action::AddDependency(self.id),
-            (_, Alt('i')) => {
-                set_suspended(conn, self.id, true).unwrap();
-                *action = Action::SkipRev(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
-                );
-            }
-            (RevealButton, Char(' ')) | (RevealButton, Enter) => {
-                self.reveal = true;
-                self.selection = CardRater;
-                *action = Action::PlayBackAudio(self.id);
-            }
-            (Question, key) => self.question.keyhandler(key),
-            (Answer, key) => self.answer.keyhandler(key),
-
-            (CardRater, Char(num))
-                if num.is_digit(10) && (1..5).contains(&num.to_digit(10).unwrap()) =>
-            {
-                *action = Action::Review(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
-                    num,
-                )
-            }
-            (CardRater, Char(' ')) | (CardRater, Enter) if self.cardrater.selection.is_some() => {
-                let foo = self.cardrater.selection.clone().unwrap();
-                let num = match foo {
-                    RecallGrade::None => '1',
-                    RecallGrade::Failed => '2',
-                    RecallGrade::Decent => '3',
-                    RecallGrade::Easy => '4',
-                };
-                *action = Action::Review(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
-                    num,
-                )
-            }
-            (CardRater, Char(' ')) | (CardRater, Enter) => {
-                *action = Action::SkipRev(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
-                )
-            }
-            (CardRater, key) => self.cardrater.keyhandler(key),
-            (_, _) => {}
-        }
-    }
-    fn rev_nav(&mut self, dir: &crate::Direction) {
-        use crate::Direction::*;
-        use ReviewSelection::*;
-        match (&self.selection, dir) {
-            (Question, Right) => self.selection = Dependents,
-            (Question, Down) if self.reveal => self.selection = Answer,
-            (Question, Down) => self.selection = RevealButton,
-
-            (Answer, Right) => self.selection = Dependencies,
-            (Answer, Up) => self.selection = Question,
-            (Answer, Down) if self.reveal => self.selection = CardRater,
-
-            (Dependencies, Left) if self.reveal => self.selection = Answer,
-            (Dependencies, Left) => self.selection = RevealButton,
-            (Dependencies, Up) => self.selection = Dependents,
-
-            (Dependents, Left) => self.selection = Question,
-            (Dependents, Down) => self.selection = Dependencies,
-
-            (_revealButton, Right) => self.selection = Dependencies,
-            (_revealButton, Up) => self.selection = Question,
-
-            (CardRater, Right) => self.selection = Dependencies,
-            (CardRater, Up) => self.selection = Answer,
-            _ => {}
-        }
-    }
-}
 
 pub fn mode_done(key: MyKey, action: &mut Action) {
     match key {
         MyKey::Alt('r') => *action = Action::Refresh,
-
         _ => {}
     }
 }
 
-impl UnfCard {
-    fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, action: &mut Action) {
-        use MyKey::*;
-        use UnfSelection::*;
-
-        if let MyKey::Nav(dir) = &key {
-            self.unf_nav(dir);
-            return;
-        }
-        match (&self.selection, key) {
-            (_, Alt('s')) => {
-                *action = Action::SkipUnf(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
-                )
-            }
-            (_, Alt('f')) => {
-                *action = Action::CompleteUnf(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
-                )
-            }
-            (_, Alt('t')) => *action = Action::NewDependent(self.id),
-            (_, Alt('y')) => *action = Action::NewDependency(self.id),
-            (_, Alt('T')) => *action = Action::AddDependent(self.id),
-            (_, Alt('Y')) => *action = Action::AddDependency(self.id),
-            (_, Alt('i')) => {
-                set_suspended(conn, self.id, true).unwrap();
-                *action = Action::SkipRev(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
-                );
-            }
-            (Question, key) => self.question.keyhandler(key),
-            (Answer, key) => self.answer.keyhandler(key),
-            (_, _) => {}
-        }
-    }
-    fn unf_nav(&mut self, dir: &crate::Direction) {
-        use crate::Direction::*;
-        use UnfSelection::*;
-        match (&self.selection, dir) {
-            (Question, Right) => self.selection = Dependents,
-            (Question, Down) => self.selection = Answer,
-
-            (Answer, Right) => self.selection = Dependencies,
-            (Answer, Up) => self.selection = Question,
-
-            (Dependencies, Left) => self.selection = Answer,
-            (Dependencies, Up) => self.selection = Dependents,
-
-            (Dependents, Left) => self.selection = Question,
-            (Dependents, Down) => self.selection = Dependencies,
-
-            _ => {}
-        }
-    }
-}
 
 pub enum Action {
     IncNext(String, TopicID, CursorPos),
@@ -791,47 +587,7 @@ pub enum Action {
 }
 use crate::MyKey;
 
-impl IncMode {
-    fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, action: &mut Action) {
-        use IncSelection::*;
-        use MyKey::*;
+use super::reviewmodes::finished::{CardReview, ReviewSelection};
+use super::reviewmodes::incread::{IncMode, IncSelection};
+use super::reviewmodes::unfinished::{UnfCard, UnfSelection};
 
-        if let MyKey::Nav(dir) = &key {
-            self.inc_nav(dir);
-            return;
-        }
-        match (&self.selection, key) {
-            (_, Alt('d')) => {
-                *action = Action::IncDone(
-                    self.source.source.return_text(),
-                    self.id,
-                    self.source.source.cursor.clone(),
-                )
-            }
-            (_, Alt('s')) => {
-                *action = Action::IncNext(
-                    self.source.source.return_text(),
-                    self.id,
-                    self.source.source.cursor.clone(),
-                )
-            }
-            (Source, Alt('a')) => *action = Action::AddChild(self.id),
-            (Source, key) => self.source.keyhandler(conn, key),
-            (_, _) => {}
-        }
-    }
-    fn inc_nav(&mut self, dir: &crate::Direction) {
-        use crate::Direction::*;
-        use IncSelection::*;
-        match (&self.selection, dir) {
-            (Source, Right) => self.selection = Extracts,
-
-            (Clozes, Up) => self.selection = Extracts,
-            (Clozes, Left) => self.selection = Source,
-
-            (Extracts, Left) => self.selection = Source,
-            (Extracts, Down) => self.selection = Clozes,
-            _ => {}
-        }
-    }
-}

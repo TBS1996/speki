@@ -1,5 +1,5 @@
 use crate::{
-    logic::review::ReviewList,
+    tabs::review::logic::ReviewList,
     utils::{
         incread::IncListItem,
         misc::{centered_rect, split_leftright, split_updown},
@@ -34,7 +34,7 @@ use tui::{
 use crate::utils::sql::fetch::is_resolved;
 
 use crate::{
-    logic::review::{
+    tabs::review::logic::{
         CardReview, IncMode, IncSelection, ReviewMode, ReviewSelection, UnfCard, UnfSelection,
     },
     utils::{misc::modecolor, statelist::StatefulList},

@@ -1,9 +1,8 @@
 #![allow(dead_code)]
+#![forbid(unsafe_code)]
 
 pub mod app;
-pub mod events;
-pub mod logic;
-pub mod ui;
+pub mod tabs;
 pub mod utils;
 use chrono::prelude::*;
 ///pub mod tabs;

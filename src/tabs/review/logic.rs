@@ -537,7 +537,7 @@ suspend card: Alt+i
                 Card::play_backaudio(conn, id, audio_handle);
             }
             Action::Refresh => {
-                *self = crate::logic::review::ReviewList::new(conn, audio_handle);
+                *self = crate::tabs::review::logic::ReviewList::new(conn, audio_handle);
             }
             Action::None => {}
         }
@@ -586,8 +586,8 @@ suspend card: Alt+i
             }
 
             match popup {
-                crate::logic::review::PopUp::AddChild(child) => child.render(f, area),
-                crate::logic::review::PopUp::CardSelecter(cardselecter) => {
+                crate::tabs::review::logic::PopUp::AddChild(child) => child.render(f, area),
+                crate::tabs::review::logic::PopUp::CardSelecter(cardselecter) => {
                     cardselecter.render(f, area)
                 }
             }

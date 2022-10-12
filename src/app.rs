@@ -7,11 +7,13 @@ use tui::{
     Frame,
 };
 
+use crate::tabs::add_card::logic::{DepState, NewCard};
+
 use crate::{
-    logic::{
-        add_card::{DepState, NewCard},
-        incread::MainInc,
-        review::ReviewList,
+    tabs::{
+        //add_card::{DepState, NewCard},
+        incread::logic::MainInc,
+        review::logic::ReviewList,
     },
     utils::{misc::split_leftright, widgets::textinput::Field},
     MyType, SpekiPaths,
@@ -88,7 +90,7 @@ impl TabsState {
     }
 }
 
-use crate::logic::import::Importer;
+use crate::tabs::import::logic::Importer;
 use std::sync::{Arc, Mutex};
 
 pub struct App {

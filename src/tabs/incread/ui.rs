@@ -1,4 +1,5 @@
-use crate::{app::Tab, logic::incread::MainInc, utils::misc::split_leftright};
+
+use crate::{app::Tab, tabs::incread::logic::MainInc, utils::misc::split_leftright};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -8,7 +9,7 @@ use tui::{
 use crate::utils::widgets::list::list_widget;
 use crate::utils::widgets::message_box::draw_message;
 
-use crate::logic::incread::Selection;
+use crate::tabs::incread::logic::Selection;
 
 impl MainInc {
 
@@ -21,7 +22,7 @@ impl MainInc {
         msg.y = search.y - 5;
         msg.height = 5;
         search.height = 3;
-        if let crate::logic::incread::Menu::WikiSelect(wiki) = &mut self.menu {
+        if let crate::tabs::incread::logic::Menu::WikiSelect(wiki) = &mut self.menu {
             draw_message(f, msg, "Search for a wikipedia page");
             wiki.searchbar.render(f, search, false);
         }

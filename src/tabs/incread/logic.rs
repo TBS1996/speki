@@ -291,8 +291,8 @@ make cloze (visual mode): Alt+z
         paths: &SpekiPaths,
     ) {
         match &self.menu {
-            crate::logic::incread::Menu::Main => self.main_render(f, area),
-            crate::logic::incread::Menu::WikiSelect(_) => self.wiki_render(f, area),
+            crate::tabs::incread::logic::Menu::Main => self.main_render(f, area),
+            crate::tabs::incread::logic::Menu::WikiSelect(_) => self.wiki_render(f, area),
         }
     }
 }

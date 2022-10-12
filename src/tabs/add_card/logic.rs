@@ -185,8 +185,8 @@ Add card as unfinished: Alt+u
         &mut self,
         f: &mut Frame<MyType>,
         area: Rect,
-        conn: &Arc<Mutex<Connection>>,
-        paths: &SpekiPaths,
+        _conn: &Arc<Mutex<Connection>>,
+        _paths: &SpekiPaths,
     ) {
         let chunks = split_leftright([75, 15], area);
         let left = chunks[0];

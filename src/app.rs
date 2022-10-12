@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 use tui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Layout, Rect},
     style::{Color, Style},
     text::{Span, Spans},
     widgets::{Block, Borders, Tabs},

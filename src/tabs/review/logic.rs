@@ -548,7 +548,7 @@ suspend card: Alt+i
         f: &mut Frame<crate::MyType>,
         area: Rect,
         conn: &Arc<Mutex<Connection>>,
-        paths: &SpekiPaths,
+        _paths: &SpekiPaths,
     ) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -693,8 +693,8 @@ impl CardReview {
             (Dependents, Left) => self.selection = Question,
             (Dependents, Down) => self.selection = Dependencies,
 
-            (revealButton, Right) => self.selection = Dependencies,
-            (revealButton, Up) => self.selection = Question,
+            (_revealButton, Right) => self.selection = Dependencies,
+            (_revealButton, Up) => self.selection = Question,
 
             (CardRater, Right) => self.selection = Dependencies,
             (CardRater, Up) => self.selection = Answer,

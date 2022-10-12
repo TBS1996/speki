@@ -1,19 +1,14 @@
 use crate::widgets::{
     button::draw_button,
     cardlist::CardItem,
-    mode_status::mode_status,
-    //message_box::draw_message,
-    progress_bar::progress_bar,
-    textinput::Field,
     view_dependencies::view_dependencies,
     //   card_status::card_status,
     view_dependents::view_dependents,
 };
 use crate::{
-    tabs::review::logic::ReviewList,
     utils::{
         incread::IncListItem,
-        misc::{centered_rect, split_leftright, split_updown},
+        misc::{split_leftright, split_updown},
     },
 };
 
@@ -28,7 +23,7 @@ use tui::{
     },
     style::{Color, Modifier, Style},
     text::Spans,
-    widgets::{Block, Borders, Clear, List, ListItem},
+    widgets::{Block, Borders, List, ListItem},
     Frame,
 };
 
@@ -36,9 +31,9 @@ use crate::utils::sql::fetch::is_resolved;
 
 use crate::{
     tabs::review::logic::{
-        CardReview, IncMode, IncSelection, ReviewMode, ReviewSelection, UnfCard, UnfSelection,
+        CardReview, IncMode, IncSelection, ReviewSelection, UnfCard, UnfSelection,
     },
-    utils::{misc::modecolor, statelist::StatefulList},
+    utils::{statelist::StatefulList},
 };
 
 impl UnfCard {

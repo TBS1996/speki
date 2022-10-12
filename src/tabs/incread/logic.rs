@@ -287,8 +287,8 @@ make cloze (visual mode): Alt+z
         &mut self,
         f: &mut Frame<MyType>,
         area: Rect,
-        conn: &Arc<Mutex<Connection>>,
-        paths: &SpekiPaths,
+        _conn: &Arc<Mutex<Connection>>,
+        _paths: &SpekiPaths,
     ) {
         match &self.menu {
             crate::tabs::incread::logic::Menu::Main => self.main_render(f, area),

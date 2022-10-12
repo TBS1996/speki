@@ -83,4 +83,20 @@ impl UnfCard {
             _ => {}
         }
     }
+
+
+    pub fn get_manual(&self) -> String{
+        r#"
+            
+        Skip card: Alt+s
+        complete card: Alt+f
+        Add old card as dependent: Alt+t
+        add new card as dependent: Alt+T
+        add old card as dependency: Alt+y
+        add new card as dependency: Alt+Y
+        suspend card: Alt+i
+
+                "#.to_string()
+    }
+
 }

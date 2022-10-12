@@ -129,7 +129,7 @@ pub enum PopUp {
     AddChild(AddChildWidget),
 }
 
-pub struct ReviewList {
+pub struct MainReview {
     pub title: String,
     pub mode: ReviewMode,
     pub for_review: ForReview,
@@ -140,13 +140,13 @@ pub struct ReviewList {
 
 use crate::utils::sql::fetch::{fetch_card, fetch_media, load_active_inc};
 
-impl ReviewList {
-    pub fn new(conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle) -> ReviewList {
+impl MainReview {
+    pub fn new(conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle) -> Self {
         let mode = ReviewMode::Done;
         let for_review = ForReview::new(conn);
         let start_qty = StartQty::new(&for_review);
 
-        let mut myself = ReviewList {
+        let mut myself = Self {
             title: String::from("review!"),
             mode,
             for_review,
@@ -349,53 +349,18 @@ fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &rodi
 fn render(&mut self, f: &mut Frame<MyType>, area: Rect, conn: &Arc<Mutex<Connection>>, paths: &SpekiPaths);
 */
 
-impl Tab for ReviewList {
+impl Tab for MainReview {
     fn get_title(&self) -> String {
         "Review".to_string()
     }
 
     fn get_manual(&self) -> String {
-        let revmode = r#"
-Skip card: Alt+s
-Add old card as dependent: Alt+t
-add new card as dependent: Alt+T
-add old card as dependency: Alt+y
-add new card as dependency: Alt+Y
-suspend card: Alt+i
-rate card: 1,2,3,4
-        "#
-        .to_string();
-
-        let revinc = r#"
-    
-Mark text as done: Alt+d
-skip text: Alt+s
-make extract (visual mode): Alt+x 
-make cloze (visual mode): Alt+z
-add child card(in text widget): Alt+a
-
-        "#
-        .to_string();
-
-        let revunf = r#"
-    
-Skip card: Alt+s
-complete card: Alt+f
-Add old card as dependent: Alt+t
-add new card as dependent: Alt+T
-add old card as dependency: Alt+y
-add new card as dependency: Alt+Y
-suspend card: Alt+i
-
-        "#
-        .to_string();
-
-        match self.mode {
+        match &self.mode {
             ReviewMode::Done => "".to_string(),
-            ReviewMode::Review(_) => revmode,
-            ReviewMode::Pending(_) => revmode,
-            ReviewMode::IncRead(_) => revinc,
-            ReviewMode::Unfinished(_) => revunf,
+            ReviewMode::Review(rev) => rev.get_manual(),
+            ReviewMode::Pending(rev) => rev.get_manual(),
+            ReviewMode::IncRead(inc) => inc.get_manual(),
+            ReviewMode::Unfinished(unf) => unf.get_manual(),
         }
     }
 
@@ -496,7 +461,7 @@ suspend card: Alt+i
                 Card::play_backaudio(conn, id, audio_handle);
             }
             Action::Refresh => {
-                *self = crate::tabs::review::logic::ReviewList::new(conn, audio_handle);
+                *self = crate::tabs::review::logic::MainReview::new(conn, audio_handle);
             }
             Action::None => {}
         }

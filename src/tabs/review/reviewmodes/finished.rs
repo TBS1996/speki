@@ -131,4 +131,17 @@ impl CardReview {
             _ => {}
         }
     }
+
+
+    pub fn get_manual(&self) -> String{
+        r#"
+        Skip card: Alt+s
+        Add old card as dependent: Alt+t
+        add new card as dependent: Alt+T
+        add old card as dependency: Alt+y
+        add new card as dependency: Alt+Y
+        suspend card: Alt+i
+        rate card: 1,2,3,4
+                "#.to_string()
+    }
 }

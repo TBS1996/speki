@@ -13,7 +13,7 @@ use crate::{
     tabs::{
         //add_card::{DepState, NewCard},
         incread::logic::MainInc,
-        review::logic::ReviewList,
+        review::logic::MainReview,
     },
     utils::misc::split_leftright,
     widgets::textinput::Field,
@@ -32,7 +32,7 @@ impl TabsState {
     ) -> TabsState {
         let mut tabs: Vec<Box<dyn Tab>> = vec![];
 
-        let revlist = ReviewList::new(conn, audio_handle);
+        let revlist = MainReview::new(conn, audio_handle);
         let addcards = NewCard::new(conn, DepState::None);
         let incread = MainInc::new(conn);
         let importer = Importer::new(conn);

@@ -223,6 +223,20 @@ impl Tab for Importer {
     fn get_title(&self) -> String {
         "Import cards".to_string()
     }
+
+    fn get_manual(&self) -> String {
+        r#"
+
+Here you can import any anki decks you want! audio included, but not yet images. Press enter to view description about the deck, and then enter again to download
+
+When inspecting the deck, you can edit the templates for the deck. The front/back view are how the cards will look like after you import them! 
+
+If you don't want to import the selected deck, press escape!
+
+
+        "#.to_string()
+    }
+
     fn keyhandler(
         &mut self,
         conn: &Arc<Mutex<Connection>>,

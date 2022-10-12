@@ -121,7 +121,7 @@ use crossterm::{event::poll, Result};
 use std::time::Duration;
 fn run_app(terminal: &mut Terminal<MyType>, mut app: App) -> io::Result<()> {
     loop {
-        terminal.draw(|f| app.draw(f))?;
+        terminal.draw(|f| app.render(f))?;
 
         if poll(Duration::from_millis(102))? {
             let event = event::read()?;
@@ -201,9 +201,9 @@ impl MyKey {
             if modifiers == (event::KeyModifiers::ALT | event::KeyModifiers::SHIFT) {
                 if let KeyCode::Char(c) = key.code {
                     return Some(MyKey::Alt(c));
-                } else if let KeyCode::Right = key.code{
+                } else if let KeyCode::Right = key.code {
                     return Some(MyKey::SwapTab);
-                } else if let KeyCode::Left = key.code{
+                } else if let KeyCode::Left = key.code {
                     return Some(MyKey::BackSwapTab);
                 }
             }

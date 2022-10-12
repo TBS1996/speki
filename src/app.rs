@@ -13,7 +13,7 @@ use crate::{
         incread::MainInc,
         review::ReviewList,
     },
-    utils::widgets::textinput::Field,
+    utils::{misc::split_leftright, widgets::textinput::Field},
     MyType, SpekiPaths,
 };
 
@@ -77,6 +77,15 @@ impl TabsState {
     ) {
         self.tabs[self.index].keyhandler(conn, key, audio, paths);
     }
+    fn render(
+        &mut self,
+        f: &mut Frame<MyType>,
+        area: Rect,
+        conn: &Arc<Mutex<Connection>>,
+        paths: &SpekiPaths,
+    ) {
+        self.tabs[self.index].render(f, area, conn, paths);
+    }
 }
 
 use crate::logic::import::Importer;
@@ -125,12 +134,14 @@ impl App {
             .keyhandler(&self.conn, key, &self.audio_handle, &self.paths);
     }
 
-    pub fn draw(&mut self, f: &mut Frame<MyType>) {
+    pub fn render(&mut self, f: &mut Frame<MyType>) {
         let mut area = f.size();
-        if self.display_help {
-            area = self.render_help(f, area);
-        }
+        area = self.render_help(f, area);
+        area = self.render_tab_menu(f, area);
+        self.tabs.render(f, area, &self.conn, &self.paths);
+    }
 
+    fn render_tab_menu(&self, f: &mut Frame<MyType>, area: Rect) -> Rect {
         let chunks = Layout::default()
             .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
             .split(area);
@@ -156,17 +167,30 @@ impl App {
             .select(self.tabs.index);
 
         f.render_widget(tabs, chunks[0]);
-        self.tabs.tabs[self.tabs.index].render(f, chunks[1], &self.conn, &self.paths);
+        chunks[1]
     }
 
-    fn render_help(&self, f: &mut Frame<MyType>, area: Rect) -> Rect {
+    fn render_help(&mut self, f: &mut Frame<MyType>, area: Rect) -> Rect {
+        if !self.display_help {
+            return area;
+        }
         let mut field = Field::new();
+        let mut msg = r#"@@@@@@@@@@@@@@@@@@@@@@@@
+@F1 TO TOGGLE HELP MENU@
+@@@@@@@@@@@@@@@@@@@@@@@@
+(if your terminal blocks F1, try shift+F1)
+
+next tab: Tab,
+previous tab: Shift+Tab,
+move between widgets: Alt + arrow-keys (or vim-keys)
+quit: Alt+q
+
+"#.to_string();
+
         let help_msg = self.tabs.tabs[self.tabs.index].get_manual();
-        field.replace_text(help_msg);
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
-            .split(area);
+        msg.push_str(&help_msg);
+        field.replace_text(msg);
+        let chunks = split_leftright([66, 33], area);
         field.render(f, chunks[1], false);
         chunks[0]
     }

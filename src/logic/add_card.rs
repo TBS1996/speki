@@ -147,12 +147,28 @@ impl NewCard {
 }
 
 impl Tab for NewCard {
+    fn get_title(&self) -> String {
+        "Add card".to_string()
+    }
+    fn get_manual(&self) -> String {
+        r#"
+
+Topic of card is as selected in the topic widget.
+
+Upper textbox is question, lower is answer.
+
+add card as finished: Alt+f
+Add card as unfinished: Alt+u    
+
+        "#
+        .to_string()
+    }
     fn keyhandler(
         &mut self,
         conn: &Arc<Mutex<Connection>>,
         key: MyKey,
-        audio: &rodio::OutputStreamHandle,
-        paths: &SpekiPaths,
+        _audio: &rodio::OutputStreamHandle,
+        _paths: &SpekiPaths,
     ) {
         use MyKey::*;
         use TextSelect::*;
@@ -195,8 +211,5 @@ impl Tab for NewCard {
         );
         self.answer
             .render(f, chunks[2], matches!(&self.selection, TextSelect::Answer));
-    }
-    fn get_title(&self) -> String {
-        "Add card".to_string()
     }
 }

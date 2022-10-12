@@ -394,12 +394,58 @@ impl Tab for ReviewList {
     fn get_title(&self) -> String {
         "Review".to_string()
     }
+
+    fn get_manual(&self) -> String {
+        let revmode = r#"
+Skip card: Alt+s
+Add old card as dependent: Alt+t
+add new card as dependent: Alt+T
+add old card as dependency: Alt+y
+add new card as dependency: Alt+Y
+suspend card: Alt+i
+rate card: 1,2,3,4
+        "#
+        .to_string();
+
+        let revinc = r#"
+    
+Mark text as done: Alt+d
+skip text: Alt+s
+make extract (visual mode): Alt+x 
+make cloze (visual mode): Alt+z
+add child card(in text widget): Alt+a
+
+        "#
+        .to_string();
+
+        let revunf = r#"
+    
+Skip card: Alt+s
+complete card: Alt+f
+Add old card as dependent: Alt+t
+add new card as dependent: Alt+T
+add old card as dependency: Alt+y
+add new card as dependency: Alt+Y
+suspend card: Alt+i
+
+        "#
+        .to_string();
+
+        match self.mode {
+            ReviewMode::Done => "".to_string(),
+            ReviewMode::Review(_) => revmode,
+            ReviewMode::Pending(_) => revmode,
+            ReviewMode::IncRead(_) => revinc,
+            ReviewMode::Unfinished(_) => revunf,
+        }
+    }
+
     fn keyhandler(
         &mut self,
         conn: &Arc<Mutex<Connection>>,
         key: MyKey,
         audio_handle: &rodio::OutputStreamHandle,
-        paths: &SpekiPaths,
+        _paths: &SpekiPaths,
     ) {
         let mut action = Action::None;
         if let Some(popup) = &mut self.popup {

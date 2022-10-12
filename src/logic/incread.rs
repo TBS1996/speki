@@ -202,12 +202,33 @@ impl Tab for MainInc {
     fn get_title(&self) -> String {
         "Incremental reading".to_string()
     }
+
+    fn get_manual(&self) -> String {
+        r#"
+
+Sources are the top level texts with the topic that is currently selected.
+Extracts are the extracts taken from the currently focused text.
+You can paste text into the textwidget.
+
+Add wikipedia page: Alt+w
+add new source: Alt+a
+insert mode -> normal mode: Ctrl+c
+normal mode -> insert mode: i
+normal mode -> visual mode: v
+visual mode -> normal mode: Ctrl+c
+make extract (visual mode): Alt+x 
+make cloze (visual mode): Alt+z
+
+        "#
+        .to_string()
+    }
+
     fn keyhandler(
         &mut self,
         conn: &Arc<Mutex<Connection>>,
         key: MyKey,
-        audio: &rodio::OutputStreamHandle,
-        paths: &SpekiPaths,
+        _audio: &rodio::OutputStreamHandle,
+        _paths: &SpekiPaths,
     ) {
         use crate::MyKey::*;
         use Selection::*;

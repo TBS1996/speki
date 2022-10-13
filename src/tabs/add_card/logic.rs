@@ -1,5 +1,7 @@
+use crate::app::AppData;
 use crate::app::Tab;
 use crate::utils::card::CardType;
+use crate::utils::misc::get_gpt3_response;
 use crate::utils::misc::{split_leftright, split_updown};
 use crate::utils::{aliases::*, sql::fetch::load_inc_title};
 use crate::utils::{card::Card, sql::fetch::fetch_card};
@@ -162,32 +164,26 @@ Add card as unfinished: Alt+u
         "#
         .to_string()
     }
-    fn keyhandler(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        key: MyKey,
-        _audio: &rodio::OutputStreamHandle,
-        _paths: &SpekiPaths,
-    ) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use MyKey::*;
         use TextSelect::*;
         match (&self.selection, key) {
             (_, Nav(dir)) => self.navigate(dir),
-            (_, Alt('f')) => self.submit_card(conn, true),
-            (_, Alt('u')) => self.submit_card(conn, false),
+            (_, Alt('f')) => self.submit_card(&appdata.conn, true),
+            (_, Alt('u')) => self.submit_card(&appdata.conn, false),
+            (_, Alt('g')) => {
+                if let Some(key) = &appdata.config.gptkey {
+                    let answer = get_gpt3_response(key, &self.question.return_text());
+                    self.answer.replace_text(answer);
+                }
+            }
             (Question, key) => self.question.keyhandler(key),
             (Answer, key) => self.answer.keyhandler(key),
-            (Topic, key) => self.topics.keyhandler(key, conn),
+            (Topic, key) => self.topics.keyhandler(key, &appdata.conn),
             (_, _) => {}
         }
     }
-    fn render(
-        &mut self,
-        f: &mut Frame<MyType>,
-        area: Rect,
-        _conn: &Arc<Mutex<Connection>>,
-        _paths: &SpekiPaths,
-    ) {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         let chunks = split_leftright([75, 15], area);
         let left = chunks[0];
         let right = chunks[1];

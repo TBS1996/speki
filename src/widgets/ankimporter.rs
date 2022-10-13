@@ -34,11 +34,11 @@ pub enum ShouldQuit {
 fn get_description(pagesource: &String, id: &u32) -> String {
     let pattern = "<div class=\"shared-item-description pb-3\">((.|\n)*)<h2>Sample".to_string();
     let re = Regex::new(&pattern).unwrap();
-    let foo = match re.captures(&pagesource) {
+    let captures = match re.captures(pagesource) {
         Some(x) => x,
         None => panic!("{}, @@{}", pagesource, id),
     };
-    foo.get(1).unwrap().as_str().to_string()
+    captures.get(1).unwrap().as_str().to_string()
 }
 
 use std::sync::mpsc;
@@ -120,10 +120,10 @@ impl Ankimporter {
                             let (tx, rx) = mpsc::sync_channel(1);
                             let downdeck = DeckDownload { name, rx };
                             self.menu = Menu::Downloading(downdeck);
-                            use crate::tabs::import::logic::foo;
+                            use crate::tabs::import::logic::download_deck;
                             let threadpaths = paths.clone();
                             thread::spawn(move || {
-                                foo(download_link, tx, threadpaths);
+                                download_deck(download_link, tx, threadpaths);
                             });
                         }
                     },
@@ -158,7 +158,7 @@ impl Ankimporter {
                 crate::widgets::progress_bar::progress_bar(
                     f,
                     percent,
-                    100 as u32,
+                    100,
                     Color::Blue,
                     area,
                     "Downloading deck...",
@@ -186,9 +186,9 @@ impl Ankimporter {
             .direction(Vertical)
             .constraints(
                 [
-                    Constraint::Max(5),
                     Constraint::Max(3),
-                    Constraint::Ratio(1, 10),
+                    Constraint::Max(3),
+                    Constraint::Ratio(5, 10),
                 ]
                 .as_ref(),
             )

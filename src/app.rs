@@ -11,7 +11,6 @@ use crate::tabs::add_card::logic::{DepState, NewCard};
 
 use crate::{
     tabs::{
-        //add_card::{DepState, NewCard},
         incread::logic::MainInc,
         review::logic::MainReview,
     },
@@ -19,6 +18,34 @@ use crate::{
     widgets::textinput::Field,
     MyType, SpekiPaths,
 };
+
+
+
+use serde_derive::Deserialize;
+
+
+#[derive(Deserialize)]
+pub struct Config{
+    pub gptkey: Option<String>,
+}
+
+use toml;
+
+impl Config{
+    fn new(paths: &SpekiPaths) -> Self{
+        let contents = std::fs::read_to_string(&paths.config).expect("Error reading file");
+        let config: Config = toml::from_str(&contents).expect("invalid config file");
+        config
+    }
+}
+
+
+pub struct AppData{
+    pub conn: Arc<Mutex<Connection>>,
+    pub audio_handle: rodio::OutputStreamHandle,
+    pub paths: SpekiPaths,
+    pub config: Config
+}
 
 pub struct TabsState {
     pub tabs: Vec<Box<dyn Tab>>,
@@ -70,37 +97,24 @@ impl TabsState {
         self.next();
     }
 
-    fn keyhandler(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        key: MyKey,
-        audio: &rodio::OutputStreamHandle,
-        paths: &SpekiPaths,
-    ) {
-        self.tabs[self.index].keyhandler(conn, key, audio, paths);
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
+        self.tabs[self.index].keyhandler(appdata, key);
     }
-    fn render(
-        &mut self,
-        f: &mut Frame<MyType>,
-        area: Rect,
-        conn: &Arc<Mutex<Connection>>,
-        paths: &SpekiPaths,
-    ) {
-        self.tabs[self.index].render(f, area, conn, paths);
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+        self.tabs[self.index].render(f, appdata, area);
     }
 }
 
 use crate::tabs::import::logic::Importer;
 use std::sync::{Arc, Mutex};
 
+
 pub struct App {
     pub tabs: TabsState,
     pub should_quit: bool,
     pub display_help: bool,
-    pub conn: Arc<Mutex<Connection>>,
-    pub audio: rodio::OutputStream,
-    pub audio_handle: rodio::OutputStreamHandle,
-    pub paths: SpekiPaths,
+    pub audio_source: rodio::OutputStream,
+    pub appdata: AppData,
 }
 
 impl App {
@@ -108,17 +122,22 @@ impl App {
         let conn = Arc::new(Mutex::new(
             Connection::open(&paths.database).expect("Failed to connect to database."),
         ));
-        let (audio, audio_handle) = rodio::OutputStream::try_default().unwrap();
-
+        let (audio_source, audio_handle) = rodio::OutputStream::try_default().unwrap();
+        let config = Config::new(&paths);
         let tabs = TabsState::new(&conn, &audio_handle);
+        let appdata = AppData {
+            conn,
+            audio_handle,
+            config,
+            paths,
+        };
+
         App {
             tabs,
             display_help,
             should_quit: false,
-            conn,
-            audio,
-            audio_handle,
-            paths,
+            audio_source,
+            appdata,
         }
     }
 
@@ -133,14 +152,14 @@ impl App {
             _ => {}
         };
         self.tabs
-            .keyhandler(&self.conn, key, &self.audio_handle, &self.paths);
+            .keyhandler(&self.appdata, key);
     }
 
     pub fn render(&mut self, f: &mut Frame<MyType>) {
         let mut area = f.size();
         area = self.render_help(f, area);
         area = self.render_tab_menu(f, area);
-        self.tabs.render(f, area, &self.conn, &self.paths);
+        self.tabs.render(f, &self.appdata, area);
     }
 
     fn render_tab_menu(&self, f: &mut Frame<MyType>, area: Rect) -> Rect {
@@ -176,7 +195,6 @@ impl App {
         if !self.display_help {
             return area;
         }
-        let mut field = Field::new();
         let mut msg = r#"@@@@@@@@@@@@@@@@@@@@@@@@
 @F1 TO TOGGLE HELP MENU@
 @@@@@@@@@@@@@@@@@@@@@@@@
@@ -192,7 +210,7 @@ quit: Alt+q
 
         let help_msg = self.tabs.tabs[self.tabs.index].get_manual();
         msg.push_str(&help_msg);
-        field.replace_text(msg);
+        let mut field = Field::new_with_text(msg, 0, 0);
         let chunks = split_leftright([66, 33], area);
         field.render(f, chunks[1], false);
         chunks[0]
@@ -204,17 +222,14 @@ use crate::MyKey;
 pub trait Tab {
     fn keyhandler(
         &mut self,
-        conn: &Arc<Mutex<Connection>>,
+        appdata: &AppData,
         key: MyKey,
-        audio: &rodio::OutputStreamHandle,
-        paths: &SpekiPaths,
     );
     fn render(
         &mut self,
         f: &mut Frame<MyType>,
+        appdata: &AppData,
         area: Rect,
-        conn: &Arc<Mutex<Connection>>,
-        paths: &SpekiPaths,
     );
     fn get_title(&self) -> String;
     fn get_manual(&self) -> String {

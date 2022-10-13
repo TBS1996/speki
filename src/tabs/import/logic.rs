@@ -1,4 +1,4 @@
-use crate::app::Tab;
+use crate::app::{AppData, Tab};
 use crate::widgets::button::draw_button;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::topics::TopicList;
@@ -26,16 +26,20 @@ use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::thread;
 
+
+/*
 #[tokio::main]
-pub async fn foo(
+pub async fn foobar(
     url: String,
     transmitter: std::sync::mpsc::SyncSender<(u64, u64)>,
     paths: SpekiPaths,
 ) {
     download_deck(url, transmitter, paths).await;
 }
+*/
 
 use futures_util::StreamExt;
+#[tokio::main]
 pub async fn download_deck(
     url: String,
     transmitter: std::sync::mpsc::SyncSender<(u64, u64)>,
@@ -237,17 +241,11 @@ If you don't want to import the selected deck, press escape!
         "#.to_string()
     }
 
-    fn keyhandler(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        key: MyKey,
-        handle: &rodio::OutputStreamHandle,
-        paths: &SpekiPaths,
-    ) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         match &mut self.menu {
-            Menu::Main => self.main_keyhandler(conn, key),
+            Menu::Main => self.main_keyhandler(&appdata.conn, key),
             Menu::Anki(ankimporter) => match &ankimporter.should_quit {
-                ShouldQuit::No => ankimporter.keyhandler(key, conn, paths),
+                ShouldQuit::No => ankimporter.keyhandler(key, &appdata.conn, &appdata.paths),
                 ShouldQuit::Yeah => {
                     self.menu = Menu::Anki(Ankimporter::new());
                 }
@@ -267,19 +265,19 @@ If you don't want to import the selected deck, press escape!
                         foldername.pop();
                         foldername.pop();
                         let foldername = foldername.rsplit_once('/').unwrap().1.to_string();
-                        let template = Template::new(conn, foldername, paths);
+                        let template = Template::new(&appdata.conn, foldername, &appdata.paths);
                         self.menu = Menu::LoadCards(template);
                     }
                 };
             }
             Menu::LoadCards(tmpl) => match tmpl.state {
                 LoadState::OnGoing => {
-                    tmpl.keyhandler(conn, key, handle);
+                    tmpl.keyhandler(&appdata.conn, key, &appdata.audio_handle);
                     if let LoadState::Importing = tmpl.state {
                         let mut tmpclone = tmpl.clone();
                         let (tx, rx): (mpsc::SyncSender<ImportProgress>, Receiver<ImportProgress>) =
                             mpsc::sync_channel(5);
-                        let connclone = Arc::clone(conn);
+                        let connclone = Arc::clone(&appdata.conn);
                         thread::spawn(move || {
                             tmpclone.import_cards(connclone, tx);
                         });
@@ -294,13 +292,7 @@ If you don't want to import the selected deck, press escape!
         }
     }
 
-    fn render(
-        &mut self,
-        f: &mut tui::Frame<MyType>,
-        area: tui::layout::Rect,
-        conn: &Arc<Mutex<Connection>>,
-        paths: &SpekiPaths,
-    ) {
+    fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &AppData, area: tui::layout::Rect) {
         match &mut self.menu {
             Menu::Main => self.render_main(f, area),
             Menu::Local(filesource) => {
@@ -308,12 +300,12 @@ If you don't want to import the selected deck, press escape!
             }
             Menu::Anki(ankimporter) => {
                 match &ankimporter.should_quit {
-                    ShouldQuit::No => ankimporter.render(conn, f, area),
+                    ShouldQuit::No => ankimporter.render(&appdata.conn, f, area),
                     ShouldQuit::Yeah => self.render_main(f, area),
                     ShouldQuit::Takethis(deckname) => {
                         let (tx, rx): (mpsc::Sender<UnzipStatus>, Receiver<UnzipStatus>) =
                             mpsc::channel();
-                        let threadpaths = paths.clone();
+                        let threadpaths = appdata.paths.clone();
                         let deckname = deckname.to_string();
                         let anotherone = deckname.clone();
                         thread::spawn(move || {
@@ -332,11 +324,12 @@ If you don't want to import the selected deck, press escape!
                     if let UnzipStatus::Ongoing(msg) = unstat {
                         draw_message(f, area, &msg);
                     } else {
-                        let tmpl = Template::new(conn, unzipper.name.clone(), paths);
+                        let tmpl =
+                            Template::new(&appdata.conn, unzipper.name.clone(), &appdata.paths);
                         self.menu = Menu::LoadCards(tmpl);
                     }
                 } else {
-                    let tmpl = Template::new(conn, unzipper.name.clone(), paths);
+                    let tmpl = Template::new(&appdata.conn, unzipper.name.clone(), &appdata.paths);
                     self.menu = Menu::LoadCards(tmpl);
                 }
             }

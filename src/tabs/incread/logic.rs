@@ -1,3 +1,4 @@
+use crate::app::AppData;
 use crate::app::Tab;
 use crate::utils::sql::update::update_inc_text;
 use crate::Direction;
@@ -99,8 +100,8 @@ impl MainInc {
         if let Selection::List = self.selection {
             if let Some(idx) = self.inclist.state.selected() {
                 let id: IncID = self.inclist.items[idx].id;
-                let foo = get_incread(conn, id).unwrap();
-                self.focused = Some(foo);
+                let incread = get_incread(conn, id).unwrap();
+                self.focused = Some(incread);
                 self.extracts.items = load_extracts(conn, id).unwrap();
             }
         } else if let Selection::Extracts = self.selection {
@@ -114,8 +115,7 @@ impl MainInc {
 
     pub fn reload_inc_list(&mut self, conn: &Arc<Mutex<Connection>>) {
         let items = load_inc_items(conn, self.topics.get_selected_id().unwrap()).unwrap();
-        let foo = StatefulList::with_items(items);
-        self.inclist = foo;
+        self.inclist = StatefulList::with_items(items);
     }
 
     pub fn reload_extracts(&mut self, conn: &Arc<Mutex<Connection>>, id: IncID) {
@@ -159,15 +159,14 @@ impl<T> StraitList<T> for StatefulList<IncListItem> {
             .items
             .iter()
             .map(|inc| {
-                let lines;
-                if inc.text.len() < 3 {
-                    lines = vec![Spans::from(Span::styled(
+                let lines = if inc.text.len() < 3 {
+                    vec![Spans::from(Span::styled(
                         "Empty Source",
                         Style::default().add_modifier(Modifier::DIM | Modifier::ITALIC),
-                    ))];
+                    ))]
                 } else {
-                    lines = vec![Spans::from(inc.text.clone())];
-                }
+                    vec![Spans::from(inc.text.clone())]
+                };
                 ListItem::new(lines).style(Style::default())
             })
             .collect();
@@ -190,12 +189,6 @@ impl<T> StraitList<T> for StatefulList<IncListItem> {
         }
     }
 }
-
-/*
-    fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &rodio::OutputStreamHandle, paths: &SpekiPaths);
-    fn render(&mut self, f: &mut Frame<MyType>, area: Rect, conn: &Arc<Mutex<Connection>>, paths: &SpekiPaths);
-
-*/
 
 impl Tab for MainInc {
     fn get_title(&self) -> String {
@@ -222,20 +215,14 @@ make cloze (visual mode): Alt+z
         .to_string()
     }
 
-    fn keyhandler(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        key: MyKey,
-        _audio: &rodio::OutputStreamHandle,
-        _paths: &SpekiPaths,
-    ) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use crate::MyKey::*;
         use Selection::*;
         if let MyKey::Nav(dir) = &key {
-            self.nav_inc(conn, dir);
+            self.nav_inc(&appdata.conn, dir);
             return;
         } else if let MyKey::Alt('a') = &key {
-            self.create_source(conn, "".to_string());
+            self.create_source(&appdata.conn, "".to_string());
             return;
         } else if let Menu::WikiSelect(wiki) = &mut self.menu {
             match key {
@@ -245,7 +232,7 @@ make cloze (visual mode): Alt+z
                     let wiki = wikipedia::Wikipedia::<wikipedia::http::default::Client>::default();
                     let page = wiki.page_from_title(text);
                     if let Ok(content) = page.get_content() {
-                        self.create_source(conn, content);
+                        self.create_source(&appdata.conn, content);
                         self.menu = Menu::Main;
                     }
                 }
@@ -255,22 +242,22 @@ make cloze (visual mode): Alt+z
         }
 
         match (&self.selection, key) {
-            (Extracts, Enter) => self.new_focus(conn),
+            (Extracts, Enter) => self.new_focus(&appdata.conn),
             (Extracts, Char('k')) | (Extracts, Up) => self.extracts.previous(),
             (Extracts, Char('j')) | (Extracts, Down) => self.extracts.next(),
             (Topics, key) => {
-                self.topics.keyhandler(key, conn);
-                self.reload_inc_list(conn);
+                self.topics.keyhandler(key, &appdata.conn);
+                self.reload_inc_list(&appdata.conn);
             }
-            (List, Enter) => self.new_focus(conn),
+            (List, Enter) => self.new_focus(&appdata.conn),
             (List, Char('k')) | (List, Up) => self.inclist.previous(),
             (List, Char('j')) | (List, Down) => self.inclist.next(),
             (Incread, key) => {
                 if let Some(focused) = &mut self.focused {
                     let incid = focused.id;
-                    focused.keyhandler(conn, key.clone());
+                    focused.keyhandler(&appdata.conn, key.clone());
                     if let MyKey::Alt('x') = &key {
-                        self.reload_extracts(conn, incid)
+                        self.reload_extracts(&appdata.conn, incid)
                     }
                 }
             }
@@ -282,13 +269,7 @@ make cloze (visual mode): Alt+z
         }
     }
 
-    fn render(
-        &mut self,
-        f: &mut Frame<MyType>,
-        area: Rect,
-        _conn: &Arc<Mutex<Connection>>,
-        _paths: &SpekiPaths,
-    ) {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         self.main_render(f, area);
     }
 }

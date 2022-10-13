@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![forbid(unsafe_code)]
 
+use std::fs::File;
+use std::io::prelude::*;
 pub mod app;
 pub mod tabs;
 pub mod utils;
@@ -31,27 +33,33 @@ pub struct SpekiPaths {
     pub tempfolder: PathBuf,
     pub downloc: PathBuf,
     pub backups: PathBuf,
+    pub config: PathBuf,
 }
 
 impl SpekiPaths {
+    const DEFAULTCONFIG: &str = r#"
+#gptkey = ""
+        "#;
     fn new(mut home: PathBuf) -> Self {
+        let mut configpath = home.clone();
         if cfg!(windows) {
             home.push(".speki/");
             if !std::path::Path::new(&home).exists() {
                 std::fs::create_dir(&home).unwrap();
             }
+            configpath.push("config.toml");
+            if !std::path::Path::new(&configpath).exists() {
+                let mut file = File::create(&configpath).unwrap();
+                file.write_all(Self::DEFAULTCONFIG.as_bytes()).unwrap();
+            }
         } else {
-            home.push(".local/");
-            if !std::path::Path::new(&home).exists() {
-                std::fs::create_dir(&home).unwrap();
-            }
-            home.push("share/");
-            if !std::path::Path::new(&home).exists() {
-                std::fs::create_dir(&home).unwrap();
-            }
-            home.push("speki/");
-            if !std::path::Path::new(&home).exists() {
-                std::fs::create_dir(&home).unwrap();
+            home.push(".local/share/speki/");
+            std::fs::create_dir_all(&home).unwrap();
+            configpath.push(".config/speki/config.toml");
+            std::fs::create_dir_all(&configpath.parent().unwrap()).unwrap();
+            if !std::path::Path::new(&configpath).exists() {
+                let mut file = File::create(&configpath).unwrap();
+                file.write_all(Self::DEFAULTCONFIG.as_bytes()).unwrap();
             }
         }
         let mut database = home.clone();
@@ -74,6 +82,7 @@ impl SpekiPaths {
             tempfolder,
             downloc,
             backups,
+            config: configpath,
         }
     }
 }
@@ -130,11 +139,9 @@ fn run_app(terminal: &mut Terminal<MyType>, mut app: App) -> io::Result<()> {
             }
 
             if app.should_quit {
-                backup(&app.paths);
+                backup(&app.appdata.paths);
                 return Ok(());
             }
-        } else {
-            //app.handle_key(MyKey::Null);
         }
     }
 }
@@ -183,7 +190,9 @@ impl MyKey {
         use event::KeyCode;
         if let Paste(paste) = event {
             return Some(MyKey::Paste(paste));
-        } else if let Key(key) = event {
+        }
+
+        if let Key(key) = event {
             let modifiers = key.modifiers;
 
             if modifiers == event::KeyModifiers::ALT {
@@ -250,5 +259,5 @@ fn backup(paths: &SpekiPaths) {
     let now: DateTime<Utc> = Utc::now();
     let filename = format!("backup_{}_dbflash.db", now.format("%d_%m_%Y"));
     backup_path.push(filename);
-    std::fs::copy(&paths.database, backup_path).unwrap(); // Copy foo.txt to bar.txt
+    std::fs::copy(&paths.database, backup_path).unwrap();
 }

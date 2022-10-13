@@ -1,3 +1,4 @@
+use crate::app::AppData;
 use crate::utils::aliases::*;
 use crate::utils::incread::IncRead;
 use crate::utils::sql::update::update_inc_active;
@@ -337,10 +338,6 @@ impl MainReview {
         progress_bar(f, current, target, color, area, "progress");
     }
 }
-/*
-fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &rodio::OutputStreamHandle, paths: &SpekiPaths);
-fn render(&mut self, f: &mut Frame<MyType>, area: Rect, conn: &Arc<Mutex<Connection>>, paths: &SpekiPaths);
-*/
 
 impl Tab for MainReview {
     fn get_title(&self) -> String {
@@ -357,18 +354,14 @@ impl Tab for MainReview {
         }
     }
 
-    fn keyhandler(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        key: MyKey,
-        audio_handle: &rodio::OutputStreamHandle,
-        _paths: &SpekiPaths,
-    ) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         let mut action = Action::None;
         if let Some(popup) = &mut self.popup {
             let wtf = match popup {
-                PopUp::CardSelecter(findcardwidget) => findcardwidget.keyhandler(conn, key),
-                PopUp::AddChild(addchildwidget) => addchildwidget.keyhandler(conn, key),
+                PopUp::CardSelecter(findcardwidget) => {
+                    findcardwidget.keyhandler(&appdata.conn, key)
+                }
+                PopUp::AddChild(addchildwidget) => addchildwidget.keyhandler(&appdata.conn, key),
             };
             if let PopUpStatus::Finished = wtf {
                 self.popup = None;
@@ -378,21 +371,21 @@ impl Tab for MainReview {
 
         match &mut self.mode {
             ReviewMode::Done => mode_done(key, &mut action),
-            ReviewMode::Unfinished(unf) => unf.keyhandler(conn, key, &mut action),
+            ReviewMode::Unfinished(unf) => unf.keyhandler(appdata, key, &mut action),
             ReviewMode::Pending(rev) | ReviewMode::Review(rev) => {
-                rev.keyhandler(conn, key, &mut action)
+                rev.keyhandler(&appdata.conn, key, &mut action)
             }
-            ReviewMode::IncRead(inc) => inc.keyhandler(conn, key, &mut action),
+            ReviewMode::IncRead(inc) => inc.keyhandler(&appdata.conn, key, &mut action),
         }
 
         match action {
             Action::IncNext(source, id, cursor) => {
-                self.inc_next(conn, audio_handle, id);
-                update_inc_text(conn, source, id, &cursor).unwrap();
+                self.inc_next(&appdata.conn, &appdata.audio_handle, id);
+                update_inc_text(&appdata.conn, source, id, &cursor).unwrap();
             }
             Action::IncDone(source, id, cursor) => {
-                self.inc_done(id, conn, audio_handle);
-                update_inc_text(conn, source, id, &cursor).unwrap();
+                self.inc_done(id, &appdata.conn, &appdata.audio_handle);
+                update_inc_text(&appdata.conn, source, id, &cursor).unwrap();
             }
             Action::Review(question, answer, id, char) => {
                 let grade = match char {
@@ -402,71 +395,68 @@ impl Tab for MainReview {
                     '4' => RecallGrade::Easy,
                     _ => panic!("illegal argument"),
                 };
-                if get_cardtype(conn, id) == CardType::Pending {
-                    Card::activate_card(conn, id);
+                if get_cardtype(&appdata.conn, id) == CardType::Pending {
+                    Card::activate_card(&appdata.conn, id);
                 }
-                self.new_review(conn, id, grade, audio_handle);
-                update_card_question(conn, id, question).unwrap();
-                update_card_answer(conn, id, answer).unwrap();
+                self.new_review(&appdata.conn, id, grade, &appdata.audio_handle);
+                update_card_question(&appdata.conn, id, question).unwrap();
+                update_card_answer(&appdata.conn, id, answer).unwrap();
             }
             Action::SkipUnf(question, answer, id) => {
-                self.random_mode(conn, audio_handle);
-                update_card_question(conn, id, question).unwrap();
-                update_card_answer(conn, id, answer).unwrap();
-                double_skip_duration(conn, id).unwrap();
+                self.random_mode(&appdata.conn, &appdata.audio_handle);
+                update_card_question(&appdata.conn, id, question).unwrap();
+                update_card_answer(&appdata.conn, id, answer).unwrap();
+                double_skip_duration(&appdata.conn, id).unwrap();
             }
             Action::SkipRev(question, answer, id) => {
-                self.random_mode(conn, audio_handle);
-                update_card_question(conn, id, question).unwrap();
-                update_card_answer(conn, id, answer).unwrap();
+                self.random_mode(&appdata.conn, &appdata.audio_handle);
+                update_card_question(&appdata.conn, id, question).unwrap();
+                update_card_answer(&appdata.conn, id, answer).unwrap();
             }
             Action::CompleteUnf(question, answer, id) => {
-                Card::complete_card(conn, id);
-                self.random_mode(conn, audio_handle);
-                update_card_question(conn, id, question).unwrap();
-                update_card_answer(conn, id, answer).unwrap();
+                Card::complete_card(&appdata.conn, id);
+                self.random_mode(&appdata.conn, &appdata.audio_handle);
+                update_card_question(&appdata.conn, id, question).unwrap();
+                update_card_answer(&appdata.conn, id, answer).unwrap();
             }
             Action::NewDependency(id) => {
                 let prompt = String::from("Add new dependency");
                 let purpose = CardPurpose::NewDependency(id);
-                let cardfinder = FindCardWidget::new(conn, prompt, purpose);
+                let cardfinder = FindCardWidget::new(&appdata.conn, prompt, purpose);
                 self.popup = Some(PopUp::CardSelecter(cardfinder));
             }
             Action::NewDependent(id) => {
                 let prompt = String::from("Add new dependent");
                 let purpose = CardPurpose::NewDependent(id);
-                let cardfinder = FindCardWidget::new(conn, prompt, purpose);
+                let cardfinder = FindCardWidget::new(&appdata.conn, prompt, purpose);
                 self.popup = Some(PopUp::CardSelecter(cardfinder));
             }
             Action::AddDependent(id) => {
-                let addchild = AddChildWidget::new(conn, Purpose::Dependency(id));
+                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependency(id));
                 self.popup = Some(PopUp::AddChild(addchild));
             }
             Action::AddDependency(id) => {
-                let addchild = AddChildWidget::new(conn, Purpose::Dependent(id));
+                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependent(id));
                 self.popup = Some(PopUp::AddChild(addchild));
             }
             Action::AddChild(id) => {
-                let addchild = AddChildWidget::new(conn, Purpose::Source(id));
+                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Source(id));
                 self.popup = Some(PopUp::AddChild(addchild));
             }
             Action::PlayBackAudio(id) => {
-                Card::play_backaudio(conn, id, audio_handle);
+                Card::play_backaudio(&appdata.conn, id, &appdata.audio_handle);
             }
             Action::Refresh => {
-                *self = crate::tabs::review::logic::MainReview::new(conn, audio_handle);
+                *self = crate::tabs::review::logic::MainReview::new(
+                    &appdata.conn,
+                    &appdata.audio_handle,
+                );
             }
-            Action::None => {}
+            Action::None => {},
         }
     }
 
-    fn render(
-        &mut self,
-        f: &mut Frame<crate::MyType>,
-        area: Rect,
-        conn: &Arc<Mutex<Connection>>,
-        _paths: &SpekiPaths,
-    ) {
+    fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, area: Rect) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Max(4), Constraint::Ratio(7, 10)].as_ref())
@@ -486,10 +476,10 @@ impl Tab for MainReview {
 
         match &mut self.mode {
             ReviewMode::Done => draw_done(f, area),
-            ReviewMode::Review(review) => review.render(f, conn, area),
-            ReviewMode::Pending(pending) => pending.render(f, conn, area),
-            ReviewMode::Unfinished(unfinished) => unfinished.render(f, conn, area),
-            ReviewMode::IncRead(inc) => inc.render(f, conn, area),
+            ReviewMode::Review(review) => review.render(f, &appdata.conn, area),
+            ReviewMode::Pending(pending) => pending.render(f, &appdata.conn, area),
+            ReviewMode::Unfinished(unfinished) => unfinished.render(f, &appdata.conn, area),
+            ReviewMode::IncRead(inc) => inc.render(f, &appdata.conn, area),
         }
 
         if let Some(popup) = &mut self.popup {

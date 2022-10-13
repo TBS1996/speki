@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
+use crate::app::AppData;
+use crate::utils::misc::get_gpt3_response;
 
 use crate::{
     tabs::review::logic::Action,
@@ -24,7 +26,7 @@ pub enum UnfSelection {
 }
 
 impl UnfCard {
-    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, action: &mut Action) {
+    pub fn keyhandler(&mut self, appdata: &AppData, key: MyKey, action: &mut Action) {
         use MyKey::*;
         use UnfSelection::*;
 
@@ -51,8 +53,14 @@ impl UnfCard {
             (_, Alt('y')) => *action = Action::NewDependency(self.id),
             (_, Alt('T')) => *action = Action::AddDependent(self.id),
             (_, Alt('Y')) => *action = Action::AddDependency(self.id),
+            (_, Alt('g')) => {
+                if let Some(key) = &appdata.config.gptkey{
+                    let answer = get_gpt3_response(key, &self.question.return_text());
+                    self.answer.replace_text(answer);
+                }
+            },
             (_, Alt('i')) => {
-                set_suspended(conn, self.id, true).unwrap();
+                set_suspended(&appdata.conn, self.id, true).unwrap();
                 *action = Action::SkipRev(
                     self.question.return_text(),
                     self.answer.return_text(),
@@ -84,8 +92,7 @@ impl UnfCard {
         }
     }
 
-
-    pub fn get_manual(&self) -> String{
+    pub fn get_manual(&self) -> String {
         r#"
             
         Skip card: Alt+s
@@ -96,7 +103,7 @@ impl UnfCard {
         add new card as dependency: Alt+Y
         suspend card: Alt+i
 
-                "#.to_string()
+                "#
+        .to_string()
     }
-
 }

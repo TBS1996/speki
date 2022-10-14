@@ -71,7 +71,7 @@ impl Field {
             singlebarmode: false,
             visual_rows_start: vec![],
             should_update_linestartvec: false,
-            rowlens: vec![],
+            rowlens: vec![0],
         };
         myfield.set_insert_mode();
         myfield

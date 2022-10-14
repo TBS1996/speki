@@ -24,7 +24,7 @@ use crate::{
             },
         },
     },
-    MyType, SpekiPaths,
+    MyType,
 };
 use rand::prelude::*;
 use rusqlite::Connection;
@@ -452,7 +452,7 @@ impl Tab for MainReview {
                     &appdata.audio_handle,
                 );
             }
-            Action::None => {},
+            Action::None => {}
         }
     }
 

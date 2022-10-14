@@ -4,7 +4,6 @@ use crate::utils::sql::update::update_inc_text;
 use crate::Direction;
 use crate::MyKey;
 use crate::MyType;
-use crate::SpekiPaths;
 
 use crate::utils::aliases::*;
 use crate::utils::statelist::StatefulList;
@@ -269,7 +268,7 @@ make cloze (visual mode): Alt+z
         }
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, area: Rect) {
         self.main_render(f, area);
     }
 }

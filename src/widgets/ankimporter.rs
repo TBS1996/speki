@@ -209,12 +209,11 @@ impl Ankimporter {
 
             let items =
                 List::new(items).block(Block::default().borders(Borders::ALL).title("Decks"));
-            let items = items.highlight_style(
+            items.highlight_style(
                 Style::default()
                     .bg(Color::DarkGray)
                     .add_modifier(Modifier::BOLD),
-            );
-            items
+            )
         };
 
         draw_message(f, prompt, "Select an anki deck!");

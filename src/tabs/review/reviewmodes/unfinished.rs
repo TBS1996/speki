@@ -1,6 +1,4 @@
-use std::sync::{Arc, Mutex};
 
-use rusqlite::Connection;
 use crate::app::AppData;
 use crate::utils::misc::get_gpt3_response;
 

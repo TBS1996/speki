@@ -1,10 +1,5 @@
 use crate::{tabs::incread::logic::MainInc, utils::misc::split_leftright};
-use tui::{
-    backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
-    widgets::Clear,
-    Frame,
-};
+use tui::{backend::Backend, layout::Rect, widgets::Clear, Frame};
 
 use crate::utils::misc::split_updown;
 

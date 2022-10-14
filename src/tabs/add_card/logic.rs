@@ -9,7 +9,7 @@ use crate::widgets::find_card::FindCardWidget;
 use crate::widgets::list::list_widget;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::textinput::Field;
-use crate::{MyKey, MyType, SpekiPaths};
+use crate::{MyKey, MyType};
 use rusqlite::Connection;
 use tui::layout::Rect;
 use tui::Frame;
@@ -183,7 +183,7 @@ Add card as unfinished: Alt+u
             (_, _) => {}
         }
     }
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, area: Rect) {
         let chunks = split_leftright([75, 15], area);
         let left = chunks[0];
         let right = chunks[1];

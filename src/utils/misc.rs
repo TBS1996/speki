@@ -1,4 +1,4 @@
-use crate::{tabs::review::logic::ReviewMode, SpekiPaths};
+use crate::tabs::review::logic::ReviewMode;
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::Color,

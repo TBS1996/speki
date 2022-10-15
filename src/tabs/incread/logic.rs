@@ -9,14 +9,7 @@ use crate::utils::aliases::*;
 use crate::utils::statelist::StatefulList;
 use crate::widgets::topics::TopicList;
 use tui::layout::Rect;
-use tui::widgets::ListState;
 use tui::Frame;
-
-use tui::{
-    style::{Color, Style},
-    text::Spans,
-    widgets::{Block, Borders, List, ListItem},
-};
 
 use crate::utils::incread::IncListItem;
 use crate::utils::incread::IncRead;

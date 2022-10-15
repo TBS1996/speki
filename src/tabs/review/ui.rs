@@ -33,7 +33,7 @@ use super::reviewmodes::{
 };
 
 impl UnfCard {
-    pub fn render(&mut self, f: &mut Frame<MyType>, conn: &Arc<Mutex<Connection>>, area: Rect) {
+    pub fn render(&mut self, f: &mut Frame<MyType>, _conn: &Arc<Mutex<Connection>>, area: Rect) {
         let area = unfinished_layout(area);
         let selected = UnfSelect::new(&self.selection);
         self.question.set_rowlen(area.question.width);

@@ -8,7 +8,6 @@ use crate::widgets::textinput::Field;
 use rusqlite::Connection;
 use tui::style::Style;
 use tui::{
-    backend::Backend,
     layout::{Constraint, Direction::Vertical, Layout, Rect},
     Frame,
 };
@@ -86,11 +85,11 @@ impl FindCardWidget {
 
         match self.purpose {
             CardPurpose::NewDependent(source_id) => {
-                update_both(&conn, chosen_id, source_id).unwrap();
+                update_both(conn, chosen_id, source_id).unwrap();
                 Card::check_resolved(chosen_id, conn);
             }
             CardPurpose::NewDependency(source_id) => {
-                update_both(&conn, source_id, chosen_id).unwrap();
+                update_both(conn, source_id, chosen_id).unwrap();
                 Card::check_resolved(source_id, conn);
             }
             CardPurpose::NewCloze(_topic_id) => {
@@ -125,7 +124,7 @@ impl StatefulList<CardMatch> {
     pub fn reset_filter(&mut self, conn: &Arc<Mutex<Connection>>, mut searchterm: String) {
         let mut matching_cards = Vec::<CardMatch>::new();
         searchterm.pop();
-        let all_cards = load_card_matches(&conn, &searchterm).unwrap();
+        let all_cards = load_card_matches(conn, &searchterm).unwrap();
         for card in all_cards {
             matching_cards.push(CardMatch {
                 question: card.question,

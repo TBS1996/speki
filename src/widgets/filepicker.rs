@@ -79,8 +79,8 @@ impl FilePicker {
         for entry in fs::read_dir(path).unwrap() {
             let dir = entry.unwrap();
             let path = dir.path();
-            if let Some(foo) = path.extension() {
-                let extension = foo.to_str().unwrap().to_string();
+            if let Some(ext) = path.extension() {
+                let extension = ext.to_str().unwrap().to_string();
                 if self.allowed_extensions.contains(&extension) {
                     myvec.push(ExtPath::new(path));
                 }

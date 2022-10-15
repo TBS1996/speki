@@ -6,7 +6,6 @@ pub mod cardrater;
 pub mod checkbox;
 pub mod filepicker;
 pub mod find_card;
-pub mod list;
 pub mod load_cards;
 pub mod message_box;
 pub mod mode_status;

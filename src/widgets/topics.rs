@@ -467,8 +467,8 @@ impl TopicList {
                     let parent_index = self.state.selected().unwrap();
                     let name = String::new();
                     let children = self.items[parent_index].children.clone();
-                    let sibling_qty = (&children).len();
-                    new_topic(&conn, name, parent, sibling_qty as u32).unwrap();
+                    let sibling_qty = children.len();
+                    new_topic(conn, name, parent, sibling_qty as u32).unwrap();
                     let id = (conn.lock().unwrap().last_insert_rowid()) as u32;
                     self.writing = Some(NewTopic::new(id));
                     self.reload_topics(conn);
@@ -484,24 +484,25 @@ impl TopicList {
         area: Rect,
         selected: bool,
         title: &str,
-        style: Style,
+        _style: Style,
     ) {
+        let style = Style::default().fg(Color::Red).bg(Color::Black);
         let bordercolor = if selected { Color::Red } else { Color::White };
-        let style = Style::default().fg(bordercolor);
+        let borderstyle = Style::default().fg(bordercolor);
 
         let items: Vec<ListItem> = self
             .items
             .iter()
             .map(|topic| {
                 let lines = vec![Spans::from(topic2string(topic, self))];
-                ListItem::new(lines).style(Style::default().fg(Color::Red).bg(Color::Black))
+                ListItem::new(lines).style(style)
             })
             .collect();
 
         let items = List::new(items).block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(style)
+                .border_style(borderstyle)
                 .title(title),
         );
 

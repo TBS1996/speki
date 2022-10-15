@@ -1,9 +1,10 @@
+use crate::MyType;
 use crate::{tabs::incread::logic::MainInc, utils::misc::split_leftright};
+use tui::style::Style;
 use tui::{backend::Backend, layout::Rect, widgets::Clear, Frame};
 
 use crate::utils::misc::split_updown;
 
-use crate::widgets::list::list_widget;
 use crate::widgets::message_box::draw_message;
 
 use crate::tabs::incread::logic::Selection;
@@ -32,10 +33,7 @@ impl MainInc {
         }
     }
 
-    pub fn main_render<B>(&mut self, f: &mut Frame<B>, area: Rect)
-    where
-        B: Backend,
-    {
+    pub fn main_render(&mut self, f: &mut Frame<MyType>, area: Rect) {
         let chunks = split_leftright([75, 15], area);
         let (left, right) = (chunks[0], chunks[1]);
         let right = split_updown([33, 33, 33], right);
@@ -61,27 +59,15 @@ impl MainInc {
             None => draw_message(f, left, "No text selected"),
         };
 
-        list_widget(
-            f,
-            &self.topics,
-            topright,
-            topic_select,
-            "Topics".to_string(),
-        );
-        list_widget(
-            f,
-            &self.inclist,
-            middleright,
-            listselected,
-            "Sources".to_string(),
-        );
-        list_widget(
-            f,
-            &self.extracts,
-            bottomright,
-            ex_select,
-            "Extracts".to_string(),
-        );
+        self.topics
+            .render(f, topright, topic_select, "Topics", Style::default());
+
+        self.inclist
+            .render(f, middleright, listselected, "Sources", Style::default());
+
+        self.extracts
+            .render(f, bottomright, ex_select, "Extracts", Style::default());
+
         if let super::logic::Menu::WikiSelect(_) = self.menu {
             self.wiki_render(f, area);
         }

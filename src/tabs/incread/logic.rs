@@ -7,7 +7,6 @@ use crate::MyType;
 
 use crate::utils::aliases::*;
 use crate::utils::statelist::StatefulList;
-use crate::widgets::list::StraitList;
 use crate::widgets::topics::TopicList;
 use tui::layout::Rect;
 use tui::widgets::ListState;
@@ -139,52 +138,6 @@ impl MainInc {
             (Extracts, Up) => self.selection = List,
             (_, Left) if focused => self.selection = Incread,
             _ => {}
-        }
-    }
-}
-
-impl<T> StraitList<T> for StatefulList<IncListItem> {
-    fn state(&self) -> ListState {
-        self.state.clone()
-    }
-
-    fn generate_list_items(&self, selected: bool, title: String) -> List {
-        use tui::style::Modifier;
-        use tui::text::Span;
-        let bordercolor = if selected { Color::Red } else { Color::White };
-        let style = Style::default().fg(bordercolor);
-
-        let items: Vec<ListItem> = self
-            .items
-            .iter()
-            .map(|inc| {
-                let lines = if inc.text.len() < 3 {
-                    vec![Spans::from(Span::styled(
-                        "Empty Source",
-                        Style::default().add_modifier(Modifier::DIM | Modifier::ITALIC),
-                    ))]
-                } else {
-                    vec![Spans::from(inc.text.clone())]
-                };
-                ListItem::new(lines).style(Style::default())
-            })
-            .collect();
-
-        let items = List::new(items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(style)
-                .title(title),
-        );
-
-        if selected {
-            items.highlight_style(
-                Style::default()
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD),
-            )
-        } else {
-            items
         }
     }
 }

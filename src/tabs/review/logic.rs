@@ -1,6 +1,7 @@
 use crate::app::AppData;
 use crate::utils::aliases::*;
 use crate::utils::incread::IncRead;
+use crate::utils::misc::{get_dependencies, get_dependents};
 use crate::utils::sql::update::update_inc_active;
 use crate::widgets::cardrater::CardRater;
 use crate::widgets::textinput::Field;
@@ -152,6 +153,24 @@ impl MainReview {
         myself
     }
 
+    fn update_dependencies(&mut self, conn: &Arc<Mutex<Connection>>) {
+        match &mut self.mode {
+            ReviewMode::Review(rev) => {
+                rev.dependencies = get_dependencies(conn, rev.id);
+                rev.dependents = get_dependents(conn, rev.id);
+            }
+            ReviewMode::Unfinished(rev) => {
+                rev.dependencies = get_dependencies(conn, rev.id);
+                rev.dependents = get_dependents(conn, rev.id);
+            }
+            ReviewMode::Pending(rev) => {
+                rev.dependencies = get_dependencies(conn, rev.id);
+                rev.dependents = get_dependents(conn, rev.id);
+            }
+            _ => {}
+        }
+    }
+
     // randomly choose a mode between active, unfinished and inc read, if theyre all done,
     // start with pending cards, if theyre all done, declare nothing left to review
     pub fn random_mode(
@@ -212,10 +231,14 @@ impl MainReview {
         let card = fetch_card(&conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
+        let dependencies = get_dependencies(conn, id);
+        let dependents = get_dependents(conn, id);
         let unfcard = UnfCard {
             id,
             question,
             answer,
+            dependencies,
+            dependents,
             selection,
         };
         self.mode = ReviewMode::Unfinished(unfcard);
@@ -235,12 +258,16 @@ impl MainReview {
         let card = fetch_card(&conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
+        let dependencies = get_dependencies(conn, id);
+        let dependents = get_dependents(conn, id);
         let cardrater = CardRater::new();
         let media = fetch_media(&conn, id);
         let cardreview = CardReview {
             id,
             question,
             answer,
+            dependencies,
+            dependents,
             reveal,
             selection,
             cardrater,
@@ -260,14 +287,18 @@ impl MainReview {
         let selection = ReviewSelection::RevealButton;
         let mut question = Field::new();
         let mut answer = Field::new();
-        let card = fetch_card(&conn, id);
+        let card = fetch_card(conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
+        let dependencies = get_dependencies(conn, id);
+        let dependents = get_dependents(conn, id);
         let cardrater = CardRater::new();
         let media = fetch_media(&conn, id);
         let cardreview = CardReview {
             id,
             question,
+            dependencies,
+            dependents,
             answer,
             reveal,
             selection,
@@ -340,6 +371,50 @@ impl MainReview {
 }
 
 impl Tab for MainReview {
+    fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, area: Rect) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Max(4), Constraint::Ratio(7, 10)].as_ref())
+            .split(area);
+
+        let (progbar, mut area) = (chunks[0], chunks[1]);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(1), Constraint::Ratio(7, 10)].as_ref())
+            .split(progbar);
+
+        let (status, progbar) = (chunks[0], chunks[1]);
+
+        mode_status(f, status, &self.mode, &self.for_review, &self.start_qty);
+        self.draw_progress_bar(f, progbar);
+
+        match &mut self.mode {
+            ReviewMode::Done => draw_done(f, area),
+            ReviewMode::Review(review) => review.render(f, &appdata.conn, area),
+            ReviewMode::Pending(pending) => pending.render(f, &appdata.conn, area),
+            ReviewMode::Unfinished(unfinished) => unfinished.render(f, &appdata.conn, area),
+            ReviewMode::IncRead(inc) => inc.render(f, &appdata.conn, area),
+        }
+
+        if let Some(popup) = &mut self.popup {
+            if area.height > 10 && area.width > 10 {
+                area = centered_rect(80, 70, area);
+                f.render_widget(Clear, area); //this clears out the background
+                area.x += 2;
+                area.y += 2;
+                area.height -= 4;
+                area.width -= 4;
+            }
+
+            match popup {
+                crate::tabs::review::logic::PopUp::AddChild(child) => child.render(f, area),
+                crate::tabs::review::logic::PopUp::CardSelecter(cardselecter) => {
+                    cardselecter.render(f, area)
+                }
+            }
+        }
+    }
     fn get_title(&self) -> String {
         "Review".to_string()
     }
@@ -365,6 +440,7 @@ impl Tab for MainReview {
             };
             if let PopUpStatus::Finished = wtf {
                 self.popup = None;
+                self.update_dependencies(&appdata.conn);
             };
             return;
         }
@@ -453,51 +529,6 @@ impl Tab for MainReview {
                 );
             }
             Action::None => {}
-        }
-    }
-
-    fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, area: Rect) {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Max(4), Constraint::Ratio(7, 10)].as_ref())
-            .split(area);
-
-        let (progbar, mut area) = (chunks[0], chunks[1]);
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Min(1), Constraint::Ratio(7, 10)].as_ref())
-            .split(progbar);
-
-        let (status, progbar) = (chunks[0], chunks[1]);
-
-        mode_status(f, status, &self.mode, &self.for_review, &self.start_qty);
-        self.draw_progress_bar(f, progbar);
-
-        match &mut self.mode {
-            ReviewMode::Done => draw_done(f, area),
-            ReviewMode::Review(review) => review.render(f, &appdata.conn, area),
-            ReviewMode::Pending(pending) => pending.render(f, &appdata.conn, area),
-            ReviewMode::Unfinished(unfinished) => unfinished.render(f, &appdata.conn, area),
-            ReviewMode::IncRead(inc) => inc.render(f, &appdata.conn, area),
-        }
-
-        if let Some(popup) = &mut self.popup {
-            if area.height > 10 && area.width > 10 {
-                area = centered_rect(80, 70, area);
-                f.render_widget(Clear, area); //this clears out the background
-                area.x += 2;
-                area.y += 2;
-                area.height -= 4;
-                area.width -= 4;
-            }
-
-            match popup {
-                crate::tabs::review::logic::PopUp::AddChild(child) => child.render(f, area),
-                crate::tabs::review::logic::PopUp::CardSelecter(cardselecter) => {
-                    cardselecter.render(f, area)
-                }
-            }
         }
     }
 }

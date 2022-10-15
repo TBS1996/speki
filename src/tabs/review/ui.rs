@@ -1,13 +1,10 @@
-use crate::utils::{
-    incread::IncListItem,
-    misc::{split_leftright, split_updown},
-};
-use crate::widgets::{
-    button::draw_button,
-    cardlist::CardItem,
-    view_dependencies::view_dependencies,
-    //   card_status::card_status,
-    view_dependents::view_dependents,
+use crate::widgets::{button::draw_button, cardlist::CardItem};
+use crate::{
+    utils::{
+        incread::IncListItem,
+        misc::{split_leftright, split_updown},
+    },
+    MyType,
 };
 
 use rusqlite::Connection;
@@ -36,18 +33,27 @@ use super::reviewmodes::{
 };
 
 impl UnfCard {
-    pub fn render<B>(&mut self, f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, area: Rect)
-    where
-        B: Backend,
-    {
+    pub fn render(&mut self, f: &mut Frame<MyType>, conn: &Arc<Mutex<Connection>>, area: Rect) {
         let area = unfinished_layout(area);
         let selected = UnfSelect::new(&self.selection);
         self.question.set_rowlen(area.question.width);
         self.answer.set_rowlen(area.answer.width);
         self.question.set_win_height(area.question.height);
         self.answer.set_win_height(area.answer.height);
-        view_dependencies(f, self.id, conn, area.dependencies, selected.dependencies);
-        view_dependents(f, self.id, conn, area.dependents, selected.dependents);
+        self.dependencies.render(
+            f,
+            area.dependencies,
+            selected.dependencies,
+            "Dependencies",
+            Style::default(),
+        );
+        self.dependents.render(
+            f,
+            area.dependents,
+            selected.dependents,
+            "Dependents",
+            Style::default(),
+        );
         self.question.render(f, area.question, selected.question);
         self.answer.render(f, area.answer, selected.answer);
     }
@@ -144,10 +150,7 @@ impl IncMode {
 }
 
 impl CardReview {
-    pub fn render<B>(&mut self, f: &mut Frame<B>, conn: &Arc<Mutex<Connection>>, area: Rect)
-    where
-        B: Backend,
-    {
+    pub fn render(&mut self, f: &mut Frame<MyType>, conn: &Arc<Mutex<Connection>>, area: Rect) {
         let area = review_layout(area, false);
         let selected = RevSelect::new(&self.selection);
 
@@ -172,8 +175,20 @@ impl CardReview {
         } else {
             draw_button(f, area.answer, "Space to reveal", selected.revealbutton);
         }
-        view_dependencies(f, self.id, conn, area.dependencies, selected.dependencies);
-        view_dependents(f, self.id, conn, area.dependents, selected.dependents);
+        self.dependencies.render(
+            f,
+            area.dependencies,
+            selected.dependencies,
+            "Dependencies",
+            Style::default(),
+        );
+        self.dependents.render(
+            f,
+            area.dependents,
+            selected.dependents,
+            "Dependents",
+            Style::default(),
+        );
     }
 }
 use super::reviewmodes::incread::IncSelection;

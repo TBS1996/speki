@@ -6,12 +6,12 @@ use crate::utils::misc::{split_leftright, split_updown};
 use crate::utils::{aliases::*, sql::fetch::load_inc_title};
 use crate::utils::{card::Card, sql::fetch::fetch_card};
 use crate::widgets::find_card::FindCardWidget;
-use crate::widgets::list::list_widget;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::textinput::Field;
 use crate::{MyKey, MyType};
 use rusqlite::Connection;
 use tui::layout::Rect;
+use tui::style::Style;
 use tui::Frame;
 
 #[derive(Clone)]
@@ -188,12 +188,12 @@ Add card as unfinished: Alt+u
         let left = chunks[0];
         let right = chunks[1];
 
-        list_widget(
+        self.topics.render(
             f,
-            &self.topics,
             right,
             matches!(&self.selection, TextSelect::Topic),
-            "Topics".to_string(),
+            "Topics",
+            Style::default(),
         );
 
         let chunks = split_updown([10, 37, 37], left);

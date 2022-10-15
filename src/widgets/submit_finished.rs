@@ -3,64 +3,28 @@ use tui::{
     layout::{Alignment, Rect},
     style::{Color, Style},
     text::{Span, Spans},
-    widgets::{
-        Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 
 use crate::Object;
 
-struct SubFin{
+struct SubFin {
     text: String,
 }
-
-
-
-
-
 
 pub fn draw_button<B>(f: &mut Frame<B>, area: Rect, text: &str, selected: bool)
 where
     B: Backend,
 {
     let text = vec![Span::from(text)];
-    let bordercolor = if selected {Color::Red} else {Color::White};
+    let bordercolor = if selected { Color::Red } else { Color::White };
     let style = Style::default().fg(bordercolor);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(style)
-    ;
-    let paragraph = Paragraph::new(Spans::from(text)).block(block).alignment(Alignment::Center).wrap(Wrap { trim: true });
+    let block = Block::default().borders(Borders::ALL).border_style(style);
+    let paragraph = Paragraph::new(Spans::from(text))
+        .block(block)
+        .alignment(Alignment::Center)
+        .wrap(Wrap { trim: true });
     f.render_widget(paragraph, area);
 }
-
-
-/*
-
-
-asf asd
-
-
-
-so a tab may implement a get_card trait 
-
-a tab will call keyhandler on all its widgets 
-
-
-
-impl Object for SubFin{
-    fn keyhandler(&mut self, key: crate::MyKey) {
-        
-    }
-}
-
-
-
-
-
-*/
-
-
-
-

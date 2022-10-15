@@ -68,6 +68,13 @@ pub struct Deck {
     pub id: u32,
 }
 
+use std::fmt;
+impl fmt::Display for Deck {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.title)
+    }
+}
+
 impl Ankimporter {
     pub fn new() -> Self {
         let list = StatefulList::<Deck>::new();

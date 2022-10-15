@@ -8,7 +8,6 @@ use std::path::PathBuf;
 
 use crate::utils::card::CardType;
 use crate::utils::{aliases::*, card};
-use crate::widgets::list::list_widget;
 use crate::MyType;
 use anyhow::Result;
 use rusqlite::Connection;
@@ -860,13 +859,8 @@ impl Template {
             ),
             selected.preview,
         );
-        list_widget(
-            f,
-            &self.topics,
-            thetopics,
-            selected.topics,
-            "Topics".to_string(),
-        );
+        self.topics
+            .render(f, thetopics, selected.topics, "Topics", Style::default());
         self.front_template.render(f, topleft, selected.front);
         self.back_template.render(f, bottomleft, selected.back);
         self.front_view.render(f, topright, false);

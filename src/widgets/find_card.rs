@@ -1,11 +1,12 @@
 use crate::utils::statelist::StatefulList;
-use crate::widgets::textinput::Field;
 use crate::utils::{
     aliases::*,
     card::Card,
     sql::{fetch::load_card_matches, insert::update_both},
 };
+use crate::widgets::textinput::Field;
 use rusqlite::Connection;
+use tui::style::Style;
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction::Vertical, Layout, Rect},
@@ -14,8 +15,7 @@ use tui::{
 
 use super::message_box::draw_message;
 use crate::utils::misc::PopUpStatus;
-use crate::widgets::list::list_widget;
-use crate::MyKey;
+use crate::{MyKey, MyType};
 use std::sync::{Arc, Mutex};
 
 pub struct FindCardWidget {
@@ -30,6 +30,13 @@ pub struct FindCardWidget {
 pub struct CardMatch {
     pub question: String,
     pub id: CardID,
+}
+
+use std::fmt;
+impl fmt::Display for CardMatch {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.question)
+    }
 }
 
 pub enum CardPurpose {
@@ -93,10 +100,7 @@ impl FindCardWidget {
         self.status = PopUpStatus::Finished;
     }
 
-    pub fn render<B>(&mut self, f: &mut Frame<B>, area: Rect)
-    where
-        B: Backend,
-    {
+    pub fn render(&mut self, f: &mut Frame<MyType>, area: Rect) {
         let chunks = Layout::default()
             .direction(Vertical)
             .constraints(
@@ -113,7 +117,7 @@ impl FindCardWidget {
 
         draw_message(f, prompt, &self.prompt);
         self.searchterm.render(f, searchbar, false);
-        list_widget(f, &self.list, matchlist, false, "".to_string());
+        self.list.render(f, matchlist, false, "", Style::default());
     }
 }
 

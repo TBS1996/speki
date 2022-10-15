@@ -1,4 +1,7 @@
-use crate::tabs::review::logic::ReviewMode;
+use std::sync::{Arc, Mutex};
+
+use crate::{tabs::review::logic::ReviewMode, widgets::cardlist::CardItem};
+use rusqlite::Connection;
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::Color,
@@ -98,6 +101,8 @@ use hyper::{body::Buf, header, Body, Client, Request};
 use hyper_tls::HttpsConnector;
 use serde_derive::{Deserialize, Serialize};
 
+use super::{aliases::CardID, sql::fetch::fetch_card, statelist::StatefulList};
+
 #[tokio::main]
 pub async fn get_gpt3_response(api_key: &str, user_input: &str) -> String {
     // Check for environment variable OPENAI_KEY
@@ -145,4 +150,34 @@ pub async fn get_gpt3_response(api_key: &str, user_input: &str) -> String {
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+pub fn get_dependencies(conn: &Arc<Mutex<Connection>>, id: CardID) -> StatefulList<CardItem> {
+    let thecard = fetch_card(conn, id);
+    let dep_ids = &thecard.dependencies;
+    let mut depvec: Vec<CardItem> = vec![];
+
+    for dep in dep_ids {
+        let card = fetch_card(conn, *dep);
+        depvec.push(CardItem {
+            question: card.question,
+            id: *dep,
+        });
+    }
+    StatefulList::with_items(depvec)
+}
+
+pub fn get_dependents(conn: &Arc<Mutex<Connection>>, id: CardID) -> StatefulList<CardItem> {
+    let thecard = fetch_card(conn, id);
+    let dep_ids = &thecard.dependents;
+    let mut depvec: Vec<CardItem> = vec![];
+
+    for dep in dep_ids {
+        let card = fetch_card(conn, *dep);
+        depvec.push(CardItem {
+            question: card.question,
+            id: *dep,
+        });
+    }
+    StatefulList::with_items(depvec)
 }

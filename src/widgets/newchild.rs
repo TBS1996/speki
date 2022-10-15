@@ -58,17 +58,17 @@ impl AddChildWidget {
         match purpose {
             Purpose::Source(id) => {
                 prompt.push("Add new sourced card".to_string());
-                let sourcetext = load_inc_text(&conn, *id).unwrap();
+                let sourcetext = load_inc_text(conn, *id).unwrap();
                 prompt.push(sourcetext);
             }
             Purpose::Dependency(id) => {
                 prompt.push("Add new dependent of: ".to_string());
-                let ques = fetch_question(&conn, *id);
+                let ques = fetch_question(conn, *id);
                 prompt.push(ques)
             }
             Purpose::Dependent(id) => {
                 prompt.push("Add new dependency of: ".to_string());
-                let ques = fetch_question(&conn, *id);
+                let ques = fetch_question(conn, *id);
                 prompt.push(ques)
             }
         }

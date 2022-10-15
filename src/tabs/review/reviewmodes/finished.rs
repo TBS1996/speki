@@ -4,11 +4,14 @@ use rusqlite::Connection;
 
 use crate::{
     tabs::review::logic::Action,
-    utils::{aliases::CardID, card::RecallGrade, sql::update::set_suspended},
-    widgets::{cardrater::CardRater, load_cards::MediaContents, textinput::Field},
+    utils::{
+        aliases::CardID, card::RecallGrade, sql::update::set_suspended, statelist::StatefulList,
+    },
+    widgets::{
+        cardlist::CardItem, cardrater::CardRater, load_cards::MediaContents, textinput::Field,
+    },
     MyKey,
 };
-
 
 pub enum ReviewSelection {
     Question,
@@ -19,12 +22,12 @@ pub enum ReviewSelection {
     CardRater,
 }
 
-
-
 pub struct CardReview {
     pub id: CardID,
     pub question: Field,
     pub answer: Field,
+    pub dependencies: StatefulList<CardItem>,
+    pub dependents: StatefulList<CardItem>,
     pub reveal: bool,
     pub selection: ReviewSelection,
     pub cardrater: CardRater,
@@ -132,8 +135,7 @@ impl CardReview {
         }
     }
 
-
-    pub fn get_manual(&self) -> String{
+    pub fn get_manual(&self) -> String {
         r#"
         Skip card: Alt+s
         Add old card as dependent: Alt+t
@@ -142,6 +144,7 @@ impl CardReview {
         add new card as dependency: Alt+Y
         suspend card: Alt+i
         rate card: 1,2,3,4
-                "#.to_string()
+                "#
+        .to_string()
     }
 }

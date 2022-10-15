@@ -8,6 +8,7 @@ use crate::widgets::cardlist::CardItem;
 use crate::widgets::textinput::Field;
 use crate::MyKey;
 use rusqlite::Connection;
+use std::fmt::{self, Display};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
@@ -15,6 +16,13 @@ pub struct IncListItem {
     pub text: String,
     pub id: IncID,
 }
+
+impl Display for IncListItem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.text)
+    }
+}
+
 pub struct IncRead {
     pub id: IncID,
     pub parent: IncID,

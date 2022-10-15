@@ -1,7 +1,8 @@
-
 use crate::app::AppData;
 use crate::utils::misc::get_gpt3_response;
 
+use crate::utils::statelist::StatefulList;
+use crate::widgets::cardlist::CardItem;
 use crate::{
     tabs::review::logic::Action,
     utils::{aliases::CardID, sql::update::set_suspended},
@@ -13,6 +14,8 @@ pub struct UnfCard {
     pub id: CardID,
     pub question: Field,
     pub answer: Field,
+    pub dependencies: StatefulList<CardItem>,
+    pub dependents: StatefulList<CardItem>,
     pub selection: UnfSelection,
 }
 
@@ -52,11 +55,11 @@ impl UnfCard {
             (_, Alt('T')) => *action = Action::AddDependent(self.id),
             (_, Alt('Y')) => *action = Action::AddDependency(self.id),
             (_, Alt('g')) => {
-                if let Some(key) = &appdata.config.gptkey{
+                if let Some(key) = &appdata.config.gptkey {
                     let answer = get_gpt3_response(key, &self.question.return_text());
                     self.answer.replace_text(answer);
                 }
-            },
+            }
             (_, Alt('i')) => {
                 set_suspended(&appdata.conn, self.id, true).unwrap();
                 *action = Action::SkipRev(

@@ -10,6 +10,8 @@ pub mod load_cards;
 pub mod message_box;
 pub mod mode_status;
 pub mod newchild;
+pub mod optional_bool_filter;
 pub mod progress_bar;
+pub mod radiomenu;
 pub mod textinput;
 pub mod topics;

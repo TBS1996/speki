@@ -5,21 +5,44 @@ use std::fmt;
 impl Display for Item {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ending = match &self.filter {
-            true => "🗹",
-            false => "☒",
+            FilterSetting::AllowTrue => "_ _ 🗹",
+            FilterSetting::AllowFalse => "X _ _",
+            FilterSetting::AllowAll => "_ O _",
         };
         write!(f, "{} {}", self.name, ending)
     }
 }
 
+enum FilterSetting {
+    AllowTrue,
+    AllowFalse,
+    AllowAll,
+}
+
 struct Item {
     name: String,
-    filter: bool,
+    filter: FilterSetting,
 }
 
 impl Item {
-    fn new(name: String, filter: bool) -> Self {
-        Self { name, filter }
+    fn new(name: String) -> Self {
+        Self {
+            name,
+            filter: FilterSetting::AllowAll,
+        }
+    }
+    pub fn right(&mut self) {
+        self.filter = match &mut self.filter {
+            FilterSetting::AllowAll => FilterSetting::AllowTrue,
+            _ => {}
+        }
+    }
+    pub fn left(&mut self) {
+        self.filter = match &mut self.filter {
+            FilterSetting::AllowTrue => FilterSetting::AllowAll,
+            FilterSetting::AllowAll => FilterSetting::AllowFalse,
+            _ => {}
+        }
     }
 }
 

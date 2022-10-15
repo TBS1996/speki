@@ -24,11 +24,13 @@ enum Filter {
 }
 
 struct Browse {
-    filters: Vec<Filter>,
+    statusfilter: CheckBox,
     all: Vec<CardID>,
     filtered: Vec<CardID>,
     selected: Vec<CardID>,
 }
+
+impl Browse {}
 
 impl Tab for Browse {
     fn get_title(&self) -> String {

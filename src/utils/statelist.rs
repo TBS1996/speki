@@ -1,4 +1,4 @@
-use crate::utils::sql::fetch::load_cards;
+use crate::{utils::sql::fetch::load_cards, MyKey};
 use rusqlite::Connection;
 use tui::{
     layout::Rect,
@@ -104,6 +104,14 @@ impl<T: Display> StatefulList<T> {
             None => 0,
         };
         self.state.select(Some(i));
+    }
+
+    pub fn keyhandler(&mut self, key: MyKey) {
+        match key {
+            MyKey::Char('k') => self.previous(),
+            MyKey::Char('j') => self.next(),
+            _ => {}
+        }
     }
 
     pub fn render(

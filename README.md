@@ -95,6 +95,7 @@ toggle help menu: `F1`
 
 #### Review
    
+generate answer (if gpt3 key in config) `Alt+g`  
 skip unfinished card `Alt+s`  
 mark unfinished card as finished `Alt+f`  
 suspend card `Alt+i`  
@@ -108,6 +109,7 @@ add existing card as dependent `Alt+t`
   
 #### Add card
 
+generate answer (if gpt3 key in config) `Alt+g`  
 add card as finished `Alt+f`  
 add card as unfinished `Alt+u`  
 

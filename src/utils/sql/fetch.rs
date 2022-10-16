@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-enum Filter {
+enum CardFilter {
     Suspended(bool),
     Resolved(bool),
     Finished(bool),
@@ -28,9 +28,9 @@ enum Filter {
 }
 
 use std::fmt;
-impl fmt::Display for Filter {
+impl fmt::Display for CardFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use Filter::*;
+        use CardFilter::*;
         let text = match self {
             Suspended(val) => format!("suspended = {}", val),
             Resolved(val) => format!("resolved = {}", val),
@@ -86,6 +86,7 @@ impl fmt::Display for Filter {
                 for id in vec {
                     topicstr.push_str(&format!("topic = {} OR ", id));
                 }
+                // removes the final " OR "
                 for _ in 0..4 {
                     topicstr.pop();
                 }
@@ -98,12 +99,12 @@ impl fmt::Display for Filter {
 }
 
 #[derive(Default)]
-pub struct CardFilter {
-    filters: Vec<Filter>,
+pub struct CardQuery {
+    filters: Vec<CardFilter>,
     limit: Option<u32>,
 }
 
-impl CardFilter {
+impl CardQuery {
     fn make_query(&self) -> String {
         let mut query = r#"SELECT * 
             FROM cards
@@ -121,6 +122,8 @@ impl CardFilter {
             for filter in &self.filters {
                 query.push_str(&format!("{} and ", filter));
             }
+
+            // removes the final " and "
             for _ in 0..4 {
                 query.pop();
             }
@@ -132,71 +135,71 @@ impl CardFilter {
     }
 
     pub fn suspended(mut self, val: bool) -> Self {
-        self.filters.push(Filter::Suspended(val));
+        self.filters.push(CardFilter::Suspended(val));
         self
     }
     pub fn resolved(mut self, val: bool) -> Self {
-        self.filters.push(Filter::Resolved(val));
+        self.filters.push(CardFilter::Resolved(val));
         self
     }
     pub fn finished(mut self, val: bool) -> Self {
-        self.filters.push(Filter::Finished(val));
+        self.filters.push(CardFilter::Finished(val));
         self
     }
     pub fn unfinished(mut self, val: bool) -> Self {
-        self.filters.push(Filter::Unfinished(val));
+        self.filters.push(CardFilter::Unfinished(val));
         self
     }
     pub fn pending(mut self, val: bool) -> Self {
-        self.filters.push(Filter::Pending(val));
+        self.filters.push(CardFilter::Pending(val));
         self
     }
     pub fn strength(mut self, val: (f32, f32)) -> Self {
-        self.filters.push(Filter::StrengthRange(val));
+        self.filters.push(CardFilter::StrengthRange(val));
         self
     }
     pub fn minimum_stability(mut self, val: u32) -> Self {
-        self.filters.push(Filter::Minstability(val));
+        self.filters.push(CardFilter::Minstability(val));
         self
     }
     pub fn max_stability(mut self, val: u32) -> Self {
-        self.filters.push(Filter::Maxstability(val));
+        self.filters.push(CardFilter::Maxstability(val));
         self
     }
     pub fn contains(mut self, val: String) -> Self {
-        self.filters.push(Filter::Contains(val));
+        self.filters.push(CardFilter::Contains(val));
         self
     }
     pub fn topics(mut self, val: Vec<TopicID>) -> Self {
-        self.filters.push(Filter::Topics(val));
+        self.filters.push(CardFilter::Topics(val));
         self
     }
     pub fn minimum_position(mut self, val: u32) -> Self {
-        self.filters.push(Filter::MinPosition(val));
+        self.filters.push(CardFilter::MinPosition(val));
         self
     }
     pub fn max_position(mut self, val: u32) -> Self {
-        self.filters.push(Filter::MaxPosition(val));
+        self.filters.push(CardFilter::MaxPosition(val));
         self
     }
     pub fn minimum_days_since_skip(mut self, val: f32) -> Self {
-        self.filters.push(Filter::MinSkipDaysPassed(val));
+        self.filters.push(CardFilter::MinSkipDaysPassed(val));
         self
     }
     pub fn max_days_since_skip(mut self, val: f32) -> Self {
-        self.filters.push(Filter::MaxSkipDaysPassed(val));
+        self.filters.push(CardFilter::MaxSkipDaysPassed(val));
         self
     }
     pub fn source(mut self, val: u32) -> Self {
-        self.filters.push(Filter::Source(val));
+        self.filters.push(CardFilter::Source(val));
         self
     }
     pub fn unfinished_due(mut self) -> Self {
-        self.filters.push(Filter::DueUnfinished);
+        self.filters.push(CardFilter::DueUnfinished);
         self
     }
     pub fn cardtype(mut self, val: CardType) -> Self {
-        self.filters.push(Filter::Cardtype(val));
+        self.filters.push(CardFilter::Cardtype(val));
         self
     }
     pub fn limit(mut self, val: u32) -> Self {
@@ -436,21 +439,11 @@ pub fn fetch_media(conn: &Arc<Mutex<Connection>>, id: CardID) -> MediaContents {
     }
 }
 
-/*
+// -------------------------------------------------------------- //
 
-
- conn.lock().unwrap().query_row(
- "select skipduration FROM unfinished_cards WHERE id=?",
- [id],
- |row| row.get(0),
- )
-
-
-
-*/
 pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<IncRead> {
     let extracts = load_extracts(conn, id).unwrap();
-    let cloze_cards = CardFilter::default().source(id).fetch_carditems(conn);
+    let cloze_cards = CardQuery::default().source(id).fetch_carditems(conn);
     conn.lock()
         .unwrap()
         .query_row("SELECT * FROM incread WHERE id = ?", [id], |row| {
@@ -506,16 +499,6 @@ pub fn load_extracts(conn: &Arc<Mutex<Connection>>, parent: IncID) -> Result<Vec
     Ok(incvec)
 }
 
-/*
-
-
-let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
-if current_time - card.skiptime(conn) > card.skipduration(conn) * 84_600{
-    unfinished_cards.push(card.id);
-}
-
-
-   */
 pub fn load_active_inc(conn: &Arc<Mutex<Connection>>) -> Result<Vec<IncID>> {
     let current_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -627,7 +610,7 @@ pub fn get_cardtype(conn: &Arc<Mutex<Connection>>, id: CardID) -> CardType {
         .lock()
         .unwrap()
         .query_row("select cardtype FROM cards WHERE id=?", [id], |row| {
-            row.get::<usize, usize>(0 as usize)
+            row.get::<usize, usize>(0)
         })
         .unwrap()
     {

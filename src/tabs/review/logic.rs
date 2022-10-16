@@ -55,17 +55,17 @@ impl ForReview {
     pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
         crate::utils::interval::calc_strength(conn);
 
-        let mut review_cards = CardFilter::default()
+        let mut review_cards = CardQuery::default()
             .strength((0., 0.9))
             .suspended(false)
             .resolved(true)
             .fetch_card_ids(conn);
-        let mut unfinished_cards = CardFilter::default()
+        let mut unfinished_cards = CardQuery::default()
             .unfinished_due()
             .suspended(false)
             .resolved(true)
             .fetch_card_ids(conn);
-        let mut pending_cards = CardFilter::default()
+        let mut pending_cards = CardQuery::default()
             .cardtype(CardType::Pending)
             .suspended(false)
             .resolved(true)
@@ -122,7 +122,7 @@ pub struct MainReview {
     pub popup: Option<PopUp>,
 }
 
-use crate::utils::sql::fetch::{fetch_card, fetch_media, load_active_inc, CardFilter};
+use crate::utils::sql::fetch::{fetch_card, fetch_media, load_active_inc, CardQuery};
 
 impl MainReview {
     pub fn new(conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle) -> Self {

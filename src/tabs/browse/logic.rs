@@ -27,7 +27,6 @@ enum Filter {
 struct Browse {
     cardtypes: CheckBox,
     cardlimit: u32,
-    all: Vec<CardID>,
     filtered: Vec<CardID>,
     selected: Vec<CardID>,
 }
@@ -36,6 +35,14 @@ impl Browse {
     pub fn new() -> Self{
         let cardlimit = 1000;
         let cardtypes = CheckBox::new("Card types".to_string(), ["Finished".to_string(), "Unfinished".to_string(), "Pending".to_string()], false);
+
+        Self {
+            cardtypes,
+            cardlimit,
+            filtered: vec![],
+            selected: vec![],
+
+        }
     }
 }
 

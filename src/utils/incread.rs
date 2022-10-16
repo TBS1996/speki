@@ -1,6 +1,6 @@
 use super::aliases::*;
 use super::card::Card;
-use super::sql::fetch::{get_incread, load_extracts, CardFilter};
+use super::sql::fetch::{get_incread, load_extracts, CardQuery};
 use super::sql::insert::new_incread;
 use crate::utils::sql::update::update_inc_text;
 use crate::utils::statelist::StatefulList;
@@ -58,7 +58,7 @@ impl IncRead {
                 .cardtype(super::card::CardType::Finished)
                 .save_card(conn);
 
-            let cloze_cards = CardFilter::default().source(self.id).fetch_carditems(conn);
+            let cloze_cards = CardQuery::default().source(self.id).fetch_carditems(conn);
             self.clozes = StatefulList::with_items(cloze_cards);
         }
     }

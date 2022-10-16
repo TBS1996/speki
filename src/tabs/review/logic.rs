@@ -18,7 +18,7 @@ use crate::{
         card::{Card, CardType, RecallGrade},
         misc::{centered_rect, modecolor, PopUpStatus},
         sql::{
-            fetch::{get_cardtype, get_strength, load_cards},
+            fetch::get_cardtype,
             update::{
                 double_inc_skip_duration, double_skip_duration, update_card_answer,
                 update_card_question, update_inc_text,
@@ -30,7 +30,6 @@ use crate::{
 use rand::prelude::*;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     widgets::Clear,
@@ -55,7 +54,6 @@ pub struct ForReview {
 impl ForReview {
     pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
         crate::utils::interval::calc_strength(conn);
-
 
         let mut review_cards = CardFilter::default()
             .strength((0., 0.9))

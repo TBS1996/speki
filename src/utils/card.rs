@@ -1,4 +1,4 @@
-use crate::utils::sql::fetch::{fetch_card, get_skiptime};
+use crate::utils::sql::fetch::fetch_card;
 use rusqlite::Connection;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -211,7 +211,6 @@ impl Card {
         false
     }
 
-
     pub fn save_card(self, conn: &Arc<Mutex<Connection>>) -> CardID {
         let dependencies = self.dependencies.clone();
         let dependents = self.dependents.clone();
@@ -310,7 +309,6 @@ use super::sql::delete::{remove_pending, remove_unfinished};
 use super::sql::insert::new_finished;
 use super::sql::insert::revlog_new;
 use super::sql::{
-    fetch::get_skipduration,
     insert::{save_card, update_both},
     update::set_resolved,
 };

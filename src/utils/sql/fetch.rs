@@ -3,7 +3,6 @@ use crate::utils::card::{Card, RecallGrade, Review}; //, Topic, Review}
 use crate::widgets::load_cards::MediaContents;
 use crate::widgets::topics::Topic;
 use rusqlite::{Connection, Result, Row};
-use std::fmt::Display;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -35,12 +34,10 @@ impl fmt::Display for Filter {
         let text = match self {
             Suspended(val) => format!("suspended = {}", val),
             Resolved(val) => format!("resolved = {}", val),
-            Cardtype(val) => {
-                match val{
-                    CardType::Pending => "cardtype = 0".to_string(),
-                    CardType::Unfinished => "cardtype = 1".to_string(),
-                    CardType::Finished => "cardtype = 2".to_string(),
-                }
+            Cardtype(val) => match val {
+                CardType::Pending => "cardtype = 0".to_string(),
+                CardType::Unfinished => "cardtype = 1".to_string(),
+                CardType::Finished => "cardtype = 2".to_string(),
             },
             Pending(val) => match val {
                 true => "cardtype = 0".to_string(),
@@ -59,8 +56,8 @@ impl fmt::Display for Filter {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs() as f32;
-                format!("{} - skiptime > (skipduration * 84600)", now) 
-            },
+                format!("{} - skiptime > (skipduration * 84600)", now)
+            }
             MaxSkipDaysPassed(val) => {
                 let now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)

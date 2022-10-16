@@ -59,12 +59,18 @@ impl ForReview {
 
         let mut review_cards = CardFilter::default()
             .strength((0., 0.9))
+            .suspended(false)
+            .resolved(true)
             .fetch_card_ids(conn);
         let mut unfinished_cards = CardFilter::default()
             .unfinished_due()
+            .suspended(false)
+            .resolved(true)
             .fetch_card_ids(conn);
         let mut pending_cards = CardFilter::default()
             .cardtype(CardType::Pending)
+            .suspended(false)
+            .resolved(true)
             .fetch_card_ids(conn);
 
         let active_increads = load_active_inc(conn).unwrap();

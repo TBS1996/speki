@@ -85,13 +85,14 @@ impl fmt::Display for Filter {
             StrengthRange(val) => format!("strength BETWEEN {} and {}", val.0, val.1),
             Contains(val) => format!("(question LIKE '%{}%' or answer LIKE '%{}%')", val, val),
             Topics(vec) => {
-                let mut topicstr = String::new();
+                let mut topicstr = String::from("(");
                 for id in vec {
                     topicstr.push_str(&format!("topic = {} OR ", id));
                 }
                 for _ in 0..4 {
                     topicstr.pop();
                 }
+                topicstr.push(')');
                 topicstr
             }
         };

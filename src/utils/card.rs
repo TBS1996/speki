@@ -211,20 +211,6 @@ impl Card {
         false
     }
 
-    pub fn skiptime(&self, conn: &Arc<Mutex<Connection>>) -> u32 {
-        if let CardType::Unfinished = self.cardtype {
-            return get_skiptime(&conn, self.id).unwrap();
-        } else {
-            panic!();
-        }
-    }
-    pub fn skipduration(&self, conn: &Arc<Mutex<Connection>>) -> u32 {
-        if let CardType::Unfinished = self.cardtype {
-            return get_skipduration(&conn, self.id).unwrap();
-        } else {
-            panic!();
-        }
-    }
 
     pub fn save_card(self, conn: &Arc<Mutex<Connection>>) -> CardID {
         let dependencies = self.dependencies.clone();

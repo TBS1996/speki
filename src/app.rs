@@ -13,6 +13,7 @@ use crate::{
     tabs::{
         incread::logic::MainInc,
         review::logic::MainReview,
+        //browse::logic::Browse,
     },
     utils::misc::split_leftright,
     widgets::textinput::Field,
@@ -62,11 +63,13 @@ impl TabsState {
         let addcards = NewCard::new(conn, DepState::None);
         let incread  = MainInc::new(conn);
         let importer = Importer::new(conn);
+        //let browse = Browse::new();
 
         tabs.push(Box::new(revlist));
         tabs.push(Box::new(addcards));
         tabs.push(Box::new(incread));
         tabs.push(Box::new(importer));
+        //tabs.push(Box::new(browse));
 
         TabsState { tabs, index: 0 }
     }

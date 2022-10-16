@@ -12,7 +12,7 @@ impl Display for Item {
     }
 }
 
-struct Item {
+pub struct Item {
     name: String,
     filter: bool,
 }
@@ -24,8 +24,8 @@ impl Item {
 }
 
 pub struct CheckBox {
-    title: String,
-    items: StatefulList<Item>,
+    pub title: String,
+    pub items: StatefulList<Item>,
 }
 
 impl CheckBox {

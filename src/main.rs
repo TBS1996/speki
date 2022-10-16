@@ -37,7 +37,7 @@ pub struct SpekiPaths {
 }
 
 impl SpekiPaths {
-    const DEFAULTCONFIG: &str = r#"
+  const DEFAULTCONFIG: &'static str = r#"
 #gptkey = ""
         "#;
     fn new(mut home: PathBuf) -> Self {

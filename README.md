@@ -3,11 +3,10 @@
 
 Flashcards for your terminal
 
-[![Watch the video](https://github.com/TBS1996/speki.net/blob/main/static/demogif.GIF?raw=true)](https://giant.gfycat.com/DampVastChamois.mp4)
 
 
+https://user-images.githubusercontent.com/56874491/196013353-846df752-7587-4b63-b0fa-416de64cdb1b.mp4
 
-https://user-images.githubusercontent.com/56874491/196013314-70936f2a-bf6c-411f-8450-2823f00d0dff.mp4
 
 
 

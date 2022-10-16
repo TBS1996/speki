@@ -29,7 +29,7 @@ pub struct CheckBox {
 }
 
 impl CheckBox {
-    fn new<T: Into<Vec<String>>>(title: String, items: T, filter: bool) -> Self {
+    pub fn new<T: Into<Vec<String>>>(title: String, items: T, filter: bool) -> Self {
         let strvec = items.into();
         let mut itemvec = vec![];
         for x in strvec {

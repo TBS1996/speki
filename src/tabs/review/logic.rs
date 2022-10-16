@@ -55,34 +55,19 @@ pub struct ForReview {
 impl ForReview {
     pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
         crate::utils::interval::calc_strength(conn);
-        let thecards = load_cards(conn).unwrap();
-        let mut review_cards = Vec::<CardID>::new();
-        let mut unfinished_cards = Vec::<CardID>::new();
-        let mut pending_cards = Vec::<CardID>::new();
+
+
+        let mut review_cards = CardFilter::default()
+            .strength((0., 0.9))
+            .fetch_card_ids(conn);
+        let mut unfinished_cards = CardFilter::default()
+            .unfinished_due()
+            .fetch_card_ids(conn);
+        let mut pending_cards = CardFilter::default()
+            .cardtype(CardType::Pending)
+            .fetch_card_ids(conn);
 
         let active_increads = load_active_inc(conn).unwrap();
-
-        for card in thecards {
-            if !card.resolved || card.suspended {
-                continue;
-            }
-
-            if card.is_complete() {
-                if get_strength(conn, card.id).unwrap() < 0.9 {
-                    review_cards.push(card.id);
-                }
-            } else if card.is_unfinished() {
-                let current_time = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs() as u32;
-                if current_time - card.skiptime(conn) > card.skipduration(conn) * 84_600 {
-                    unfinished_cards.push(card.id);
-                }
-            } else if card.is_pending() {
-                pending_cards.push(card.id);
-            }
-        }
 
         unfinished_cards.shuffle(&mut thread_rng());
         pending_cards.shuffle(&mut thread_rng());
@@ -133,7 +118,7 @@ pub struct MainReview {
     pub popup: Option<PopUp>,
 }
 
-use crate::utils::sql::fetch::{fetch_card, fetch_media, load_active_inc};
+use crate::utils::sql::fetch::{fetch_card, fetch_media, load_active_inc, CardFilter};
 
 impl MainReview {
     pub fn new(conn: &Arc<Mutex<Connection>>, handle: &rodio::OutputStreamHandle) -> Self {

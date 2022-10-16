@@ -3,9 +3,242 @@ use crate::utils::card::{Card, RecallGrade, Review}; //, Topic, Review}
 use crate::widgets::load_cards::MediaContents;
 use crate::widgets::topics::Topic;
 use rusqlite::{Connection, Result, Row};
+use std::fmt::Display;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+enum Filter {
+    Suspended(bool),
+    Resolved(bool),
+    Finished(bool),
+    Unfinished(bool),
+    Pending(bool),
+    Cardtype(CardType),
+    StrengthRange((f32, f32)),
+    Minstability(u32),
+    Maxstability(u32),
+    Contains(String),
+    Topics(Vec<TopicID>),
+    MinPosition(u32),
+    MaxPosition(u32),
+    MinSkipDaysPassed(f32),
+    MaxSkipDaysPassed(f32),
+    Source(u32),
+    DueUnfinished,
+}
+
+use std::fmt;
+impl fmt::Display for Filter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Filter::*;
+        let text = match self {
+            Suspended(val) => format!("suspended = {}", val),
+            Resolved(val) => format!("resolved = {}", val),
+            Cardtype(val) => {
+                match val{
+                    CardType::Pending => "cardtype = 0".to_string(),
+                    CardType::Unfinished => "cardtype = 1".to_string(),
+                    CardType::Finished => "cardtype = 2".to_string(),
+                }
+            },
+            Pending(val) => match val {
+                true => "cardtype = 0".to_string(),
+                false => "cardtype != 0".to_string(),
+            },
+            Unfinished(val) => match val {
+                true => "cardtype = 1".to_string(),
+                false => "cardtype != 1".to_string(),
+            },
+            Finished(val) => match val {
+                true => "cardtype = 2".to_string(),
+                false => "cardtype != 2".to_string(),
+            },
+            DueUnfinished => {
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as f32;
+                format!("{} - skiptime > (skipduration * 84600)", now) 
+            },
+            MaxSkipDaysPassed(val) => {
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as f32;
+                let since = now - (val * 86400.);
+                format!("skiptime < {}", since)
+            }
+            MinSkipDaysPassed(val) => {
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as f32;
+                let since = now - (val * 86400.);
+                format!("skiptime > {}", since)
+            }
+            Source(val) => format!("source = {}", val),
+            MaxPosition(val) => format!("position < {}", val),
+            MinPosition(val) => format!("position > {}", val),
+            Minstability(val) => format!("stability > {}", val),
+            Maxstability(val) => format!("stability < {}", val),
+            StrengthRange(val) => format!("strength BETWEEN {} and {}", val.0, val.1),
+            Contains(val) => format!("(question LIKE '%{}%' or answer LIKE '%{}%')", val, val),
+            Topics(vec) => {
+                let mut topicstr = String::new();
+                for id in vec {
+                    topicstr.push_str(&format!("topic = {} OR ", id));
+                }
+                for _ in 0..4 {
+                    topicstr.pop();
+                }
+                topicstr
+            }
+        };
+        write!(f, "{}", text)
+    }
+}
+
+#[derive(Default)]
+pub struct CardFilter {
+    filters: Vec<Filter>,
+    limit: Option<u32>,
+}
+
+impl CardFilter {
+    fn make_query(&self) -> String {
+        let mut query = r#"SELECT * 
+            FROM cards
+            LEFT OUTER JOIN finished_cards
+            ON cards.id = finished_cards.id 
+            LEFT OUTER JOIN unfinished_cards
+            ON cards.id = unfinished_cards.id 
+            LEFT OUTER JOIN pending_cards
+            ON cards.id = pending_cards.id
+
+            "#
+        .to_string();
+        if !self.filters.is_empty() {
+            query.push_str("WHERE ");
+            for filter in &self.filters {
+                query.push_str(&format!("{} and ", filter));
+            }
+            for _ in 0..4 {
+                query.pop();
+            }
+        }
+        if let Some(limit) = self.limit {
+            query.push_str(&format!("LIMIT {}", limit));
+        }
+        query
+    }
+
+    pub fn suspended(mut self, val: bool) -> Self {
+        self.filters.push(Filter::Suspended(val));
+        self
+    }
+    pub fn resolved(mut self, val: bool) -> Self {
+        self.filters.push(Filter::Resolved(val));
+        self
+    }
+    pub fn finished(mut self, val: bool) -> Self {
+        self.filters.push(Filter::Finished(val));
+        self
+    }
+    pub fn unfinished(mut self, val: bool) -> Self {
+        self.filters.push(Filter::Unfinished(val));
+        self
+    }
+    pub fn pending(mut self, val: bool) -> Self {
+        self.filters.push(Filter::Pending(val));
+        self
+    }
+    pub fn strength(mut self, val: (f32, f32)) -> Self {
+        self.filters.push(Filter::StrengthRange(val));
+        self
+    }
+    pub fn minimum_stability(mut self, val: u32) -> Self {
+        self.filters.push(Filter::Minstability(val));
+        self
+    }
+    pub fn max_stability(mut self, val: u32) -> Self {
+        self.filters.push(Filter::Maxstability(val));
+        self
+    }
+    pub fn contains(mut self, val: String) -> Self {
+        self.filters.push(Filter::Contains(val));
+        self
+    }
+    pub fn topics(mut self, val: Vec<TopicID>) -> Self {
+        self.filters.push(Filter::Topics(val));
+        self
+    }
+    pub fn minimum_position(mut self, val: u32) -> Self {
+        self.filters.push(Filter::MinPosition(val));
+        self
+    }
+    pub fn max_position(mut self, val: u32) -> Self {
+        self.filters.push(Filter::MaxPosition(val));
+        self
+    }
+    pub fn minimum_days_since_skip(mut self, val: f32) -> Self {
+        self.filters.push(Filter::MinSkipDaysPassed(val));
+        self
+    }
+    pub fn max_days_since_skip(mut self, val: f32) -> Self {
+        self.filters.push(Filter::MaxSkipDaysPassed(val));
+        self
+    }
+    pub fn source(mut self, val: u32) -> Self {
+        self.filters.push(Filter::Source(val));
+        self
+    }
+    pub fn unfinished_due(mut self) -> Self {
+        self.filters.push(Filter::DueUnfinished);
+        self
+    }
+    pub fn cardtype(mut self, val: CardType) -> Self {
+        self.filters.push(Filter::Cardtype(val));
+        self
+    }
+    pub fn limit(mut self, val: u32) -> Self {
+        self.limit = Some(val);
+        self
+    }
+    pub fn fetch_card_ids(self, conn: &Arc<Mutex<Connection>>) -> Vec<CardID> {
+        let query = self.make_query();
+        let mut cardvec = Vec::<CardID>::new();
+        conn.lock()
+            .unwrap()
+            .prepare(&query)
+            .unwrap()
+            .query_map([], |row| {
+                cardvec.push(row.get(0).unwrap());
+                Ok(())
+            })
+            .unwrap()
+            .for_each(|_| {});
+        cardvec
+    }
+    pub fn fetch_carditems(self, conn: &Arc<Mutex<Connection>>) -> Vec<CardItem> {
+        let query = self.make_query();
+        let mut cardvec = Vec::<CardItem>::new();
+        conn.lock()
+            .unwrap()
+            .prepare(&query)
+            .unwrap()
+            .query_map([], |row| {
+                cardvec.push(CardItem {
+                    question: row.get(1).unwrap(),
+                    id: row.get(0).unwrap(),
+                });
+                Ok(())
+            })
+            .unwrap()
+            .for_each(|_| {});
+        cardvec
+    }
+}
 
 #[derive(Clone)]
 pub struct DepPair {
@@ -35,9 +268,7 @@ pub fn fetch_card(conn: &Arc<Mutex<Connection>>, cid: u32) -> Card {
     let card = conn
         .lock()
         .unwrap()
-        .query_row("SELECT * FROM cards WHERE id=?", [cid], |row| {
-            row2card(&row)
-        })
+        .query_row("SELECT * FROM cards WHERE id=?", [cid], |row| row2card(row))
         .expect(&format!("Failed to query following card: {}", cid));
     fill_dependencies(conn, card)
 }
@@ -221,7 +452,7 @@ pub fn fetch_media(conn: &Arc<Mutex<Connection>>, id: CardID) -> MediaContents {
 */
 pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<IncRead> {
     let extracts = load_extracts(conn, id).unwrap();
-    let cloze_cards = load_cloze_cards(conn, id).unwrap();
+    let cloze_cards = CardFilter::default().source(id).fetch_carditems(conn);
     conn.lock()
         .unwrap()
         .query_row("SELECT * FROM incread WHERE id = ?", [id], |row| {
@@ -335,22 +566,6 @@ pub fn get_topic_of_inc(conn: &Arc<Mutex<Connection>>, id: IncID) -> Result<Topi
         .prepare("SELECT topic FROM incread where id = ?")
         .unwrap()
         .query_row([id], |row| Ok(row.get(0).unwrap()))
-}
-pub fn load_cloze_cards(conn: &Arc<Mutex<Connection>>, source: IncID) -> Result<Vec<CardItem>> {
-    let mut clozevec = Vec::<CardItem>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT * FROM cards where source = ?")
-        .unwrap()
-        .query_map([source], |row| {
-            clozevec.push(CardItem {
-                question: row.get(1).unwrap(),
-                id: row.get(0).unwrap(),
-            });
-            Ok(())
-        })?
-        .for_each(|_| {});
-    Ok(clozevec)
 }
 
 pub fn get_skipduration(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<u32> {

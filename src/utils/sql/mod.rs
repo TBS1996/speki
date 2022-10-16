@@ -230,8 +230,8 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
             .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
         Card::new()
-            .question("What is the website for speki?".to_string())
-            .answer("speki.net".to_string())
+            .question("How do you use AI to find answers to your questions?".to_string())
+            .answer("Add your openai-key to the config file, and press alt+g when reviewing unfinished cards or adding new ones".to_string())
             .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
 

@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use crate::utils::aliases::*;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CardItem {
     pub question: String,
     pub id: CardID,

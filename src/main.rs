@@ -16,7 +16,7 @@ use crate::utils::sql::init_db;
 use crossterm::{
     event::{
         self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
-    }, //EnableBracketedPaste},
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -132,7 +132,7 @@ fn run_app(terminal: &mut Terminal<MyType>, mut app: App) -> io::Result<()> {
     loop {
         terminal.draw(|f| app.render(f))?;
 
-        if poll(Duration::from_millis(102))? {
+        if poll(Duration::from_millis(100))? {
             let event = event::read()?;
             if let Some(key) = MyKey::from(event) {
                 app.keyhandler(key);

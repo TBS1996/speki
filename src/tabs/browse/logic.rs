@@ -1,6 +1,7 @@
 use crate::app::Tab;
 use crate::utils::aliases::*;
 use crate::utils::misc::split_leftright;
+use crate::widgets::checkbox::CheckBox;
 
 /*
 
@@ -24,13 +25,19 @@ enum Filter {
 }
 
 struct Browse {
-    statusfilter: CheckBox,
+    cardtypes: CheckBox,
+    cardlimit: u32,
     all: Vec<CardID>,
     filtered: Vec<CardID>,
     selected: Vec<CardID>,
 }
 
-impl Browse {}
+impl Browse {
+    pub fn new() -> Self{
+        let cardlimit = 1000;
+        let cardtypes = CheckBox::new("Card types".to_string(), ["Finished".to_string(), "Unfinished".to_string(), "Pending".to_string()], false);
+    }
+}
 
 impl Tab for Browse {
     fn get_title(&self) -> String {

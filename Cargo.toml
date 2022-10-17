@@ -31,7 +31,7 @@ wikipedia = "0.3.4"
 tokio = { version = "1.21.2", features = ["full"] }
 home = "0.5.3"
 unicode-segmentation = "1.10.0"
-rusqlite = "0.27.0"
+#usqlite = "0.27.0"
 toml = "0.5.9"
 hyper = { version = "0.14.20", features = ["full"] }
 hyper-tls = "0.5.0"
@@ -40,3 +40,7 @@ hyper-tls = "0.5.0"
 version = "0.25.0"
 features = ["event-stream"] 
 
+# somehow, this makes it possible to build the binary on windows
+[dependencies.rusqlite]
+version="0.27.0"
+features=["bundled"] 

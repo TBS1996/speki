@@ -1,6 +1,10 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    io::BufReader,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
-use crate::{tabs::review::logic::ReviewMode, widgets::cardlist::CardItem};
+use crate::{app::Audio, tabs::review::logic::ReviewMode, widgets::cardlist::CardItem};
 use rusqlite::Connection;
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -21,6 +25,16 @@ pub fn modecolor(mode: &ReviewMode) -> Color {
 pub enum PopUpStatus {
     OnGoing,
     Finished,
+}
+
+pub fn play_audio(audio: &Option<Audio>, path: PathBuf) {
+    if let Ok(file) = std::fs::File::open(path) {
+        if let Some(audio) = audio {
+            let beep1 = audio.handle.play_once(BufReader::new(file)).unwrap();
+            beep1.set_volume(0.2);
+            beep1.detach();
+        }
+    }
 }
 
 pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

@@ -1,3 +1,4 @@
+use crate::app::Audio;
 use crate::widgets::button::draw_button;
 use crate::widgets::textinput::Field;
 use crate::widgets::topics::TopicList;
@@ -227,8 +228,6 @@ pub struct Template {
     pub state: LoadState,
 }
 
-use rodio;
-use std::io::BufReader;
 
 impl Template {
     pub fn new(conn: &Arc<Mutex<Connection>>, deckname: String, paths: &SpekiPaths) -> Template {
@@ -254,24 +253,17 @@ impl Template {
         temp
     }
 
-    fn play_front_audio(&self, handle: &rodio::OutputStreamHandle) {
+   
+    fn play_front_audio(&self, audio: &Option<Audio>) {
         let media = self.get_media(self.viewpos);
-        if let Some(audio) = media.frontaudio {
-            if let Ok(file) = std::fs::File::open(&audio) {
-                let beep1 = handle.play_once(BufReader::new(file)).unwrap();
-                beep1.set_volume(0.2);
-                beep1.detach();
-            }
+        if let Some(path) = media.frontaudio{
+            crate::utils::misc::play_audio(audio, path);
         }
     }
-    fn play_back_audio(&self, handle: &rodio::OutputStreamHandle) {
+    fn play_back_audio(&self, audio: &Option<Audio>) {
         let media = self.get_media(self.viewpos);
-        if let Some(audio) = media.backaudio {
-            if let Ok(file) = std::fs::File::open(&audio) {
-                let beep1 = handle.play_once(BufReader::new(file)).unwrap();
-                beep1.set_volume(0.2);
-                beep1.detach();
-            }
+        if let Some(path) = media.backaudio{
+            crate::utils::misc::play_audio(audio, path);
         }
     }
 
@@ -887,12 +879,7 @@ impl Template {
             (_, _) => {}
         };
     }
-    pub fn keyhandler(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        key: MyKey,
-        handle: &rodio::OutputStreamHandle,
-    ) {
+    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &Option<Audio>) {
         use MyKey::*;
         use Selected::*;
 
@@ -914,16 +901,16 @@ impl Template {
                 if self.viewpos < self.notes.len() - 1 {
                     self.viewpos += 1;
                     self.refresh_template_and_view();
-                    self.play_front_audio(handle);
-                    self.play_back_audio(handle);
+                    self.play_front_audio(audio);
+                    self.play_back_audio(audio);
                 }
             }
             (Preview, Char('h')) | (Preview, Left) => {
                 if self.viewpos > 0 {
                     self.viewpos -= 1;
                     self.refresh_template_and_view();
-                    self.play_front_audio(handle);
-                    self.play_back_audio(handle);
+                    self.play_front_audio(audio);
+                    self.play_back_audio(audio);
                 }
             }
             (Import, Enter) => self.state = LoadState::Importing,

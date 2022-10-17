@@ -272,7 +272,7 @@ If you don't want to import the selected deck, press escape!
             }
             Menu::LoadCards(tmpl) => match tmpl.state {
                 LoadState::OnGoing => {
-                    tmpl.keyhandler(&appdata.conn, key, &appdata.audio_handle);
+                    tmpl.keyhandler(&appdata.conn, key, &appdata.audio);
                     if let LoadState::Importing = tmpl.state {
                         let mut tmpclone = tmpl.clone();
                         let (tx, rx): (mpsc::SyncSender<ImportProgress>, Receiver<ImportProgress>) =

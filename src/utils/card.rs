@@ -276,31 +276,16 @@ impl Card {
         new_finished(&conn, id).unwrap();
     }
 
-    pub fn play_frontaudio(
-        conn: &Arc<Mutex<Connection>>,
-        id: CardID,
-        handle: &rodio::OutputStreamHandle,
-    ) {
+    pub fn play_frontaudio(conn: &Arc<Mutex<Connection>>, id: CardID, audio: &Option<Audio>) {
         let card = fetch_card(&conn, id);
         if let Some(path) = card.frontaudio {
-            Self::play_audio(handle, path);
+            crate::utils::misc::play_audio(audio, path);
         }
     }
-    pub fn play_backaudio(
-        conn: &Arc<Mutex<Connection>>,
-        id: CardID,
-        handle: &rodio::OutputStreamHandle,
-    ) {
+    pub fn play_backaudio(conn: &Arc<Mutex<Connection>>, id: CardID, audio: &Option<Audio>) {
         let card = fetch_card(&conn, id);
         if let Some(path) = card.backaudio {
-            Self::play_audio(handle, path);
-        }
-    }
-    fn play_audio(handle: &rodio::OutputStreamHandle, path: PathBuf) {
-        if let Ok(file) = std::fs::File::open(path) {
-            let beep1 = handle.play_once(BufReader::new(file)).unwrap();
-            beep1.set_volume(0.2);
-            beep1.detach();
+            crate::utils::misc::play_audio(audio, path);
         }
     }
 }
@@ -312,5 +297,5 @@ use super::sql::{
     insert::{save_card, update_both},
     update::set_resolved,
 };
+use crate::app::Audio;
 use crate::utils::aliases::*;
-use std::io::BufReader;

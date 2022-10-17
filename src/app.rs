@@ -40,10 +40,25 @@ impl Config{
     }
 }
 
+pub struct Audio{
+    pub source: rodio::OutputStream,
+    pub handle: rodio::OutputStreamHandle,
+}
+
+impl Audio{
+    fn new() -> Option<Self>{
+        let (source, handle) = rodio::OutputStream::try_default().unwrap();
+        Some(Audio{
+            source,
+            handle
+        })
+    }
+}
+
 
 pub struct AppData{
     pub conn: Arc<Mutex<Connection>>,
-    pub audio_handle: rodio::OutputStreamHandle,
+    pub audio: Option<Audio>,
     pub paths: SpekiPaths,
     pub config: Config
 }
@@ -56,10 +71,10 @@ pub struct TabsState {
 impl TabsState {
     pub fn new(
         conn: &Arc<Mutex<Connection>>,
-        audio_handle: &rodio::OutputStreamHandle,
+        audio: &Option<Audio>,
     ) -> TabsState {
         let mut tabs: Vec<Box<dyn Tab>> = vec![];
-        let revlist  = MainReview::new(conn, audio_handle);
+        let revlist  = MainReview::new(conn, audio);
         let addcards = NewCard::new(conn, DepState::None);
         let incread  = MainInc::new(conn);
         let importer = Importer::new(conn);
@@ -116,7 +131,6 @@ pub struct App {
     pub tabs: TabsState,
     pub should_quit: bool,
     pub display_help: bool,
-    pub audio_source: rodio::OutputStream,
     pub appdata: AppData,
 }
 
@@ -125,12 +139,12 @@ impl App {
         let conn = Arc::new(Mutex::new(
             Connection::open(&paths.database).expect("Failed to connect to database."),
         ));
-        let (audio_source, audio_handle) = rodio::OutputStream::try_default().unwrap();
         let config = Config::new(&paths);
-        let tabs = TabsState::new(&conn, &audio_handle);
+        let audio = Audio::new();
+        let tabs = TabsState::new(&conn, &audio);
         let appdata = AppData {
             conn,
-            audio_handle,
+            audio,
             config,
             paths,
         };
@@ -139,7 +153,6 @@ impl App {
             tabs,
             display_help,
             should_quit: false,
-            audio_source,
             appdata,
         }
     }
@@ -152,10 +165,15 @@ impl App {
             MyKey::BackSwapTab => self.tabs.swap_left(),
             MyKey::F(1) => self.display_help = !self.display_help,
             MyKey::Alt('q') => self.should_quit = true,
-            _ => {}
+            MyKey::Alt('m') => {
+                if self.appdata.audio.is_some(){
+                    self.appdata.audio = None;
+                } else {
+                    self.appdata.audio = Audio::new();
+                }
+            },
+            key => self.tabs.keyhandler(&self.appdata, key),
         };
-        self.tabs
-            .keyhandler(&self.appdata, key);
     }
 
     pub fn render(&mut self, f: &mut Frame<MyType>) {

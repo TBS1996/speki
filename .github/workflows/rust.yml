@@ -41,7 +41,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install libasound2-dev
-          fi
       - name: Install ${{ matrix.rust }} toolchain
         uses: actions-rs/toolchain@v1
         with:

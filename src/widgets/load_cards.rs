@@ -305,16 +305,16 @@ impl Template {
         frontimagevec.sort_by_key(|el| el.0);
         backimagevec.sort_by_key(|el| el.0);
 
-        if frontaudiovec.len() > 0 {
+        if !frontaudiovec.is_empty() {
             media.frontaudio = Some(frontaudiovec[0].1.clone());
         }
-        if backaudiovec.len() > 0 {
+        if !backaudiovec.is_empty() {
             media.backaudio = Some(backaudiovec[0].1.clone());
         }
-        if frontimagevec.len() > 0 {
+        if !frontimagevec.is_empty() {
             media.frontimage = Some(frontimagevec[0].1.clone());
         }
-        if backimagevec.len() > 0 {
+        if !backimagevec.is_empty() {
             media.backimage = Some(backimagevec[0].1.clone());
         }
         media

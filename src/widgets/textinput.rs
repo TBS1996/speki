@@ -381,18 +381,20 @@ impl Field {
     }
 
     fn relative_bytepos(&self, offset: i32) -> usize {
-        if self.cursor.column == 0 {
-            return 0;
-        }
-        let pos = self.text[self.cursor.row]
+        let count = self.text[self.cursor.row].graphemes(true).count();
+        let pos = match self.text[self.cursor.row]
             .char_indices()
             .nth((self.cursor.column as i32 + offset) as usize)
-            .unwrap()
-            .0;
+        {
+            Some(val) => val.0,
+            _ => count,
+        };
+
         pos
     }
 
     pub fn addchar(&mut self, c: char) {
+        self.rowlens[self.cursor.row] += 1;
         if self.cursor.column == self.text[self.cursor.row].graphemes(true).count() {
             self.text[self.cursor.row].push(c);
             self.cursor.column += 1;
@@ -401,7 +403,6 @@ impl Field {
         let bytepos = self.current_bytepos();
         self.text[self.cursor.row].insert(bytepos, c);
         self.cursor.column += 1;
-        self.rowlens[self.cursor.row] += 1;
         self.visual_rows_start[self.cursor.row] = self.visual_row_start(self.cursor.row);
     }
 
@@ -491,10 +492,10 @@ impl Field {
     }
 
     pub fn delete(&mut self) {
-        if self.text[self.cursor.row].graphemes(true).count() > 1
-            && self.cursor.column != self.text[self.cursor.row].chars().count() - 1
-        {
-            let bytepos = self.current_bytepos();
+        let linelen = self.text[self.cursor.row].graphemes(true).count();
+        let bytepos = self.current_bytepos();
+
+        if linelen > 0 && bytepos != linelen {
             self.text[self.cursor.row].remove(bytepos);
         }
     }

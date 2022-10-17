@@ -85,6 +85,16 @@ Incremental reading is a concept originating in SuperMemo. It allows you to incr
 
 If you want to read more about incremental reading, you can check out [this](https://www.masterhowtolearn.com/2019-08-06-supermemos-incremental-reading-explained/) blog article, as well as many other articles from the same site. 
 
+### OpenAI integration  
+
+Got a key to OpenAI? Then you can autogenerate the answers to questions
+
+
+
+https://user-images.githubusercontent.com/56874491/196179030-eadbbe51-9b7a-4334-a2dc-5afb004031d5.mp4
+
+
+
 
 ## Keyboard-shortcuts
 

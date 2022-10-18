@@ -93,7 +93,7 @@ Got a key to OpenAI? Then you can autogenerate the answers to questions
 
 https://user-images.githubusercontent.com/56874491/196179030-eadbbe51-9b7a-4334-a2dc-5afb004031d5.mp4
 
-
+Simply put your key in the config file, which for linux users is in `~/.config/speki/config.toml`, and for windows users in `C:\Users\speki\config.toml`
 
 
 ## Keyboard-shortcuts
@@ -147,8 +147,8 @@ insert-mode -> normal-mode `Ctrl+c`
 normal-mode -> insert-mode `i`  
 normal-mode -> visual-mode `v`  
 visual-mode -> normal-mode `Ctrl+c`  
-page-up -> `Ctrl+u`  
-page-down -> `Ctrl+d`  
+page-up  `Ctrl+u`  
+page-down `Ctrl+d`  
 extract (from visual mode) `Alt+x`  
 cloze-deletion (from visual mode) `Alt+z`  
 delete right of line (from command mode) `D`  

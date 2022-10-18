@@ -10,10 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 enum CardFilter {
     Suspended(bool),
     Resolved(bool),
-    Finished(bool),
-    Unfinished(bool),
-    Pending(bool),
-    Cardtype(CardType),
+    Cardtype(Vec<CardType>),
     StrengthRange((f32, f32)),
     Minstability(u32),
     Maxstability(u32),
@@ -34,23 +31,25 @@ impl fmt::Display for CardFilter {
         let text = match self {
             Suspended(val) => format!("suspended = {}", val),
             Resolved(val) => format!("resolved = {}", val),
-            Cardtype(val) => match val {
-                CardType::Pending => "cardtype = 0".to_string(),
-                CardType::Unfinished => "cardtype = 1".to_string(),
-                CardType::Finished => "cardtype = 2".to_string(),
-            },
-            Pending(val) => match val {
-                true => "cardtype = 0".to_string(),
-                false => "cardtype != 0".to_string(),
-            },
-            Unfinished(val) => match val {
-                true => "cardtype = 1".to_string(),
-                false => "cardtype != 1".to_string(),
-            },
-            Finished(val) => match val {
-                true => "cardtype = 2".to_string(),
-                false => "cardtype != 2".to_string(),
-            },
+            Cardtype(val) => {
+                let mut topicstr = String::from("(");
+                for var in val {
+                    topicstr.push_str(match var {
+                        CardType::Pending => "cardtype = 0 OR ",
+                        CardType::Unfinished => "cardtype = 1 OR ",
+                        CardType::Finished => "cardtype = 2 OR ",
+                    });
+                }
+                // removes the final " OR "
+                for _ in 0..4 {
+                    topicstr.pop();
+                }
+                topicstr.push(')');
+                if val.is_empty() {
+                    topicstr = String::from("cardtype = 3"); //quickfix
+                }
+                topicstr
+            }
             DueUnfinished => {
                 let now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
@@ -142,18 +141,6 @@ impl CardQuery {
         self.filters.push(CardFilter::Resolved(val));
         self
     }
-    pub fn finished(mut self, val: bool) -> Self {
-        self.filters.push(CardFilter::Finished(val));
-        self
-    }
-    pub fn unfinished(mut self, val: bool) -> Self {
-        self.filters.push(CardFilter::Unfinished(val));
-        self
-    }
-    pub fn pending(mut self, val: bool) -> Self {
-        self.filters.push(CardFilter::Pending(val));
-        self
-    }
     pub fn strength(mut self, val: (f32, f32)) -> Self {
         self.filters.push(CardFilter::StrengthRange(val));
         self
@@ -198,7 +185,7 @@ impl CardQuery {
         self.filters.push(CardFilter::DueUnfinished);
         self
     }
-    pub fn cardtype(mut self, val: CardType) -> Self {
+    pub fn cardtype(mut self, val: Vec<CardType>) -> Self {
         self.filters.push(CardFilter::Cardtype(val));
         self
     }
@@ -206,33 +193,34 @@ impl CardQuery {
         self.limit = Some(val);
         self
     }
-    pub fn fetch_card_ids(self, conn: &Arc<Mutex<Connection>>) -> Vec<CardID> {
-        let query = self.make_query();
-        let mut cardvec = Vec::<CardID>::new();
-        conn.lock()
-            .unwrap()
-            .prepare(&query)
-            .unwrap()
-            .query_map([], |row| {
-                cardvec.push(row.get(0).unwrap());
-                Ok(())
-            })
-            .unwrap()
-            .for_each(|_| {});
-        cardvec
-    }
+
     pub fn fetch_carditems(self, conn: &Arc<Mutex<Connection>>) -> Vec<CardItem> {
-        let query = self.make_query();
-        let mut cardvec = Vec::<CardItem>::new();
-        conn.lock()
-            .unwrap()
-            .prepare(&query)
-            .unwrap()
-            .query_map([], |row| {
-                cardvec.push(CardItem {
+        let f = |row: &Row| {
+                CardItem {
                     question: row.get(1).unwrap(),
                     id: row.get(0).unwrap(),
-                });
+                }
+        };  
+        self.fetch_generic(conn, f)
+    }
+
+
+    pub fn fetch_card_ids(self, conn: &Arc<Mutex<Connection>>) -> Vec<CardID> {
+        let f = |row: &Row| {row.get(0).unwrap()};  
+        self.fetch_generic(conn, f)
+    }
+
+    pub fn fetch_generic<F, T>(self, conn: &Arc<Mutex<Connection>>, mut genfun: F) -> Vec<T> 
+        where F: FnMut(&Row) -> T
+    {
+        let query = self.make_query();
+        let mut cardvec = Vec::<T>::new();
+        conn.lock()
+            .unwrap()
+            .prepare(&query)
+            .unwrap()
+            .query_map([], |row| {
+                cardvec.push(genfun(row));
                 Ok(())
             })
             .unwrap()

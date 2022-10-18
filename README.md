@@ -187,3 +187,9 @@ Suspended card `Card won't show up in the learning process`
 
 I'm very open to any feedback or PRs, feel free to open an issue if there's anything you're wondering, and i'll make sure to get back to you!
 
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=tbs1996/speki&type=Date)](https://star-history.com/#tbs1996/speki&Date)
+
+

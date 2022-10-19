@@ -29,6 +29,12 @@ if you're using yay:
 yay -S speki
 ```
 
+### Linux binary  
+
+
+[Click to download binary](https://github.com/TBS1996/speki/releases/download/dev/speki-dev-x86_64-linux.tar.xz)
+You'll have to add it to your PATH manually for easy access. I'll look into how to to package it for various package managers, if you have experience with that then I'd appreciate help. 
+
 
 ### Cargo
 
@@ -186,4 +192,10 @@ Suspended card `Card won't show up in the learning process`
 ## Feedback/Contributions
 
 I'm very open to any feedback or PRs, feel free to open an issue if there's anything you're wondering, and i'll make sure to get back to you!
+
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=tbs1996/speki&type=Date)](https://star-history.com/#tbs1996/speki&Date)
+
 

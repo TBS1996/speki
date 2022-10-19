@@ -1,15 +1,14 @@
-#![allow(dead_code)]
 #![forbid(unsafe_code)]
+#[allow(dead_code)] // too much lint spamming while developing otherwise
 
-use std::fs::File;
-use std::io::prelude::*;
 pub mod app;
 pub mod tabs;
 pub mod utils;
 pub mod widgets;
 use chrono::prelude::*;
+use utils::misc::SpekiPaths;
 ///pub mod tabs;
-use std::{env, path::PathBuf};
+use std::env;
 //use tabs::MyType;
 use crate::app::App;
 use crate::utils::sql::init_db;
@@ -25,67 +24,6 @@ use tui::{backend::CrosstermBackend, Terminal};
 
 pub type MyType = CrosstermBackend<std::io::Stdout>;
 
-#[derive(Clone)]
-pub struct SpekiPaths {
-    pub base: PathBuf,
-    pub database: PathBuf,
-    pub media: PathBuf,
-    pub tempfolder: PathBuf,
-    pub downloc: PathBuf,
-    pub backups: PathBuf,
-    pub config: PathBuf,
-}
-
-impl SpekiPaths {
-  const DEFAULTCONFIG: &'static str = r#"
-#gptkey = ""
-        "#;
-    fn new(mut home: PathBuf) -> Self {
-        let mut configpath = home.clone();
-        if cfg!(windows) {
-            home.push(".speki/");
-            if !std::path::Path::new(&home).exists() {
-                std::fs::create_dir(&home).unwrap();
-            }
-            configpath.push("config.toml");
-            if !std::path::Path::new(&configpath).exists() {
-                let mut file = File::create(&configpath).unwrap();
-                file.write_all(Self::DEFAULTCONFIG.as_bytes()).unwrap();
-            }
-        } else {
-            home.push(".local/share/speki/");
-            std::fs::create_dir_all(&home).unwrap();
-            configpath.push(".config/speki/config.toml");
-            std::fs::create_dir_all(&configpath.parent().unwrap()).unwrap();
-            if !std::path::Path::new(&configpath).exists() {
-                let mut file = File::create(&configpath).unwrap();
-                file.write_all(Self::DEFAULTCONFIG.as_bytes()).unwrap();
-            }
-        }
-        let mut database = home.clone();
-        let mut media = home.clone();
-        let mut tempfolder = home.clone();
-        let mut backups = home.clone();
-
-        database.push("dbflash.db");
-        media.push("media/");
-        tempfolder.push("temp/");
-        backups.push("backups/");
-
-        let mut downloc = tempfolder.clone();
-        downloc.push("ankitemp.apkg");
-
-        Self {
-            base: home,
-            database,
-            media,
-            tempfolder,
-            downloc,
-            backups,
-            config: configpath,
-        }
-    }
-}
 
 fn main() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "1");

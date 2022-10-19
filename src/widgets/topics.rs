@@ -458,6 +458,7 @@ impl TopicList {
                 }
                 Char('e') => {
                     let index = self.state.selected().unwrap() as u32;
+                    if index == 0{return}
                     let topic = self.items[index as usize].clone();
                     self.writing = Some(NewTopic::new(topic.id));
                 }

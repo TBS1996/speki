@@ -13,7 +13,7 @@ use crate::{
     tabs::{
         incread::logic::MainInc,
         review::logic::MainReview,
-        //browse::logic::Browse,
+        browse::logic::Browse,
     },
     utils::misc::split_leftright,
     widgets::textinput::Field,
@@ -78,13 +78,13 @@ impl TabsState {
         let addcards = NewCard::new(conn, DepState::None);
         let incread  = MainInc::new(conn);
         let importer = Importer::new(conn);
-        //let browse = Browse::new();
+        let browse = Browse::new();
 
         tabs.push(Box::new(revlist));
         tabs.push(Box::new(addcards));
+        tabs.push(Box::new(browse));
         tabs.push(Box::new(incread));
         tabs.push(Box::new(importer));
-        //tabs.push(Box::new(browse));
 
         TabsState { tabs, index: 0 }
     }
@@ -188,8 +188,8 @@ impl App {
             .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
             .split(area);
 
-        let block = Block::default().style(Style::default().bg(Color::Rgb(20, 31, 31)));
-        f.render_widget(block, f.size());
+        //let block = Block::default().style(Style::default().bg(Color::Rgb(20, 31, 31)));
+        //f.render_widget(block, f.size());
 
         let titles = self
             .tabs

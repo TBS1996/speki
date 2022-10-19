@@ -66,7 +66,7 @@ impl ForReview {
             .resolved(true)
             .fetch_card_ids(conn);
         let mut pending_cards = CardQuery::default()
-            .cardtype(CardType::Pending)
+            .cardtype(vec![CardType::Pending])
             .suspended(false)
             .resolved(true)
             .fetch_card_ids(conn);
@@ -162,11 +162,7 @@ impl MainReview {
 
     // randomly choose a mode between active, unfinished and inc read, if theyre all done,
     // start with pending cards, if theyre all done, declare nothing left to review
-    pub fn random_mode(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        audio: &Option<Audio>
-    ) {
+    pub fn random_mode(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
         let act: u32 = self.for_review.review_cards.len() as u32;
         let unf: u32 = self.for_review.unfinished_cards.len() as u32 + act;
         let inc: u32 = self.for_review.active_increads.len() as u32 + unf;
@@ -207,11 +203,7 @@ impl MainReview {
 
         self.mode = ReviewMode::IncRead(inc);
     }
-    pub fn new_unfinished_mode(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        audio: &Option<Audio>
-    ) {
+    pub fn new_unfinished_mode(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
         let id = self.for_review.unfinished_cards.remove(0);
         Card::play_frontaudio(conn, id, audio);
         let selection = UnfSelection::Question;
@@ -233,11 +225,7 @@ impl MainReview {
         self.mode = ReviewMode::Unfinished(unfcard);
     }
 
-    pub fn new_pending_mode(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        audio: &Option<Audio>
-    ) {
+    pub fn new_pending_mode(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
         let id = self.for_review.pending_cards.remove(0);
         Card::play_frontaudio(conn, id, audio);
         let reveal = false;
@@ -265,11 +253,7 @@ impl MainReview {
 
         self.mode = ReviewMode::Pending(cardreview);
     }
-    pub fn new_review_mode(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        audio: &Option<Audio>
-    ) {
+    pub fn new_review_mode(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
         let id = self.for_review.review_cards.remove(0);
         Card::play_frontaudio(conn, id, audio);
         let reveal = false;
@@ -298,21 +282,11 @@ impl MainReview {
         self.mode = ReviewMode::Review(cardreview);
     }
 
-    pub fn inc_next(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        audio: &Option<Audio>,
-        id: IncID,
-    ) {
+    pub fn inc_next(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>, id: IncID) {
         self.random_mode(conn, audio);
         double_inc_skip_duration(conn, id).unwrap();
     }
-    pub fn inc_done(
-        &mut self,
-        id: IncID,
-        conn: &Arc<Mutex<Connection>>,
-        audio: &Option<Audio>
-    ) {
+    pub fn inc_done(&mut self, id: IncID, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
         let active = false;
         update_inc_active(&conn, id, active).unwrap();
         self.random_mode(conn, audio);
@@ -323,7 +297,7 @@ impl MainReview {
         conn: &Arc<Mutex<Connection>>,
         id: CardID,
         recallgrade: RecallGrade,
-        audio: &Option<Audio>
+        audio: &Option<Audio>,
     ) {
         Card::new_review(conn, id, recallgrade);
         self.random_mode(conn, audio);
@@ -512,10 +486,7 @@ impl Tab for MainReview {
                 Card::play_backaudio(&appdata.conn, id, &appdata.audio);
             }
             Action::Refresh => {
-                *self = crate::tabs::review::logic::MainReview::new(
-                    &appdata.conn,
-                    &appdata.audio,
-                );
+                *self = crate::tabs::review::logic::MainReview::new(&appdata.conn, &appdata.audio);
             }
             Action::None => {}
         }

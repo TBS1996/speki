@@ -224,7 +224,8 @@ impl CardQuery {
                 Ok(())
             })
             .unwrap()
-            .for_each(|_| {});
+            .for_each(|_| {}); // this is just to make the iterator execute, feels clumsy so let me
+                               // know if there's a better way
         cardvec
     }
 }

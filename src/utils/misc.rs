@@ -1,5 +1,6 @@
 use std::{
-    io::BufReader,
+    fs::File,
+    io::{BufReader, Write},
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -10,6 +11,14 @@ use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::Color,
 };
+
+/*
+
+
+   this is where i put stuff that doesn't fit neatly into a certain module
+
+
+*/
 
 pub fn modecolor(mode: &ReviewMode) -> Color {
     match mode {
@@ -67,22 +76,18 @@ pub fn split_updown<C>(constraints: C, area: Rect) -> Vec<Rect>
 where
     C: Into<Vec<u16>>,
 {
-    split(constraints, area, Direction::Vertical)
+    split(constraints.into(), area, Direction::Vertical)
 }
 
 pub fn split_leftright<C>(constraints: C, area: Rect) -> Vec<Rect>
 where
     C: Into<Vec<u16>>,
 {
-    split(constraints, area, Direction::Horizontal)
+    split(constraints.into(), area, Direction::Horizontal)
 }
 
-fn split<C>(constraints: C, area: Rect, direction: Direction) -> Vec<Rect>
-where
-    C: Into<Vec<u16>>,
-{
+fn split(constraints: Vec<u16>, area: Rect, direction: Direction) -> Vec<Rect> {
     let mut constraintvec: Vec<Constraint> = vec![];
-    let constraints = constraints.into();
     for c in constraints {
         constraintvec.push(Constraint::Percentage(c));
     }
@@ -117,10 +122,9 @@ use serde_derive::{Deserialize, Serialize};
 
 use super::{aliases::CardID, sql::fetch::fetch_card, statelist::StatefulList};
 
+// stole code from here: https://github.com/zahidkhawaja/rusty
 #[tokio::main]
 pub async fn get_gpt3_response(api_key: &str, user_input: &str) -> String {
-    // Check for environment variable OPENAI_KEY
-
     let https = HttpsConnector::new();
     let client = Client::builder().build(https);
     let uri = "https://api.openai.com/v1/completions";
@@ -152,7 +156,6 @@ pub async fn get_gpt3_response(api_key: &str, user_input: &str) -> String {
     let json: OpenAIResponse = match serde_json::from_reader(body.reader()) {
         Ok(response) => response,
         Err(_) => {
-            println!("Error calling OpenAI. Check environment variable OPENAI_KEY");
             std::process::exit(1);
         }
     };
@@ -194,4 +197,66 @@ pub fn get_dependents(conn: &Arc<Mutex<Connection>>, id: CardID) -> StatefulList
         });
     }
     StatefulList::with_items(depvec)
+}
+
+#[derive(Clone)]
+pub struct SpekiPaths {
+    pub base: PathBuf,
+    pub database: PathBuf,
+    pub media: PathBuf,
+    pub tempfolder: PathBuf,
+    pub downloc: PathBuf,
+    pub backups: PathBuf,
+    pub config: PathBuf,
+}
+
+impl SpekiPaths {
+    const DEFAULTCONFIG: &'static str = r#"
+#gptkey = ""
+        "#;
+    pub fn new(mut home: PathBuf) -> Self {
+        let mut configpath = home.clone();
+        if cfg!(windows) {
+            home.push(".speki/");
+            if !std::path::Path::new(&home).exists() {
+                std::fs::create_dir(&home).unwrap();
+            }
+            configpath.push("config.toml");
+            if !std::path::Path::new(&configpath).exists() {
+                let mut file = File::create(&configpath).unwrap();
+                file.write_all(Self::DEFAULTCONFIG.as_bytes()).unwrap();
+            }
+        } else {
+            home.push(".local/share/speki/");
+            std::fs::create_dir_all(&home).unwrap();
+            configpath.push(".config/speki/config.toml");
+            std::fs::create_dir_all(&configpath.parent().unwrap()).unwrap();
+            if !std::path::Path::new(&configpath).exists() {
+                let mut file = File::create(&configpath).unwrap();
+                file.write_all(Self::DEFAULTCONFIG.as_bytes()).unwrap();
+            }
+        }
+        let mut database = home.clone();
+        let mut media = home.clone();
+        let mut tempfolder = home.clone();
+        let mut backups = home.clone();
+
+        database.push("dbflash.db");
+        media.push("media/");
+        tempfolder.push("temp/");
+        backups.push("backups/");
+
+        let mut downloc = tempfolder.clone();
+        downloc.push("ankitemp.apkg");
+
+        Self {
+            base: home,
+            database,
+            media,
+            tempfolder,
+            downloc,
+            backups,
+            config: configpath,
+        }
+    }
 }

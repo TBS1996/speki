@@ -19,7 +19,13 @@ pub struct IncListItem {
 
 impl Display for IncListItem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.text)
+        let text = if self.text.len() > 2 {
+            self.text.clone()
+        } else {
+            String::from("--Empty source--")
+        };
+
+        write!(f, "{}", text)
     }
 }
 
@@ -35,13 +41,13 @@ pub struct IncRead {
 
 impl IncRead {
     pub fn new(conn: &Arc<Mutex<Connection>>, id: IncID) -> Self {
-        get_incread(&conn, id).unwrap()
+        get_incread(conn, id).unwrap()
     }
 
     pub fn extract(&mut self, conn: &Arc<Mutex<Connection>>) {
         if let Some(extract) = self.source.return_selection() {
-            new_incread(&conn, self.id, self.topic, extract, true).unwrap();
-            self.extracts = StatefulList::with_items(load_extracts(&conn, self.id).unwrap());
+            new_incread(conn, self.id, self.topic, extract, true).unwrap();
+            self.extracts = StatefulList::with_items(load_extracts(conn, self.id).unwrap());
         }
     }
     pub fn cloze(&mut self, conn: &Arc<Mutex<Connection>>) {

@@ -6,15 +6,15 @@ impl Display for Item {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ending = match &self.filter {
             true => "🗹",
-            false => "☒",
+            false => "⮽",
         };
         write!(f, "{} {}", self.name, ending)
     }
 }
 
 pub struct Item {
-    name: String,
-    filter: bool,
+    pub name: String,
+    pub filter: bool,
 }
 
 impl Item {
@@ -40,7 +40,7 @@ impl CheckBox {
     }
     pub fn keyhandler(&mut self, key: MyKey) {
         match key {
-            MyKey::Enter => {
+            MyKey::Enter | MyKey::Char(' ') => {
                 if let Some(idx) = self.items.state.selected() {
                     self.items.items[idx].filter ^= true;
                 }

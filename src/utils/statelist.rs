@@ -34,31 +34,13 @@ impl<T: Display> StatefulList<T> {
         }
     }
 
-    pub fn load_cards(conn: &Arc<Mutex<Connection>>) -> StatefulList<u32> {
-        let cardvec = load_cards(&conn).unwrap();
-        let mut items = Vec::<u32>::new();
-        for card in cardvec {
-            items.push(card.id);
-        }
 
-        StatefulList {
-            state: ListState::default(),
-            items,
-        }
-    }
-
-    pub fn load_empty() -> StatefulList<u32> {
-        let items = Vec::<u32>::new();
-        StatefulList {
-            state: ListState::default(),
-            items,
-        }
-    }
 
     pub fn move_item_up(&mut self) {
         if let Some(idx) = self.state.selected() {
             if idx != 0 {
                 self.items.swap(idx, idx - 1);
+                self.previous();
             }
         }
     }
@@ -66,8 +48,24 @@ impl<T: Display> StatefulList<T> {
         if let Some(idx) = self.state.selected() {
             if idx != self.items.len() - 1 {
                 self.items.swap(idx, idx + 1);
+                self.next();
             }
         }
+    }
+
+    pub fn take_selected_item(&mut self) -> Option<T>{
+        if let Some(idx) = self.state.selected(){
+            if idx == self.items.len() - 1{
+                self.previous();
+            }
+            if self.items.len() == 1{
+                self.state.select(None);
+            }
+            Some(self.items.remove(idx))
+        } else {
+            None
+        }
+
     }
 
     pub fn next(&mut self) {
@@ -89,7 +87,7 @@ impl<T: Display> StatefulList<T> {
     }
 
     pub fn previous(&mut self) {
-        if self.items.len() == 0 {
+        if self.items.is_empty() {
             return;
         };
 
@@ -108,8 +106,10 @@ impl<T: Display> StatefulList<T> {
 
     pub fn keyhandler(&mut self, key: MyKey) {
         match key {
-            MyKey::Char('k') => self.previous(),
-            MyKey::Char('j') => self.next(),
+            MyKey::Char('k') | MyKey::Up => self.previous(),
+            MyKey::Char('j') | MyKey::Down => self.next(),
+            MyKey::Char('J') => self.move_item_down(),
+            MyKey::Char('K') => self.move_item_up(),
             _ => {}
         }
     }

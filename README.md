@@ -29,6 +29,12 @@ if you're using yay:
 yay -S speki
 ```
 
+### Linux binary  
+
+
+[Click to download binary](https://github.com/TBS1996/speki/releases/download/dev/speki-dev-x86_64-linux.tar.xz)
+You'll have to add it to your PATH manually for easy access. I'll look into how to to package it for various package managers, if you have experience with that then I'd appreciate help. 
+
 
 ### Cargo
 

@@ -72,21 +72,15 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-pub fn split_updown<C>(constraints: C, area: Rect) -> Vec<Rect>
-where
-    C: Into<Vec<u16>>,
-{
-    split(constraints.into(), area, Direction::Vertical)
+pub fn split_updown_by_percent<C: Into<Vec<u16>>>(constraints: C, area: Rect) -> Vec<Rect> {
+    split_by_percent(constraints.into(), area, Direction::Vertical)
 }
 
-pub fn split_leftright<C>(constraints: C, area: Rect) -> Vec<Rect>
-where
-    C: Into<Vec<u16>>,
-{
-    split(constraints.into(), area, Direction::Horizontal)
+pub fn split_leftright_by_percent<C: Into<Vec<u16>>>(constraints: C, area: Rect) -> Vec<Rect> {
+    split_by_percent(constraints.into(), area, Direction::Horizontal)
 }
 
-fn split(constraints: Vec<u16>, area: Rect, direction: Direction) -> Vec<Rect> {
+fn split_by_percent(constraints: Vec<u16>, area: Rect, direction: Direction) -> Vec<Rect> {
     let mut constraintvec: Vec<Constraint> = vec![];
     for c in constraints {
         constraintvec.push(Constraint::Percentage(c));
@@ -95,6 +89,21 @@ fn split(constraints: Vec<u16>, area: Rect, direction: Direction) -> Vec<Rect> {
     Layout::default()
         .direction(direction)
         .constraints(constraintvec.as_ref())
+        .split(area)
+}
+
+pub fn split_updown<C: Into<Vec<Constraint>>>(constraints: C, area: Rect) -> Vec<Rect> {
+    split(constraints.into(), area, Direction::Vertical)
+}
+
+pub fn split_leftright<C: Into<Vec<Constraint>>>(constraints: C, area: Rect) -> Vec<Rect> {
+    split(constraints.into(), area, Direction::Horizontal)
+}
+
+fn split(constraints: Vec<Constraint>, area: Rect, direction: Direction) -> Vec<Rect> {
+    Layout::default()
+        .direction(direction)
+        .constraints(constraints)
         .split(area)
 }
 

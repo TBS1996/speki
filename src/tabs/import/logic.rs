@@ -3,7 +3,7 @@ use crate::widgets::button::draw_button;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::topics::TopicList;
 use crate::MyKey;
-use crate::{utils::misc::split_updown, Direction, SpekiPaths};
+use crate::{utils::misc::split_updown_by_percent, Direction, SpekiPaths};
 use std::fs::File;
 
 use crate::widgets::ankimporter::Ankimporter;
@@ -189,7 +189,7 @@ impl Importer {
     }
 
     fn render_main(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
-        let buttons = split_updown([50, 50], area);
+        let buttons = split_updown_by_percent([50, 50], area);
         draw_button(
             f,
             buttons[0],

@@ -1,9 +1,9 @@
 use crate::MyType;
-use crate::{tabs::incread::logic::MainInc, utils::misc::split_leftright};
+use crate::{tabs::incread::logic::MainInc, utils::misc::split_leftright_by_percent};
 use tui::style::Style;
 use tui::{backend::Backend, layout::Rect, widgets::Clear, Frame};
 
-use crate::utils::misc::split_updown;
+use crate::utils::misc::split_updown_by_percent;
 
 use crate::widgets::message_box::draw_message;
 
@@ -22,7 +22,7 @@ impl MainInc {
             area.height -= 4;
             area.width -= 4;
         }
-        let chunks = split_updown([50, 50], area);
+        let chunks = split_updown_by_percent([50, 50], area);
         let (mut msg, mut search) = (chunks[0], chunks[1]);
         msg.y = search.y - 5;
         msg.height = 5;
@@ -34,9 +34,9 @@ impl MainInc {
     }
 
     pub fn main_render(&mut self, f: &mut Frame<MyType>, area: Rect) {
-        let chunks = split_leftright([75, 15], area);
+        let chunks = split_leftright_by_percent([75, 15], area);
         let (left, right) = (chunks[0], chunks[1]);
-        let right = split_updown([33, 33, 33], right);
+        let right = split_updown_by_percent([33, 33, 33], right);
         let (topright, middleright, bottomright) = (right[0], right[1], right[2]);
 
         if let Some(inc) = &mut self.focused {

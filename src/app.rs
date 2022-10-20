@@ -15,7 +15,7 @@ use crate::{
         review::logic::MainReview,
         browse::logic::Browse,
     },
-    utils::misc::split_leftright,
+    utils::misc::split_leftright_by_percent,
     widgets::textinput::Field,
     MyType, SpekiPaths,
 };
@@ -235,7 +235,7 @@ quit: Alt+q
         let help_msg = self.tabs.tabs[self.tabs.index].get_manual();
         msg.push_str(&help_msg);
         let mut field = Field::new_with_text(msg, 0, 0);
-        let chunks = split_leftright([66, 33], area);
+        let chunks = split_leftright_by_percent([66, 33], area);
         field.render(f, chunks[1], false);
         chunks[0]
     }

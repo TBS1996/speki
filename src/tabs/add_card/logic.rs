@@ -2,7 +2,7 @@ use crate::app::AppData;
 use crate::app::Tab;
 use crate::utils::card::CardType;
 use crate::utils::misc::get_gpt3_response;
-use crate::utils::misc::{split_leftright, split_updown};
+use crate::utils::misc::{split_leftright_by_percent, split_updown_by_percent};
 use crate::utils::{aliases::*, sql::fetch::load_inc_title};
 use crate::utils::{card::Card, sql::fetch::fetch_card};
 use crate::widgets::find_card::FindCardWidget;
@@ -184,7 +184,7 @@ Add card as unfinished: Alt+u
         }
     }
     fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, area: Rect) {
-        let chunks = split_leftright([75, 15], area);
+        let chunks = split_leftright_by_percent([75, 15], area);
         let left = chunks[0];
         let right = chunks[1];
 
@@ -196,7 +196,7 @@ Add card as unfinished: Alt+u
             Style::default(),
         );
 
-        let chunks = split_updown([10, 37, 37], left);
+        let chunks = split_updown_by_percent([10, 37, 37], left);
 
         draw_message(f, chunks[0], self.prompt.as_str());
         self.question.render(

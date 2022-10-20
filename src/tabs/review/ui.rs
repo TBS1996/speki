@@ -2,7 +2,7 @@ use crate::widgets::{button::draw_button, cardlist::CardItem};
 use crate::{
     utils::{
         incread::IncListItem,
-        misc::{split_leftright, split_updown},
+        misc::{split_leftright_by_percent, split_updown_by_percent},
     },
     MyType,
 };
@@ -308,7 +308,7 @@ fn inc_layout(area: Rect) -> DrawInc {
 
     let (editing, rightside) = (mainvec[0], mainvec[1]);
 
-    let rightvec = split_updown([10, 40, 40], rightside);
+    let rightvec = split_updown_by_percent([10, 40, 40], rightside);
     DrawInc {
         source: editing,
         extracts: rightvec[1],
@@ -317,12 +317,12 @@ fn inc_layout(area: Rect) -> DrawInc {
 }
 
 fn unfinished_layout(area: Rect) -> DrawUnf {
-    let leftright = split_leftright([66, 33], area);
+    let leftright = split_leftright_by_percent([66, 33], area);
     let left = leftright[0];
     let right = leftright[1];
 
-    let rightcolumn = split_updown([50, 50], right);
-    let leftcolumn = split_updown([50, 50], left);
+    let rightcolumn = split_updown_by_percent([50, 50], right);
+    let leftcolumn = split_updown_by_percent([50, 50], left);
 
     DrawUnf {
         question: leftcolumn[0],
@@ -340,14 +340,14 @@ fn review_layout(area: Rect, showimage: bool) -> DrawReview {
 
     let (up, down) = (updown[0], updown[1]);
 
-    let leftright = split_leftright([66, 33], up);
-    let bottomleftright = split_leftright([66, 33], down);
+    let leftright = split_leftright_by_percent([66, 33], up);
+    let bottomleftright = split_leftright_by_percent([66, 33], down);
 
     let left = leftright[0];
     let right = leftright[1];
 
-    let rightcolumn = split_updown([50, 50], right);
-    let leftcolumn = split_updown([50, 50], left);
+    let rightcolumn = split_updown_by_percent([50, 50], right);
+    let leftcolumn = split_updown_by_percent([50, 50], left);
 
     let question;
     let answer;
@@ -356,8 +356,8 @@ fn review_layout(area: Rect, showimage: bool) -> DrawReview {
 
     if showimage {
         let (up, down) = (leftcolumn[0], leftcolumn[1]);
-        let upper = split_leftright([50, 50], up);
-        let downer = split_leftright([50, 50], down);
+        let upper = split_leftright_by_percent([50, 50], up);
+        let downer = split_leftright_by_percent([50, 50], down);
         (question, frontimg) = (upper[0], upper[1]);
         (answer, backimg) = (downer[0], downer[1]);
     } else {

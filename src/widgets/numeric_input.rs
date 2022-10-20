@@ -5,7 +5,10 @@ use std::{
 
 use tui::{layout::Rect, style::Style, Frame};
 
-use crate::{utils::statelist::{StatefulList, KeyHandler}, MyKey, MyType};
+use crate::{
+    utils::statelist::{KeyHandler, StatefulList},
+    MyKey, MyType,
+};
 
 use super::textinput::Field;
 
@@ -15,16 +18,17 @@ pub struct PosIntField {
 }
 
 impl KeyHandler for Item {
-    fn keyhandler(&mut self, key: MyKey) -> bool{
+    fn keyhandler(&mut self, key: MyKey) -> bool {
         match key {
             MyKey::Char(c) if c.is_ascii_digit() => {
-                if self.input.field.return_text().len() < 10 {
+                if self.input.field.return_text().len() < 9 {
                     self.input.field.keyhandler(key);
                 }
-                if self.input.max_value.is_some() && self.input.get_value().is_some() {
-                    if self.input.get_value().unwrap() > self.input.max_value.unwrap() {
-                        self.input.field.keyhandler(MyKey::Backspace);
-                    }
+                if self.input.max_value.is_some()
+                    && self.input.get_value().is_some()
+                    && self.input.get_value().unwrap() > self.input.max_value.unwrap()
+                {
+                    self.input.field.keyhandler(MyKey::Backspace);
                 }
             }
             MyKey::Backspace => self.input.field.keyhandler(key),

@@ -56,7 +56,7 @@ impl CardReview {
             (_, Alt('T')) => *action = Action::AddDependent(self.id),
             (_, Alt('Y')) => *action = Action::AddDependency(self.id),
             (_, Alt('i')) => {
-                set_suspended(conn, self.id, true).unwrap();
+                set_suspended(conn, self.id, true);
                 *action = Action::SkipRev(
                     self.question.return_text(),
                     self.answer.return_text(),

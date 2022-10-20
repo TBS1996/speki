@@ -204,20 +204,20 @@ impl TopicList {
         let uncles = self.uncles_from_id(topic.id);
         let uncle_qty = uncles.len() as u32;
 
-        update_topic_parent(&conn, topic.id, parent.parent).unwrap();
-        update_topic_relpos(&conn, topic.id, parent.relpos).unwrap();
+        update_topic_parent(&conn, topic.id, parent.parent);
+        update_topic_relpos(&conn, topic.id, parent.relpos);
 
         for i in parent.relpos..uncle_qty {
             let uncle_id = uncles[i as usize];
             let uncle = self.topic_from_id(uncle_id);
-            update_topic_relpos(&conn, uncle_id, uncle.relpos + 1).unwrap();
+            update_topic_relpos(&conn, uncle_id, uncle.relpos + 1);
         }
         let siblings = self.siblings_from_id(topic.id);
         let sibling_qty = siblings.len() as u32;
 
         for i in (topic.relpos + 1)..sibling_qty {
             let sibling = self.topic_from_id(siblings[i as usize]);
-            update_topic_relpos(&conn, siblings[i as usize], sibling.relpos - 1).unwrap();
+            update_topic_relpos(&conn, siblings[i as usize], sibling.relpos - 1);
         }
     }
 
@@ -225,39 +225,39 @@ impl TopicList {
         let topic = self.topic_from_index(index);
 
         for (index, child) in topic.children.iter().enumerate() {
-            update_topic_parent(&conn, *child, topic.parent).unwrap();
-            update_topic_relpos(&conn, *child, topic.relpos + index as u32).unwrap();
+            update_topic_parent(&conn, *child, topic.parent);
+            update_topic_relpos(&conn, *child, topic.relpos + index as u32);
         }
 
         delete_topic(&conn, topic.id).unwrap();
-        update_card_topic(&conn, topic.id, topic.parent).unwrap(); // all the cards with the deleted topic
-                                                                   // get assigned to the topic above item
+        update_card_topic(&conn, topic.id, topic.parent); // all the cards with the deleted topic
+                                                          // get assigned to the topic above item
 
         let siblings = self.siblings_from_id(topic.id);
         let siblingqty = siblings.len() as u32;
         let kidqty = topic.children.len() as u32;
 
         for i in (topic.relpos + 1)..(siblingqty) {
-            update_topic_relpos(&conn, siblings[(i) as usize], i + kidqty - 1).unwrap();
+            update_topic_relpos(&conn, siblings[(i) as usize], i + kidqty - 1);
         }
     }
 
     pub fn shift_right(&mut self, conn: &Arc<Mutex<Connection>>, index: u32) {
         let topic = self.topic_from_index(index);
         let below = self.topic_from_index(index + 1);
-        update_topic_parent(&conn, topic.id, below.id).unwrap();
-        update_topic_relpos(&conn, topic.id, 0).unwrap();
+        update_topic_parent(&conn, topic.id, below.id);
+        update_topic_relpos(&conn, topic.id, 0);
 
         for child_id in below.children {
             let child = self.topic_from_id(child_id);
-            update_topic_relpos(&conn, child_id, child.relpos + 1).unwrap();
+            update_topic_relpos(&conn, child_id, child.relpos + 1);
         }
         let siblings = self.siblings_from_id(topic.id);
         let sibling_qty = siblings.len() as u32;
 
         for i in (topic.relpos + 1)..sibling_qty {
             let sib = self.topic_from_id(siblings[i as usize]);
-            update_topic_relpos(&conn, sib.id, sib.relpos - 1).unwrap();
+            update_topic_relpos(&conn, sib.id, sib.relpos - 1);
         }
     }
 
@@ -273,8 +273,8 @@ impl TopicList {
         // if topic is not the last relpos, shift its relpos one down and the below it one up
 
         if topic.relpos != sibling_qty - 1 {
-            update_topic_relpos(&conn, topic.id, topic.relpos + 1).unwrap();
-            update_topic_relpos(&conn, below_sibling.id, topic.relpos).unwrap();
+            update_topic_relpos(&conn, topic.id, topic.relpos + 1);
+            update_topic_relpos(&conn, below_sibling.id, topic.relpos);
             return;
         }
     }
@@ -285,8 +285,8 @@ impl TopicList {
             return;
         }
         let sibling_above = self.sibling_above(topic.id);
-        update_topic_relpos(&conn, topic.id, topic.relpos - 1).unwrap();
-        update_topic_relpos(&conn, sibling_above.id, topic.relpos).unwrap();
+        update_topic_relpos(&conn, topic.id, topic.relpos - 1);
+        update_topic_relpos(&conn, sibling_above.id, topic.relpos);
     }
 
     fn dfs(&mut self, id: u32, indices: &mut Vec<u32>) {
@@ -373,14 +373,14 @@ impl TopicList {
                     inner.name.addchar(c);
                     let id = inner.id;
                     let name = inner.name.return_text();
-                    update_topic_name(&conn, id, name).unwrap();
+                    update_topic_name(&conn, id, name);
                     self.reload_topics(conn);
                 }
                 Backspace => {
                     inner.name.backspace();
                     let id = inner.id;
                     let name = inner.name.return_text();
-                    update_topic_name(&conn, id, name).unwrap();
+                    update_topic_name(&conn, id, name);
                     self.reload_topics(conn);
                 }
                 Enter => {
@@ -458,7 +458,9 @@ impl TopicList {
                 }
                 Char('e') => {
                     let index = self.state.selected().unwrap() as u32;
-                    if index == 0{return}
+                    if index == 0 {
+                        return;
+                    }
                     let topic = self.items[index as usize].clone();
                     self.writing = Some(NewTopic::new(topic.id));
                 }

@@ -46,7 +46,7 @@ pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
             let stability = get_stability(conn, card.id);
             passed = time_passed_since_review(&history[(history.len() - 1) as usize]);
             strength = func(passed, stability);
-            update_strength(conn, card.id, strength).unwrap();
+            update_strength(conn, card.id, strength);
         }
     }
 }
@@ -64,7 +64,7 @@ pub fn calc_stability(conn: &Arc<Mutex<Connection>>, id: CardID) {
     };
 
     if hislen < 2 {
-        set_stability(conn, id, gradefactor).unwrap();
+        set_stability(conn, id, gradefactor);
         return;
     }
 
@@ -82,5 +82,5 @@ pub fn calc_stability(conn: &Arc<Mutex<Connection>>, id: CardID) {
         }
     };
 
-    set_stability(conn, id, new_stability).unwrap();
+    set_stability(conn, id, new_stability);
 }

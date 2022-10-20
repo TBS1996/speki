@@ -269,3 +269,44 @@ impl SpekiPaths {
         }
     }
 }
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+struct tab{
+    canvas: Canvas,
+    cursor: Cursor,
+}
+
+
+canvas:
+list<Widget>
+
+
+Widget:
+object
+area 
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+

@@ -438,25 +438,25 @@ impl Tab for MainReview {
                     Card::activate_card(&appdata.conn, id);
                 }
                 self.new_review(&appdata.conn, id, grade, &appdata.audio);
-                update_card_question(&appdata.conn, id, question).unwrap();
-                update_card_answer(&appdata.conn, id, answer).unwrap();
+                update_card_question(&appdata.conn, id, question);
+                update_card_answer(&appdata.conn, id, answer);
             }
             Action::SkipUnf(question, answer, id) => {
                 self.random_mode(&appdata.conn, &appdata.audio);
-                update_card_question(&appdata.conn, id, question).unwrap();
-                update_card_answer(&appdata.conn, id, answer).unwrap();
-                double_skip_duration(&appdata.conn, id).unwrap();
+                update_card_question(&appdata.conn, id, question);
+                update_card_answer(&appdata.conn, id, answer);
+                double_skip_duration(&appdata.conn, id);
             }
             Action::SkipRev(question, answer, id) => {
                 self.random_mode(&appdata.conn, &appdata.audio);
-                update_card_question(&appdata.conn, id, question).unwrap();
-                update_card_answer(&appdata.conn, id, answer).unwrap();
+                update_card_question(&appdata.conn, id, question);
+                update_card_answer(&appdata.conn, id, answer);
             }
             Action::CompleteUnf(question, answer, id) => {
                 Card::complete_card(&appdata.conn, id);
                 self.random_mode(&appdata.conn, &appdata.audio);
-                update_card_question(&appdata.conn, id, question).unwrap();
-                update_card_answer(&appdata.conn, id, answer).unwrap();
+                update_card_question(&appdata.conn, id, question);
+                update_card_answer(&appdata.conn, id, answer);
             }
             Action::NewDependency(id) => {
                 let prompt = String::from("Add new dependency");

@@ -9,7 +9,7 @@ pub mod delete;
 use rusqlite::{Connection, Result};
 use crate::utils::sql::insert::new_topic;
 
-use std::{sync::{Mutex, Arc}, path::PathBuf};
+use std::{sync::{Mutex, Arc}, path::PathBuf, fmt::Display};
 
 use self::insert::new_incread;
 
@@ -272,5 +272,68 @@ In the future there will be many more ways of getting text in here.
 
 
 
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+pub enum cardColumns{
+    id,
+    question,
+    answer,
+    frontaudio,
+    backaudio,
+    frontimg,
+    backimg,
+    cardtype,
+    suspended,
+    resolved,
+    topic,
+    source,
+}
+
+impl Display for cardColumns{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+pub enum finished_cardsColumns{
+    id,
+    question,
+    answer,
+    frontaudio,
+    backaudio,
+    frontimg,
+    backimg,
+    cardtype,
+    suspended,
+    resolved,
+    topic,
+    source,
+}
+
+impl Display for finished_cardsColumns{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+pub enum DBTables{
+    cards,
+    dependencies,
+    finished_cards,
+    incread,
+    pending_cards,
+    revlog,
+    topics,
+    unfinished_cards
+}
+
+impl Display for DBTables{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}

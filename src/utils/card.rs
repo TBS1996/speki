@@ -248,7 +248,7 @@ impl Card {
         if card.resolved != is_resolved {
             change_detected = true;
             card.resolved = is_resolved;
-            set_resolved(&conn, card.id, card.resolved).unwrap();
+            set_resolved(&conn, card.id, card.resolved);
 
             for dependent in card.dependents {
                 Card::check_resolved(dependent, conn);

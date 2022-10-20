@@ -153,6 +153,8 @@ impl Browse {
             _ => {}
         }
     }
+
+    fn set_suspend() {}
 }
 
 impl Tab for Browse {
@@ -215,6 +217,7 @@ impl Tab for Browse {
                 Constraint::Length(27),
                 Constraint::Percentage(40),
                 Constraint::Percentage(40),
+                Constraint::Percentage(10),
             ],
             area,
         );

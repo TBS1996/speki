@@ -123,7 +123,7 @@ pub fn new_finished(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<()> {
         "INSERT INTO finished_cards (id, strength, stability) VALUES (?1, ?2, ?3)",
         params![id, 1.0f32, 1.0f32],
     )?;
-    set_cardtype(conn, id, CardType::Finished).unwrap();
+    set_cardtype(conn, id, CardType::Finished);
     Ok(())
 }
 

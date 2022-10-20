@@ -61,7 +61,7 @@ impl UnfCard {
                 }
             }
             (_, Alt('i')) => {
-                set_suspended(&appdata.conn, self.id, true).unwrap();
+                set_suspended(&appdata.conn, self.id, true);
                 *action = Action::SkipRev(
                     self.question.return_text(),
                     self.answer.return_text(),

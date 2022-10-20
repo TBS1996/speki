@@ -3,6 +3,7 @@ use tui::layout::{Direction, Constraint, Layout};
 use tui::style::Style;
 use std::collections::HashSet;
 
+use crate::app::AppData;
 use crate::utils::aliases::*;
 use crate::utils::card::CardType;
 use crate::utils::misc::{split_leftright, split_updown};
@@ -18,6 +19,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 enum Selection {
     CardType,
     CardStatus,
+    Numfilters,
     Filtered,
     Selected,
 }
@@ -46,7 +48,7 @@ pub struct Browse {
 }
 
 impl Browse {
-    pub fn new() -> Self {
+    pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
         let cardlimit = 10000;
         let cardtypes = CheckBox::new(
             "Card types".to_string(),
@@ -59,11 +61,16 @@ impl Browse {
         );
         let selection = Selection::Filtered;
         let cardstatus = OptCheckBox::new("Status".to_string(), ["Resolved".to_string(), "Suspended".to_string()]);
-        let numfilters = NumPut::new(String::from("My title"), ["test1".to_string(), "test2.to_string".to_string()]);
+        let numfilters = NumPut::new(String::from("Numeric filters"), [
+                                     ("Max stability".to_string(), None), 
+                                     ("Min stability".to_string(), None),
+                                     ("Max strength".to_string(), Some(100)),
+                                     ("Min strength".to_string(), None),
+        ]);
         let selected_ids = HashSet::new();
         
 
-        Self {
+        let mut myself = Self {
             selection,
             cardtypes,
             cardstatus,
@@ -72,7 +79,9 @@ impl Browse {
             filtered: StatefulList::new(),
             selected: StatefulList::new(),
             selected_ids,
-        }
+        };
+        myself.apply_filter(conn);
+        myself
     }
 
     fn apply_filter(&mut self, conn: &Arc<Mutex<Connection>>) {
@@ -100,6 +109,21 @@ impl Browse {
             _ => {},
         }
 
+        if let Some(val) = self.numfilters.items.items[0].input.get_value(){
+            query = query.max_stability(val);
+        }
+        if let Some(val) = self.numfilters.items.items[1].input.get_value(){
+            query = query.minimum_stability(val);
+        }
+       if let Some(val) = self.numfilters.items.items[2].input.get_value(){
+            query = query.max_strength(val as f32 / 100.);
+        }
+        if let Some(val) = self.numfilters.items.items[3].input.get_value(){
+            query = query.minimum_strength(val as f32 / 100.);
+        }
+
+
+
         let items = query.fetch_carditems(conn).into_iter().filter(|card| !self.selected_ids.contains(&card.id)).collect();
 
         self.filtered = StatefulList::with_items(items);
@@ -116,6 +140,9 @@ impl Browse {
             (Selected, Left) => self.selection = Selection::Filtered,
             (CardStatus, Right) => self.selection = Selection::Filtered,
             (CardStatus, Up) => self.selection = Selection::CardType,
+            (CardStatus, Down) => self.selection = Selection::Numfilters,
+            (Numfilters, Right) => self.selection = Selection::Filtered,
+            (Numfilters, Up) => self.selection = Selection::CardStatus,
             _ => {}
         }
     }
@@ -135,13 +162,13 @@ impl Tab for Browse {
         }
         match (&self.selection, key) {
             (CardType, key) => {
-                self.cardtypes.keyhandler(key.clone());
+                self.cardtypes.items.keyhandler(key.clone());
                 if key == Enter || key == Char(' '){
                     self.apply_filter(&appdata.conn);
                 }
             },
             (CardStatus, key) => {
-                self.cardstatus.keyhandler(key.clone());
+                self.cardstatus.items.keyhandler(key.clone());
                 if key == Left || key == Right || key == Char('l') || key == Char('h'){
                     self.apply_filter(&appdata.conn);
                 }
@@ -163,6 +190,10 @@ impl Tab for Browse {
                 }
             },
             (Selected, key) => self.selected.keyhandler(key),
+            (Numfilters, key) => {
+                self.numfilters.items.keyhandler(key);
+                self.apply_filter(&appdata.conn);
+            },
         }
     }
 
@@ -190,6 +221,7 @@ impl Tab for Browse {
             Style::default(),
         );
         self.cardstatus.items.render(f, filters[1], matches!(&self.selection, Selection::CardStatus), &self.cardstatus.title, Style::default());
+        self.numfilters.render(f, filters[2], matches!(&self.selection, Selection::Numfilters));
         self.filtered.render(
             f,
             chunks[1],

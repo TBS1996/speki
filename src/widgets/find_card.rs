@@ -1,4 +1,4 @@
-use crate::utils::statelist::StatefulList;
+use crate::utils::statelist::{KeyHandler, StatefulList};
 use crate::utils::{
     aliases::*,
     card::Card,
@@ -30,6 +30,8 @@ pub struct CardMatch {
     pub question: String,
     pub id: CardID,
 }
+
+impl KeyHandler for CardMatch {}
 
 use std::fmt;
 impl fmt::Display for CardMatch {

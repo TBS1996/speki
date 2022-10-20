@@ -69,7 +69,7 @@ impl Field {
             preferredcol: None,
             stickytitle: false,
             singlebarmode: false,
-            visual_rows_start: vec![],
+            visual_rows_start: vec![vec![0]],
             should_update_linestartvec: false,
             rowlens: vec![0],
         };
@@ -423,7 +423,6 @@ impl Field {
             self.set_rowlens()
         } // quickfix
         if self.cursor.column > 0 {
-            //&& self.text[self.cursor.row].len() > 0{
             self.cursor.column -= 1;
             let bytepos = self.current_bytepos();
             self.text[self.cursor.row].remove(bytepos);

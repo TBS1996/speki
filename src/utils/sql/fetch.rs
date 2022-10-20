@@ -14,6 +14,8 @@ enum CardFilter {
     StrengthRange((f32, f32)),
     Minstability(u32),
     Maxstability(u32),
+    Minstrength(f32),
+    Maxstrength(f32),
     Contains(String),
     Topics(Vec<TopicID>),
     MinPosition(u32),
@@ -78,6 +80,8 @@ impl fmt::Display for CardFilter {
             MinPosition(val) => format!("position > {}", val),
             Minstability(val) => format!("stability > {}", val),
             Maxstability(val) => format!("stability < {}", val),
+            Minstrength(val) => format!("strength > {}", val),
+            Maxstrength(val) => format!("strength < {}", val),
             StrengthRange(val) => format!("strength BETWEEN {} and {}", val.0, val.1),
             Contains(val) => format!("(question LIKE '%{}%' or answer LIKE '%{}%')", val, val),
             Topics(vec) => {
@@ -157,6 +161,14 @@ impl CardQuery {
         self.filters.push(CardFilter::Contains(val));
         self
     }
+    pub fn minimum_strength(mut self, val: f32) -> Self {
+        self.filters.push(CardFilter::Minstrength(val));
+        self
+    }
+    pub fn max_strength(mut self, val: f32) -> Self {
+        self.filters.push(CardFilter::Maxstrength(val));
+        self
+    }
     pub fn topics(mut self, val: Vec<TopicID>) -> Self {
         self.filters.push(CardFilter::Topics(val));
         self
@@ -195,23 +207,21 @@ impl CardQuery {
     }
 
     pub fn fetch_carditems(self, conn: &Arc<Mutex<Connection>>) -> Vec<CardItem> {
-        let f = |row: &Row| {
-                CardItem {
-                    question: row.get(1).unwrap(),
-                    id: row.get(0).unwrap(),
-                }
-        };  
+        let f = |row: &Row| CardItem {
+            question: row.get(1).unwrap(),
+            id: row.get(0).unwrap(),
+        };
         self.fetch_generic(conn, f)
     }
-
 
     pub fn fetch_card_ids(self, conn: &Arc<Mutex<Connection>>) -> Vec<CardID> {
-        let f = |row: &Row| {row.get(0).unwrap()};  
+        let f = |row: &Row| row.get(0).unwrap();
         self.fetch_generic(conn, f)
     }
 
-    pub fn fetch_generic<F, T>(self, conn: &Arc<Mutex<Connection>>, mut genfun: F) -> Vec<T> 
-        where F: FnMut(&Row) -> T
+    pub fn fetch_generic<F, T>(self, conn: &Arc<Mutex<Connection>>, mut genfun: F) -> Vec<T>
+    where
+        F: FnMut(&Row) -> T,
     {
         let query = self.make_query();
         let mut cardvec = Vec::<T>::new();

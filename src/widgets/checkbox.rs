@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::{utils::statelist::StatefulList, MyKey};
+use crate::{
+    utils::statelist::{KeyHandler, StatefulList},
+    MyKey,
+};
 use std::fmt;
 impl Display for Item {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -15,6 +18,16 @@ impl Display for Item {
 pub struct Item {
     pub name: String,
     pub filter: bool,
+}
+
+impl KeyHandler for Item {
+    fn keyhandler(&mut self, key: MyKey) -> bool {
+        if let MyKey::Enter | MyKey::Char(' ') = key {
+            self.filter ^= true;
+            return true;
+        }
+        false
+    }
 }
 
 impl Item {
@@ -37,15 +50,5 @@ impl CheckBox {
         }
         let items = StatefulList::with_items(itemvec);
         Self { title, items }
-    }
-    pub fn keyhandler(&mut self, key: MyKey) {
-        match key {
-            MyKey::Enter | MyKey::Char(' ') => {
-                if let Some(idx) = self.items.state.selected() {
-                    self.items.items[idx].filter ^= true;
-                }
-            }
-            key => self.items.keyhandler(key),
-        }
     }
 }

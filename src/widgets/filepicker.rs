@@ -1,3 +1,4 @@
+use crate::utils::statelist::KeyHandler;
 use crate::utils::statelist::StatefulList;
 use std::path::PathBuf;
 use tui::widgets::List;
@@ -17,6 +18,8 @@ enum ChosenFile {
 pub struct ExtPath {
     inner: PathBuf,
 }
+
+impl KeyHandler for ExtPath {}
 
 impl ExtPath {
     fn new(path: PathBuf) -> Self {

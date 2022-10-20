@@ -2,6 +2,7 @@ use super::aliases::*;
 use super::card::Card;
 use super::sql::fetch::{get_incread, load_extracts, CardQuery};
 use super::sql::insert::new_incread;
+use super::statelist::KeyHandler;
 use crate::utils::sql::update::update_inc_text;
 use crate::utils::statelist::StatefulList;
 use crate::widgets::cardlist::CardItem;
@@ -16,6 +17,8 @@ pub struct IncListItem {
     pub text: String,
     pub id: IncID,
 }
+
+impl KeyHandler for IncListItem {}
 
 impl Display for IncListItem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

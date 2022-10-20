@@ -8,22 +8,32 @@ use tui::{
     Frame,
 };
 
+pub trait KeyHandler {
+    // bool represents if the keyhandler used the key. If it didn't use the key, then StaefulList
+    // will check if its gonna perform an action with that key instead.
+    fn keyhandler(&mut self, key: MyKey) -> bool {
+        false
+    }
+}
+
 use std::{
     fmt::Display,
     sync::{Arc, Mutex},
 };
 
 #[derive(Clone)]
-pub struct StatefulList<T: Display> {
+pub struct StatefulList<T: Display + KeyHandler> {
     pub state: ListState,
     pub items: Vec<T>,
+    fixed_fields: bool,
 }
 
-impl<T: Display> StatefulList<T> {
+impl<T: Display + KeyHandler> StatefulList<T> {
     pub fn with_items(items: Vec<T>) -> StatefulList<T> {
         StatefulList {
             state: ListState::default(),
             items,
+            fixed_fields: false,
         }
     }
     pub fn new() -> StatefulList<T> {
@@ -31,10 +41,9 @@ impl<T: Display> StatefulList<T> {
         StatefulList {
             state: ListState::default(),
             items,
+            fixed_fields: false,
         }
     }
-
-
 
     pub fn move_item_up(&mut self) {
         if let Some(idx) = self.state.selected() {
@@ -53,23 +62,22 @@ impl<T: Display> StatefulList<T> {
         }
     }
 
-    pub fn take_selected_item(&mut self) -> Option<T>{
-        if let Some(idx) = self.state.selected(){
-            if idx == self.items.len() - 1{
+    pub fn take_selected_item(&mut self) -> Option<T> {
+        if let Some(idx) = self.state.selected() {
+            if idx == self.items.len() - 1 {
                 self.previous();
             }
-            if self.items.len() == 1{
+            if self.items.len() == 1 {
                 self.state.select(None);
             }
             Some(self.items.remove(idx))
         } else {
             None
         }
-
     }
 
     pub fn next(&mut self) {
-        if self.items.len() == 0 {
+        if self.items.is_empty() {
             return;
         };
 
@@ -105,6 +113,12 @@ impl<T: Display> StatefulList<T> {
     }
 
     pub fn keyhandler(&mut self, key: MyKey) {
+        if let Some(idx) = self.state.selected() {
+            if self.items[idx].keyhandler(key.clone()) {
+                return;
+            }
+        }
+
         match key {
             MyKey::Char('k') | MyKey::Up => self.previous(),
             MyKey::Char('j') | MyKey::Down => self.next(),
@@ -154,7 +168,7 @@ impl<T: Display> StatefulList<T> {
     }
 }
 
-impl<T: Clone + Display> StatefulList<T> {
+impl<T: Clone + Display + KeyHandler> StatefulList<T> {
     pub fn clone_selected(&mut self) -> Option<T> {
         if let Some(index) = self.state.selected() {
             return Some(self.items[index].clone());
@@ -163,7 +177,7 @@ impl<T: Clone + Display> StatefulList<T> {
     }
 }
 
-impl<T: Copy + Display> StatefulList<T> {
+impl<T: Copy + Display + KeyHandler> StatefulList<T> {
     pub fn copy_selected(&mut self) -> Option<T> {
         if let Some(index) = self.state.selected() {
             return Some(self.items[index]);

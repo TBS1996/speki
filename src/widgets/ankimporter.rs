@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::utils::statelist::StatefulList;
+use crate::utils::statelist::{KeyHandler, StatefulList};
 use crate::widgets::textinput::Field;
 use crate::{MyType, SpekiPaths};
 use reqwest;
@@ -67,6 +67,8 @@ pub struct Deck {
     pub title: String,
     pub id: u32,
 }
+
+impl KeyHandler for Deck {}
 
 use std::fmt;
 impl fmt::Display for Deck {

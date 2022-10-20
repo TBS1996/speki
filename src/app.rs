@@ -43,14 +43,17 @@ impl Config{
 pub struct Audio{
     pub source: rodio::OutputStream,
     pub handle: rodio::OutputStreamHandle,
+    pub volume: f32,
 }
 
 impl Audio{
     fn new() -> Option<Self>{
         let (source, handle) = rodio::OutputStream::try_default().unwrap();
+        let volume = 0.2;
         Some(Audio{
             source,
-            handle
+            handle,
+            volume,
         })
     }
 }
@@ -78,7 +81,7 @@ impl TabsState {
         let addcards = NewCard::new(conn, DepState::None);
         let incread  = MainInc::new(conn);
         let importer = Importer::new(conn);
-        let browse = Browse::new();
+        let browse = Browse::new(conn);
 
         tabs.push(Box::new(revlist));
         tabs.push(Box::new(addcards));

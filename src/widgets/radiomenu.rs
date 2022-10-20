@@ -1,4 +1,7 @@
-use crate::{utils::statelist::StatefulList, MyKey};
+use crate::{
+    utils::statelist::{KeyHandler, StatefulList},
+    MyKey,
+};
 
 struct RadioItem {
     name: String,
@@ -25,6 +28,17 @@ impl Display for RadioItem {
     }
 }
 
+impl KeyHandler for RadioItem {
+    fn keyhandler(&mut self, key: MyKey) -> bool {
+        if let MyKey::Enter = key {
+            //self.clear();
+            self.selected ^= true; // flips the bool
+            return true;
+        }
+        false
+    }
+}
+
 struct RadioMenu {
     title: String,
     items: StatefulList<RadioItem>,
@@ -35,6 +49,13 @@ impl RadioMenu {
         for item in &mut self.items.items {
             item.selected = false;
         }
+    }
+
+    pub fn keyhandler(&mut self, key: MyKey) {
+        if let MyKey::Enter = key {
+            self.clear();
+        }
+        self.items.keyhandler(key);
     }
 
     pub fn new<T: Into<Vec<String>>>(title: String, items: T) -> Self {
@@ -48,18 +69,6 @@ impl RadioMenu {
         Self {
             title,
             items: StatefulList::with_items(radiovec),
-        }
-    }
-
-    pub fn keyhandler(&mut self, key: MyKey) {
-        match key {
-            MyKey::Enter => {
-                if let Some(idx) = self.items.state.selected() {
-                    self.clear();
-                    self.items.items[idx].selected ^= true; // flips the bool
-                }
-            }
-            key => self.items.keyhandler(key),
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::app::AppData;
 use crate::app::Tab;
+use crate::app::Widget;
 use crate::utils::card::CardType;
 use crate::utils::card::CardTypeData;
 use crate::utils::card::FinishedInfo;
@@ -164,6 +165,9 @@ Add card as unfinished: Alt+u
         "#
         .to_string()
     }
+}
+
+impl Widget for NewCard {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use MyKey::*;
         use TextSelect::*;

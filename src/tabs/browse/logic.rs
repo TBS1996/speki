@@ -4,7 +4,7 @@ use std::fmt::Display;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::style::Style;
 
-use crate::app::AppData;
+use crate::app::{AppData, Widget};
 use crate::utils::aliases::*;
 use crate::utils::card::CardType;
 use crate::utils::misc::{split_leftright, split_leftright_by_percent, split_updown_by_percent};
@@ -179,9 +179,8 @@ impl Browse {
         )
     }
 
-
-    fn do_action(&mut self, appdata: &AppData){
-        if let Some(idx) = self.filteractions.state.selected(){
+    fn do_action(&mut self, appdata: &AppData) {
+        if let Some(idx) = self.filteractions.state.selected() {
             match idx {
                 0 => self.clear_selected(&appdata.conn),
                 1 => self.apply_suspended(appdata, true),
@@ -191,16 +190,15 @@ impl Browse {
             self.apply_filter(&appdata.conn);
         }
     }
-
-
-
 }
 
 impl Tab for Browse {
     fn get_title(&self) -> String {
         "Browse".to_string()
     }
+}
 
+impl Widget for Browse {
     fn keyhandler(&mut self, appdata: &crate::app::AppData, key: MyKey) {
         use MyKey::*;
         use Selection::*;

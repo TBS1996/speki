@@ -1,4 +1,4 @@
-use crate::app::{AppData, Audio};
+use crate::app::{AppData, Audio, Widget};
 use crate::utils::aliases::*;
 use crate::utils::incread::IncRead;
 use crate::utils::misc::{get_dependencies, get_dependents};
@@ -334,7 +334,29 @@ impl MainReview {
     }
 }
 
+
 impl Tab for MainReview {
+    fn get_title(&self) -> String {
+        "Review".to_string()
+    }
+
+    fn get_manual(&self) -> String {
+        match &self.mode {
+            ReviewMode::Done => "".to_string(),
+            ReviewMode::Review(rev) => rev.get_manual(),
+            ReviewMode::Pending(rev) => rev.get_manual(),
+            ReviewMode::IncRead(inc) => inc.get_manual(),
+            ReviewMode::Unfinished(unf) => unf.get_manual(),
+        }
+    }
+
+}
+
+
+
+
+
+impl Widget for MainReview {
     fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, area: Rect) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -379,19 +401,7 @@ impl Tab for MainReview {
             }
         }
     }
-    fn get_title(&self) -> String {
-        "Review".to_string()
-    }
 
-    fn get_manual(&self) -> String {
-        match &self.mode {
-            ReviewMode::Done => "".to_string(),
-            ReviewMode::Review(rev) => rev.get_manual(),
-            ReviewMode::Pending(rev) => rev.get_manual(),
-            ReviewMode::IncRead(inc) => inc.get_manual(),
-            ReviewMode::Unfinished(unf) => unf.get_manual(),
-        }
-    }
 
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         let mut action = Action::None;

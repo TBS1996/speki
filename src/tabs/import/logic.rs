@@ -1,4 +1,4 @@
-use crate::app::{AppData, Tab};
+use crate::app::{AppData, Tab, Widget};
 use crate::widgets::button::draw_button;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::topics::TopicList;
@@ -25,7 +25,6 @@ use std::io::prelude::*;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::thread;
-
 
 /*
 #[tokio::main]
@@ -240,7 +239,9 @@ If you don't want to import the selected deck, press escape!
 
         "#.to_string()
     }
+}
 
+impl Widget for Importer {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         match &mut self.menu {
             Menu::Main => self.main_keyhandler(&appdata.conn, key),

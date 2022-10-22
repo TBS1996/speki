@@ -246,7 +246,8 @@ quit: Alt+q
 
 use crate::MyKey;
 
-pub trait Tab {
+
+pub trait Widget{
     fn keyhandler(
         &mut self,
         appdata: &AppData,
@@ -258,6 +259,9 @@ pub trait Tab {
         appdata: &AppData,
         area: Rect,
     );
+}
+
+pub trait Tab: Widget {
     fn get_title(&self) -> String;
     fn get_manual(&self) -> String {
         String::new()

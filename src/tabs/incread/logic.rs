@@ -1,5 +1,6 @@
 use crate::app::AppData;
 use crate::app::Tab;
+use crate::app::Widget;
 use crate::utils::sql::update::update_inc_text;
 use crate::Direction;
 use crate::MyKey;
@@ -159,7 +160,9 @@ make cloze (visual mode): Alt+z
         "#
         .to_string()
     }
+}
 
+impl Widget for MainInc {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use crate::MyKey::*;
         use Selection::*;

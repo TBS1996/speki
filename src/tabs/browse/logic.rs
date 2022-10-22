@@ -112,17 +112,13 @@ impl Browse {
     }
 
     fn save_pending_queue(&mut self, conn: &Arc<Mutex<Connection>>) {
-        let mut selected_cards = self
-            .selected_ids
-            .clone()
-            .into_iter()
-            .collect::<Vec<CardID>>();
-        selected_cards.reverse();
         let highest_pos = get_highest_pos(conn);
-        for i in 0..selected_cards.len() {
-            let id = selected_cards[i];
+
+        for i in 0..self.selected.items.len() {
+            let id = self.selected.items[i].id;
+            let pos = highest_pos + self.selected.items.len() as u32 - i as u32;
             if is_pending(conn, id) {
-                update_position(conn, id, i as u32 + highest_pos);
+                update_position(conn, id, pos);
             }
         }
     }

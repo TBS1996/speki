@@ -1,5 +1,6 @@
 use rusqlite::Connection;
 use std::collections::HashSet;
+use std::fmt::Display;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::style::Style;
 
@@ -8,6 +9,8 @@ use crate::utils::aliases::*;
 use crate::utils::card::CardType;
 use crate::utils::misc::{split_leftright, split_leftright_by_percent, split_updown_by_percent};
 use crate::utils::sql::fetch::CardQuery;
+use crate::utils::sql::update::{set_cardtype, set_suspended};
+use crate::utils::statelist::KeyHandler;
 use crate::widgets::cardlist::CardItem;
 use crate::widgets::checkbox::CheckBox;
 use crate::widgets::numeric_input::NumPut;
@@ -22,6 +25,7 @@ enum Selection {
     Numfilters,
     Filtered,
     Selected,
+    Actions,
 }
 
 enum Filter {
@@ -45,6 +49,7 @@ pub struct Browse {
     filtered: StatefulList<CardItem>,
     selected: StatefulList<CardItem>,
     selected_ids: HashSet<CardID>,
+    filteractions: StatefulList<ActionItem>,
 }
 
 impl Browse {
@@ -74,6 +79,7 @@ impl Browse {
             ],
         );
         let selected_ids = HashSet::new();
+        let filteractions = StatefulList::<ActionItem>::default();
 
         let mut myself = Self {
             selection,
@@ -84,9 +90,17 @@ impl Browse {
             filtered: StatefulList::new(),
             selected: StatefulList::new(),
             selected_ids,
+            filteractions,
         };
         myself.apply_filter(conn);
         myself
+    }
+
+    fn clear_selected(&mut self, conn: &Arc<Mutex<Connection>>) {
+        self.selected.items.clear();
+        self.selected.state.select(None);
+        self.selected_ids.clear();
+        self.apply_filter(conn)
     }
 
     fn apply_filter(&mut self, conn: &Arc<Mutex<Connection>>) {
@@ -139,22 +153,47 @@ impl Browse {
     fn navigate(&mut self, dir: NavDir) {
         use NavDir::*;
         use Selection::*;
-        match (&self.selection, dir) {
-            (CardType, Right) => self.selection = Selection::Filtered,
-            (CardType, Down) => self.selection = Selection::CardStatus,
-            (Filtered, Right) => self.selection = Selection::Selected,
-            (Filtered, Left) => self.selection = Selection::CardType,
-            (Selected, Left) => self.selection = Selection::Filtered,
-            (CardStatus, Right) => self.selection = Selection::Filtered,
-            (CardStatus, Up) => self.selection = Selection::CardType,
-            (CardStatus, Down) => self.selection = Selection::Numfilters,
-            (Numfilters, Right) => self.selection = Selection::Filtered,
-            (Numfilters, Up) => self.selection = Selection::CardStatus,
-            _ => {}
+        self.selection = match (&self.selection, dir) {
+            (CardType, Right) => Selection::Filtered,
+            (CardType, Down) => Selection::CardStatus,
+            (Filtered, Right) => Selection::Selected,
+            (Filtered, Left) => Selection::CardType,
+            (Selected, Left) => Selection::Filtered,
+            (CardStatus, Right) => Selection::Filtered,
+            (CardStatus, Up) => Selection::CardType,
+            (CardStatus, Down) => Selection::Numfilters,
+            (Numfilters, Right) => Selection::Filtered,
+            (Numfilters, Up) => Selection::CardStatus,
+            (Numfilters, Down) => Selection::Actions,
+            (Actions, Up) => Selection::Numfilters,
+            (Actions, Right) => Selection::Filtered,
+            _ => return,
         }
     }
 
-    fn set_suspend() {}
+    fn apply_suspended(&self, appdata: &AppData, suspend: bool) {
+        set_suspended(
+            &appdata.conn,
+            self.selected_ids.iter().cloned().collect::<Vec<CardID>>(),
+            suspend,
+        )
+    }
+
+
+    fn do_action(&mut self, appdata: &AppData){
+        if let Some(idx) = self.filteractions.state.selected(){
+            match idx {
+                0 => self.clear_selected(&appdata.conn),
+                1 => self.apply_suspended(appdata, true),
+                2 => self.apply_suspended(appdata, false),
+                _ => return,
+            }
+            self.apply_filter(&appdata.conn);
+        }
+    }
+
+
+
 }
 
 impl Tab for Browse {
@@ -170,6 +209,9 @@ impl Tab for Browse {
             return;
         }
         match (&self.selection, key) {
+            (_, Alt('1')) => self.apply_suspended(appdata, true),
+            (_, Alt('2')) => self.apply_suspended(appdata, false),
+            (_, Alt('3')) => self.clear_selected(&appdata.conn),
             (CardType, key) => {
                 self.cardtypes.items.keyhandler(key.clone());
                 if key == Enter || key == Char(' ') {
@@ -199,6 +241,8 @@ impl Tab for Browse {
                 }
             }
             (Selected, key) => self.selected.keyhandler(key),
+            (Actions, Enter) => self.do_action(appdata),
+            (Actions, key) => self.filteractions.keyhandler(key),
             (Numfilters, key) => {
                 self.numfilters.items.keyhandler(key);
                 self.apply_filter(&appdata.conn);
@@ -227,7 +271,8 @@ impl Tab for Browse {
                 [
                     Constraint::Max(5),
                     Constraint::Max(4),
-                    Constraint::Length(20),
+                    Constraint::Max(6),
+                    Constraint::Max(9),
                 ]
                 .as_ref(),
             )
@@ -252,6 +297,13 @@ impl Tab for Browse {
             filters[2],
             matches!(&self.selection, Selection::Numfilters),
         );
+        self.filteractions.render(
+            f,
+            filters[3],
+            matches!(&self.selection, Selection::Actions),
+            "Actions",
+            Style::default(),
+        );
         self.filtered.render(
             f,
             chunks[1],
@@ -271,3 +323,41 @@ impl Tab for Browse {
 
 use crate::Direction as NavDir;
 use crate::MyKey;
+
+struct ActionItem {
+    text: String,
+}
+
+impl ActionItem {
+    pub fn new(text: String) -> Self {
+        Self { text }
+    }
+}
+
+impl KeyHandler for ActionItem {}
+
+impl Display for ActionItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text)
+    }
+}
+
+impl Default for StatefulList<ActionItem> {
+    fn default() -> Self {
+        let actions = vec![
+            "Clear selected".to_string(),
+            "Suspend".to_string(),
+            "Unsuspend".to_string(),
+            "Add new dependency".to_string(),
+            "Add existing dependency".to_string(),
+            "Add new dependent".to_string(),
+            "Add existing dependent".to_string(),
+            "Add to pending queue".to_string(),
+        ];
+        let items = actions
+            .into_iter()
+            .map(|action| ActionItem::new(action))
+            .collect();
+        StatefulList::with_items(items)
+    }
+}

@@ -33,6 +33,10 @@ where
     Ok(())
 }
 
+pub fn set_suspended<IDVec: Into<Vec<CardID>>>(conn: &Arc<Mutex<Connection>>, id: IDVec, suspended: bool) {
+    update_card(conn, "cards", "suspended", suspended as u8, id).unwrap()
+}
+
 pub fn update_card_question(conn: &Arc<Mutex<Connection>>, id: CardID, question: String) {
     update_card(conn, "cards", "question", question, [id]).unwrap()
 }
@@ -58,9 +62,7 @@ pub fn set_cardtype(conn: &Arc<Mutex<Connection>>, id: CardID, cardtype: CardTyp
     update_card(conn, "cards", "cardtype", cardtype, [id]).unwrap()
 }
 
-pub fn set_suspended(conn: &Arc<Mutex<Connection>>, id: CardID, suspended: bool) {
-    update_card(conn, "cards", "suspended", suspended as u8, [id]).unwrap()
-}
+
 
 pub fn set_resolved(conn: &Arc<Mutex<Connection>>, id: CardID, resolved: bool) {
     update_card(conn, "cards", "resolved", resolved as u8, [id]).unwrap()

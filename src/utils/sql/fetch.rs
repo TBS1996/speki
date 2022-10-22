@@ -1,5 +1,7 @@
 use crate::utils::aliases::*;
-use crate::utils::card::{Card, RecallGrade, Review}; //, Topic, Review}
+use crate::utils::card::{
+    Card, CardTypeData, FinishedInfo, PendingInfo, RecallGrade, Review, UnfinishedInfo,
+}; //, Topic, Review}
 use crate::widgets::load_cards::MediaContents;
 use crate::widgets::topics::Topic;
 use rusqlite::{Connection, Result, Row};
@@ -218,6 +220,15 @@ impl CardQuery {
         let f = |row: &Row| row.get(0).unwrap();
         self.fetch_generic(conn, f)
     }
+    pub fn fetch_card(self, conn: &Arc<Mutex<Connection>>) -> Vec<Card> {
+        let f = |row: &Row| {
+            let mut card = row2card(row);
+            card
+        };
+        let mut cards = self.fetch_generic(conn, row2card);
+        fill_card_vec(&mut cards, conn);
+        cards
+    }
 
     pub fn fetch_generic<F, T>(self, conn: &Arc<Mutex<Connection>>, mut genfun: F) -> Vec<T>
     where
@@ -237,6 +248,15 @@ impl CardQuery {
             .for_each(|_| {}); // this is just to make the iterator execute, feels clumsy so let me
                                // know if there's a better way
         cardvec
+    }
+}
+
+fn fill_card_vec(cardvec: &mut Vec<Card>, conn: &Arc<Mutex<Connection>>) {
+    for i in 0..cardvec.len() {
+        let id = cardvec[i].id;
+        cardvec[i].dependencies = get_dependencies(conn, id).unwrap();
+        cardvec[i].dependents = get_dependents(conn, id).unwrap();
+        cardvec[i].history = get_history(conn, id).unwrap();
     }
 }
 
@@ -268,7 +288,9 @@ pub fn fetch_card(conn: &Arc<Mutex<Connection>>, cid: u32) -> Card {
     let card = conn
         .lock()
         .unwrap()
-        .query_row("SELECT * FROM cards WHERE id=?", [cid], |row| row2card(row))
+        .query_row("SELECT * FROM cards WHERE id=?", [cid], |row| {
+            Ok(row2card(row))
+        })
         .expect(&format!("Failed to query following card: {}", cid));
     fill_dependencies(conn, card)
 }
@@ -313,19 +335,19 @@ pub fn get_history(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<Vec<Review>
 
 // pub fn row2card(conn: &Arc<Mutex<Connection>>, row: &Row) -> Result<Card>{
 
-pub fn row2card(row: &Row) -> Result<Card> {
-    let cardtype = match row.get::<usize, u32>(7)? {
-        0 => CardType::Pending,
-        1 => CardType::Unfinished,
-        2 => CardType::Finished,
+pub fn row2card(row: &Row) -> Card {
+    let cardtype = match row.get::<usize, u32>(7).unwrap() {
+        0 => CardTypeData::Finished(FinishedInfo::default()),
+        1 => CardTypeData::Unfinished(UnfinishedInfo::default()),
+        2 => CardTypeData::Pending(PendingInfo::default()),
         _ => panic!(),
     };
-    let id = row.get(0)?;
+    let id = row.get(0).unwrap();
 
-    let frontaudio: Option<String> = row.get(3)?;
-    let backaudio: Option<String> = row.get(4)?;
-    let frontimage: Option<String> = row.get(5)?;
-    let backimage: Option<String> = row.get(6)?;
+    let frontaudio: Option<String> = row.get(3).unwrap();
+    let backaudio: Option<String> = row.get(4).unwrap();
+    let frontimage: Option<String> = row.get(5).unwrap();
+    let backimage: Option<String> = row.get(6).unwrap();
 
     let frontaudio: Option<PathBuf> = frontaudio.map(|x| PathBuf::from(x));
     let backaudio: Option<PathBuf> = backaudio.map(|x| PathBuf::from(x));
@@ -334,22 +356,23 @@ pub fn row2card(row: &Row) -> Result<Card> {
 
     //  let dependencies = get_dependencies(conn, id).unwrap();
     //  let dependents = get_depndents(conn, id).unwrap();
-    Ok(Card {
+    Card {
         id,
-        question: row.get(1)?,
-        answer: row.get(2)?,
+        question: row.get(1).unwrap(),
+        answer: row.get(2).unwrap(),
         frontaudio,
         backaudio,
         frontimage,
         backimage,
         cardtype,
-        suspended: row.get(8)?,
-        resolved: row.get(9)?,
+        suspended: row.get(8).unwrap(),
+        resolved: row.get(9).unwrap(),
         dependents: Vec::new(),
         dependencies: Vec::new(),
-        topic: row.get(10)?,
-        source: row.get(11)?,
-    })
+        history: Vec::new(),
+        topic: row.get(10).unwrap(),
+        source: row.get(11).unwrap(),
+    }
 }
 
 pub fn load_cards(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Card>> {
@@ -358,7 +381,7 @@ pub fn load_cards(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Card>> {
         .unwrap()
         .prepare("SELECT * FROM cards")?
         .query_map([], |row| {
-            cardvec.push(row2card(row).unwrap());
+            cardvec.push(row2card(row));
             Ok(())
         })?
         .for_each(|_| {});
@@ -366,6 +389,7 @@ pub fn load_cards(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Card>> {
         let id = cardvec[i].id;
         cardvec[i].dependencies = get_dependencies(conn, id).unwrap();
         cardvec[i].dependents = get_dependents(conn, id).unwrap();
+        cardvec[i].history = get_history(conn, id).unwrap();
     }
 
     Ok(cardvec)
@@ -378,7 +402,7 @@ pub fn load_card_matches(conn: &Arc<Mutex<Connection>>, search: &str) -> Result<
         .unwrap()
         .prepare("SELECT * FROM cards WHERE (question LIKE '%' || ?1 || '%') OR (answer LIKE '%' || ?1 || '%') LIMIT 50")?
         .query_map([search], |row| {
-            cardvec.push(row2card(row).unwrap());
+            cardvec.push(row2card(row));
             Ok(())
         })?.for_each(|_|{});
     for i in 0..cardvec.len() {

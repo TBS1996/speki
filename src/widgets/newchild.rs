@@ -1,4 +1,4 @@
-use crate::utils::card::CardType;
+use crate::utils::card::{CardType, CardTypeData, FinishedInfo, UnfinishedInfo};
 use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};
 use crate::utils::{aliases::*, card::Card};
 use crate::widgets::textinput::Field;
@@ -106,24 +106,23 @@ impl AddChildWidget {
             0
         };
         let status = if isfinished {
-            CardType::Finished
+            CardTypeData::Finished(FinishedInfo::default())
         } else {
-            CardType::Unfinished
+            CardTypeData::Unfinished(UnfinishedInfo::default())
         };
 
-        let mut card = Card::new()
+        let mut card = Card::new(status)
             .question(question)
             .answer(answer)
             .topic(topic)
-            .source(source)
-            .cardtype(status);
+            .source(source);
 
         match self.purpose {
             Purpose::Dependent(cid) => {
-                card.dependent(cid);
+                card = card.dependents([cid]);
             }
             Purpose::Dependency(cid) => {
-                card.dependency(cid);
+                card = card.dependencies([cid]);
             }
             _ => {}
         }

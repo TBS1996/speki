@@ -2,7 +2,7 @@ use std::{
     fs::File,
     io::{BufReader, Write},
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, time::{UNIX_EPOCH, SystemTime},
 };
 
 use crate::{app::Audio, tabs::review::logic::ReviewMode, widgets::cardlist::CardItem};
@@ -306,7 +306,12 @@ area
 
 
 
-
+pub fn get_current_unix() -> u32{
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as u32
+}
 
 
 

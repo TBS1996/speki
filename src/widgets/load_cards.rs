@@ -7,7 +7,7 @@ use crate::{Direction, SpekiPaths};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::utils::card::CardType;
+use crate::utils::card::{CardType, CardTypeData, PendingInfo};
 use crate::utils::{aliases::*, card};
 use crate::MyType;
 use anyhow::Result;
@@ -228,7 +228,6 @@ pub struct Template {
     pub state: LoadState,
 }
 
-
 impl Template {
     pub fn new(conn: &Arc<Mutex<Connection>>, deckname: String, paths: &SpekiPaths) -> Template {
         let cards = vec![];
@@ -253,16 +252,15 @@ impl Template {
         temp
     }
 
-   
     fn play_front_audio(&self, audio: &Option<Audio>) {
         let media = self.get_media(self.viewpos);
-        if let Some(path) = media.frontaudio{
+        if let Some(path) = media.frontaudio {
             crate::utils::misc::play_audio(audio, path);
         }
     }
     fn play_back_audio(&self, audio: &Option<Audio>) {
         let media = self.get_media(self.viewpos);
-        if let Some(path) = media.backaudio{
+        if let Some(path) = media.backaudio {
             crate::utils::misc::play_audio(audio, path);
         }
     }
@@ -743,7 +741,7 @@ impl Template {
                 });
             };
 
-            card::Card::new()
+            card::Card::new(CardTypeData::Pending(PendingInfo::default()))
                 .question(frontside)
                 .answer(backside)
                 .topic(topic)
@@ -751,7 +749,6 @@ impl Template {
                 .backimage(media.backimage)
                 .frontaudio(media.frontaudio)
                 .backaudio(media.backaudio)
-                .cardtype(CardType::Pending)
                 .save_card(&conn);
         }
     }

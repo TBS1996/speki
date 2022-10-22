@@ -1,5 +1,5 @@
 use super::aliases::*;
-use super::card::Card;
+use super::card::{Card, CardTypeData, FinishedInfo};
 use super::sql::fetch::{get_incread, load_extracts, CardQuery};
 use super::sql::insert::new_incread;
 use super::statelist::KeyHandler;
@@ -59,12 +59,11 @@ impl IncRead {
             question = question.replace(&cloze, "[...]");
             let answer = cloze;
 
-            Card::new()
+            Card::new(CardTypeData::Finished(FinishedInfo::default()))
                 .question(question)
                 .answer(answer)
                 .topic(self.topic)
                 .source(self.id)
-                .cardtype(super::card::CardType::Finished)
                 .save_card(conn);
 
             let cloze_cards = CardQuery::default().source(self.id).fetch_carditems(conn);

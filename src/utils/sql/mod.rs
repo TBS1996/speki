@@ -1,31 +1,26 @@
+pub mod delete;
 pub mod fetch;
 pub mod insert;
 pub mod update;
-pub mod delete;
 
-
-
-
-use rusqlite::{Connection, Result};
 use crate::utils::sql::insert::new_topic;
+use rusqlite::{Connection, Result};
 
-use std::{sync::{Mutex, Arc}, path::PathBuf, fmt::Display};
+use std::{
+    fmt::Display,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use self::insert::new_incread;
 
-use super::card::Card;
+use super::card::{Card, CardTypeData, PendingInfo};
 
-
-
-
-
-pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
-
+pub fn init_db(dbpath: &PathBuf) -> Result<bool> {
     let mut new_db = false;
-    if let Err(_) = std::fs::metadata(dbpath){
+    if let Err(_) = std::fs::metadata(dbpath) {
         new_db = true;
     }
-
 
     let conn = Connection::open(dbpath)?;
 
@@ -46,7 +41,7 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
             
     )",
         [],
-        )?;
+    )?;
 
     conn.execute(
         "create table if not exists finished_cards (
@@ -55,8 +50,7 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
             stability    real not null
     )",
         [],
-        )?;
-
+    )?;
 
     conn.execute(
         "create table if not exists unfinished_cards (
@@ -65,8 +59,7 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
             skipduration integer not null
     )",
         [],
-        )?;
-
+    )?;
 
     conn.execute(
         "create table if not exists pending_cards (
@@ -74,7 +67,7 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
             position     integer not null
     )",
         [],
-        )?;
+    )?;
 
     conn.execute(
         "create table if not exists topics ( 
@@ -84,8 +77,8 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
             relpos integer not null
     )",
         [],
-        )?;
-    
+    )?;
+
     conn.execute(
         "create table if not exists revlog ( 
             unix   integer not null,
@@ -95,8 +88,7 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
             atime  real not null
         )",
         [],
-        )?;
-
+    )?;
 
     conn.execute(
         "create table if not exists dependencies ( 
@@ -105,8 +97,7 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
 
     )",
         [],
-        )?;
-
+    )?;
 
     conn.execute(
         "create table if not exists incread ( 
@@ -122,120 +113,120 @@ pub fn init_db(dbpath: &PathBuf) -> Result<bool>{
 
     )",
         [],
-        )?;
-    
-    let conn = Arc::new(Mutex::new(conn));
+    )?;
 
+    let conn = Arc::new(Mutex::new(conn));
 
     if new_db {
         new_topic(&conn, String::from("root"), 0, 0)?;
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("How do you navigate between widgets?".to_string())
             .answer("Alt+(h/j/k/l) ... or alt+arrowkeys".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("How do you suspend a card?".to_string())
             .answer("Alt+i".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("What does it mean for a card to have another card as a dependency?".to_string())
             .answer("It means you cannot understand the question/answer unless you first understand the dependency card.".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
-            .question("What does it mean for a card to have another card as a dependent?".to_string())
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
+            .question(
+                "What does it mean for a card to have another card as a dependent?".to_string(),
+            )
             .answer("it means the other card has the current card as a dependency".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("What does it mean for a card to be resolved?".to_string())
-            .answer("It means it doesn't have any dependencies that are unfinished or also unresolved".to_string())
-            .cardtype(super::card::CardType::Pending)
+            .answer(
+                "It means it doesn't have any dependencies that are unfinished or also unresolved"
+                    .to_string(),
+            )
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("How do you add a new card that you have the answer to?".to_string())
             .answer("On the \"Add card\" tab, type Alt+f".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("How do you add a new card that you DON'T have the answer to?".to_string())
             .answer("On the \"Add card\" tab, type Alt+u".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("When you review an unfinished card, how do you skip it?".to_string())
             .answer("Alt+s".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
-            .question("When you review an unfinished card, how do you mark it as complete?".to_string())
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
+            .question(
+                "When you review an unfinished card, how do you mark it as complete?".to_string(),
+            )
             .answer("Alt+f".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
-            .question("When reviewing a card, how do you add a new card as a dependency to it?".to_string())
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
+            .question(
+                "When reviewing a card, how do you add a new card as a dependency to it?"
+                    .to_string(),
+            )
             .answer("Alt+Y (upper case)".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
-            .question("When reviewing a card, how do you add an existing card as a dependency to it?".to_string())
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
+            .question(
+                "When reviewing a card, how do you add an existing card as a dependency to it?"
+                    .to_string(),
+            )
             .answer("Alt+y (lower case)".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
-            .question("When reviewing a card, how do you add a new card as a dependent to it?".to_string())
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
+            .question(
+                "When reviewing a card, how do you add a new card as a dependent to it?"
+                    .to_string(),
+            )
             .answer("Alt+T (upper case)".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
-            .question("When reviewing a card, how do you add an existing card as a dependent to it?".to_string())
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
+            .question(
+                "When reviewing a card, how do you add an existing card as a dependent to it?"
+                    .to_string(),
+            )
             .answer("Alt+t (lower case)".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("How do you exit speki?".to_string())
             .answer("Alt+q".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("How do you take extracts in incremental reading?".to_string())
             .answer("Alt+x in visual mode".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("How do you make cloze deletions in incremental reading?".to_string())
             .answer("Alt+z".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("How do you skip an incremental reading text during review?".to_string())
             .answer("Alt+s".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
-            .question("How do you mark an incremental reading text as done during review?".to_string())
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
+            .question(
+                "How do you mark an incremental reading text as done during review?".to_string(),
+            )
             .answer("Alt+d".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("What happens when you mark an incremental reading text as done?".to_string())
             .answer("It won't show up in review again".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("When should you mark an incremental reading text as done?".to_string())
-            .answer("When you've made extracts or clozes of everything you want to remember in it".to_string())
-            .cardtype(super::card::CardType::Pending)
+            .answer(
+                "When you've made extracts or clozes of everything you want to remember in it"
+                    .to_string(),
+            )
             .save_card(&conn);
-        Card::new()
+        Card::new(CardTypeData::Pending(PendingInfo::default()))
             .question("How do you use AI to find answers to your questions?".to_string())
             .answer("Add your openai-key to the config file, and press alt+g when reviewing unfinished cards or adding new ones".to_string())
-            .cardtype(super::card::CardType::Pending)
             .save_card(&conn);
-
-
 
         let inc_introduction = r#"!!!if you see this in review, you can skip it with Alt+s!!!
 This tab is dedicated to incremental reading!
@@ -260,21 +251,13 @@ In the future there will be many more ways of getting text in here.
             "#.to_string();
         new_incread(&conn, 0, 1, inc_introduction, true).unwrap();
     }
-     
-    
-
-
 
     Ok(new_db)
 }
 
-
-
-
-
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
-pub enum cardColumns{
+pub enum cardColumns {
     id,
     question,
     answer,
@@ -289,7 +272,7 @@ pub enum cardColumns{
     source,
 }
 
-impl Display for cardColumns{
+impl Display for cardColumns {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
@@ -297,7 +280,7 @@ impl Display for cardColumns{
 
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
-pub enum finished_cardsColumns{
+pub enum finished_cardsColumns {
     id,
     question,
     answer,
@@ -312,16 +295,15 @@ pub enum finished_cardsColumns{
     source,
 }
 
-impl Display for finished_cardsColumns{
+impl Display for finished_cardsColumns {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
-pub enum DBTables{
+pub enum DBTables {
     cards,
     dependencies,
     finished_cards,
@@ -329,10 +311,10 @@ pub enum DBTables{
     pending_cards,
     revlog,
     topics,
-    unfinished_cards
+    unfinished_cards,
 }
 
-impl Display for DBTables{
+impl Display for DBTables {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }

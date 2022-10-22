@@ -122,8 +122,8 @@ impl<T: Display + KeyHandler> StatefulList<T> {
         match key {
             MyKey::Char('k') | MyKey::Up => self.previous(),
             MyKey::Char('j') | MyKey::Down => self.next(),
-            MyKey::Char('J') => self.move_item_down(),
-            MyKey::Char('K') => self.move_item_up(),
+            MyKey::Char('J') if !self.fixed_fields => self.move_item_down(),
+            MyKey::Char('K') if !self.fixed_fields => self.move_item_up(),
             _ => {}
         }
     }

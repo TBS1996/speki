@@ -92,7 +92,7 @@ impl Review {
         Review {
             grade: grade.clone(),
             date: unix,
-            answertime: -1 as f32,
+            answertime: -1.,
         }
     }
 }
@@ -106,28 +106,75 @@ pub enum CardType {
 
 #[derive(Clone, Debug)]
 pub struct Card {
-    pub id: u32,
+    pub id: CardID,
     pub question: String,
     pub answer: String,
     pub frontaudio: Option<PathBuf>,
     pub backaudio: Option<PathBuf>,
     pub frontimage: Option<PathBuf>,
     pub backimage: Option<PathBuf>,
-    pub cardtype: CardType,
+    pub cardtype: CardTypeData,
     pub suspended: bool,
     pub resolved: bool,
     pub dependencies: Vec<IncID>,
     pub dependents: Vec<IncID>,
+    pub history: Vec<Review>,
     pub topic: TopicID,
     pub source: IncID,
 }
+
+#[derive(Clone, Debug)]
+pub enum CardTypeData{
+    Finished(FinishedInfo),
+    Unfinished(UnfinishedInfo),
+    Pending(PendingInfo),
+}
+
+#[derive(Clone, Debug)]
+pub struct FinishedInfo{
+    pub strength: f32,
+    pub stability: f32,
+}
+
+impl Default for FinishedInfo {
+    fn default() -> Self {
+        Self {
+            strength: 1.0,
+            stability: 1.0,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UnfinishedInfo{
+    pub skiptime: u32,
+    pub skipduration: u32,
+}
+
+impl Default for UnfinishedInfo{
+    fn default() -> Self {
+        Self {
+            skiptime: get_current_unix(),
+            skipduration: 1,
+        }
+    }
+}
+
+
+#[derive(Clone, Debug, Default)]
+pub struct PendingInfo{
+    pub pos: u32,
+}
+
+
+
 
 impl Card {
     ///checks if the passed card should be resolved or not based on the completeness of its
     ///dependencies. If its status changed, it will recursively check all its dependents (and so
     ///on...)
 
-    pub fn new() -> Card {
+    pub fn new(cardtype: CardTypeData) -> Card {
         Card {
             id: 0,
             question: String::new(),
@@ -136,11 +183,12 @@ impl Card {
             backaudio: None,
             frontimage: None,
             backimage: None,
-            cardtype: CardType::Finished,
+            cardtype,
             suspended: false,
             resolved: false,
             dependencies: vec![],
             dependents: vec![],
+            history: vec![],
             topic: 0,
             source: 0,
         }
@@ -152,10 +200,6 @@ impl Card {
     }
     pub fn answer(mut self, answer: String) -> Self {
         self.answer = answer;
-        self
-    }
-    pub fn cardtype(mut self, cardtype: CardType) -> Self {
-        self.cardtype = cardtype;
         self
     }
     pub fn source(mut self, source: IncID) -> Self {
@@ -183,29 +227,33 @@ impl Card {
         self
     }
 
-    // these don't take self because theyre dependent on conditional logic
-    // after the card has been created
-    pub fn dependency(&mut self, dependency: CardID) {
-        self.dependencies.push(dependency);
+    pub fn dependencies<IDVec: Into<Vec<CardID>>>(mut self, dependencies: IDVec) -> Self{
+        for dependency in dependencies.into(){
+            self.dependencies.push(dependency);
+        }
+        self
     }
-    pub fn dependent(&mut self, dependent: CardID) {
-        self.dependents.push(dependent);
+    pub fn dependents<IDVec: Into<Vec<CardID>>>(mut self, dependents: IDVec) -> Self{
+        for dependent in dependents.into(){
+            self.dependents.push(dependent);
+        }
+        self
     }
 
     pub fn is_complete(&self) -> bool {
-        if let CardType::Finished = self.cardtype {
+        if let CardTypeData::Finished(_) = self.cardtype {
             return true;
         }
         false
     }
     pub fn is_pending(&self) -> bool {
-        if let CardType::Pending = self.cardtype {
+        if let CardTypeData::Pending(_) = self.cardtype {
             return true;
         }
         false
     }
     pub fn is_unfinished(&self) -> bool {
-        if let CardType::Unfinished = self.cardtype {
+        if let CardTypeData::Unfinished(_) = self.cardtype {
             return true;
         }
         false
@@ -290,6 +338,7 @@ impl Card {
     }
 }
 
+use super::misc::get_current_unix;
 use super::sql::delete::{remove_pending, remove_unfinished};
 use super::sql::insert::new_finished;
 use super::sql::insert::revlog_new;
@@ -299,3 +348,23 @@ use super::sql::{
 };
 use crate::app::Audio;
 use crate::utils::aliases::*;
+
+
+
+
+
+
+
+
+
+
+
+pub struct CardInfo{
+    id: CardID,
+    frontside: String,
+    suspended: bool,
+    resolved: bool,
+    cardtype: CardType,
+    strength: f32,
+    stability: f32,
+}

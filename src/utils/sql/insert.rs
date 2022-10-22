@@ -1,5 +1,5 @@
 use crate::utils::aliases::*;
-use crate::utils::card::{Card, CardType, Review}; //, Status, Topic, Review}
+use crate::utils::card::{Card, CardType, CardTypeData, Review}; //, Status, Topic, Review}
 use crate::utils::sql::update::set_cardtype;
 use rusqlite::{params, Connection, Result};
 use std::sync::{Arc, Mutex};
@@ -21,9 +21,9 @@ pub fn save_card(conn: &Arc<Mutex<Connection>>, card: Card) -> CardID {
         .map(|x| x.into_os_string().into_string().unwrap());
 
     let cardtype = match card.cardtype {
-        CardType::Pending => 0,
-        CardType::Unfinished => 1,
-        CardType::Finished => 2,
+        CardTypeData::Pending(_) => 0,
+        CardTypeData::Unfinished(_) => 1,
+        CardTypeData::Finished(_) => 2,
     } as u32;
 
     conn.lock()
@@ -62,9 +62,33 @@ pub fn save_card(conn: &Arc<Mutex<Connection>>, card: Card) -> CardID {
     let id = conn.lock().unwrap().last_insert_rowid() as u32;
 
     match card.cardtype {
-        CardType::Pending => new_pending(conn, id).unwrap(),
-        CardType::Unfinished => new_unfinished(conn, id).unwrap(),
-        CardType::Finished => new_finished(conn, id).unwrap(),
+        CardTypeData::Pending(pending) => {
+            conn.lock()
+                .unwrap()
+                .execute(
+                    "INSERT INTO pending_cards (id, position) VALUES (?1, ?2)",
+                    params![id, pending.pos],
+                )
+                .unwrap();
+        }
+        CardTypeData::Unfinished(unf) => {
+            conn.lock()
+                .unwrap()
+                .execute(
+                    "INSERT INTO unfinished_cards (id, skiptime, skipduration) VALUES (?1, ?2, ?3)",
+                    params![id, unf.skiptime, unf.skipduration],
+                )
+                .unwrap();
+        }
+        CardTypeData::Finished(fin) => {
+            conn.lock()
+                .unwrap()
+                .execute(
+                    "INSERT INTO finished_cards (id, strength, stability) VALUES (?1, ?2, ?3)",
+                    params![id, fin.strength, fin.stability],
+                )
+                .unwrap();
+        }
     };
 
     id

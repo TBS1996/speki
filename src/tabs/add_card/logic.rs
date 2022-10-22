@@ -1,6 +1,9 @@
 use crate::app::AppData;
 use crate::app::Tab;
 use crate::utils::card::CardType;
+use crate::utils::card::CardTypeData;
+use crate::utils::card::FinishedInfo;
+use crate::utils::card::UnfinishedInfo;
 use crate::utils::misc::get_gpt3_response;
 use crate::utils::misc::{split_leftright_by_percent, split_updown_by_percent};
 use crate::utils::{aliases::*, sql::fetch::load_inc_title};
@@ -110,28 +113,25 @@ impl NewCard {
             0
         };
         let status = if iscompleted {
-            CardType::Finished
+            CardTypeData::Finished(FinishedInfo::default())
         } else {
-            CardType::Unfinished
+            CardTypeData::Unfinished(UnfinishedInfo::default())
         };
 
         //(conn, question, answer, topic, source, iscompleted);
-        let mut card = Card::new()
+        let mut card = Card::new(status)
             .question(question)
             .answer(answer)
             .topic(topic)
-            .source(source)
-            .cardtype(status);
-
-        //   revlog_new(conn, highest_id(conn).unwrap(), Review::from(&RecallGrade::Decent)).unwrap();
+            .source(source);
 
         match self.state {
             DepState::None => {}
             DepState::NewDependency(id) => {
-                card.dependency(id);
+                card = card.dependencies([id]);
             }
             DepState::NewDependent(id) => {
-                card.dependent(id);
+                card = card.dependents([id]);
             }
             DepState::NewChild(_id) => {}
         }

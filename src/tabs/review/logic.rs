@@ -56,6 +56,7 @@ impl ForReview {
         crate::utils::interval::calc_strength(conn);
 
         let mut review_cards = CardQuery::default()
+            .cardtype(vec![CardType::Finished])
             .strength((0., 0.9))
             .suspended(false)
             .resolved(true)

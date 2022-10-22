@@ -1,14 +1,13 @@
 #![forbid(unsafe_code)]
 #[allow(dead_code)] // too much lint spamming while developing otherwise
-
 pub mod app;
 pub mod tabs;
 pub mod utils;
 pub mod widgets;
 use chrono::prelude::*;
-use utils::misc::SpekiPaths;
 ///pub mod tabs;
 use std::env;
+use utils::misc::SpekiPaths;
 //use tabs::MyType;
 use crate::app::App;
 use crate::utils::sql::init_db;
@@ -23,7 +22,6 @@ use std::io;
 use tui::{backend::CrosstermBackend, Terminal};
 
 pub type MyType = CrosstermBackend<std::io::Stdout>;
-
 
 fn main() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "1");
@@ -63,8 +61,9 @@ fn main() -> Result<()> {
     }
     Ok(())
 }
-
 use crossterm::{event::poll, Result};
+use crossterm::{queue, style::Print};
+use std::io::{stdout, Write};
 use std::time::Duration;
 fn run_app(terminal: &mut Terminal<MyType>, mut app: App) -> io::Result<()> {
     loop {

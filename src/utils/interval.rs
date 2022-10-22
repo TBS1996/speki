@@ -10,7 +10,7 @@ use crate::utils::aliases::*;
 use rusqlite::Connection;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::sql::update::set_stability;
+use super::{sql::{update::set_stability, fetch::CardQuery}, card::CardType};
 
 use std::sync::{Arc, Mutex};
 
@@ -31,7 +31,7 @@ fn time_passed_since_review(review: &Review) -> f32 {
 }
 
 pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
-    let cards = load_cards(conn).unwrap();
+    let cards = CardQuery::default().cardtype(vec![CardType::Finished]).fetch_card(conn);
 
     let mut strength;
     let mut passed;
@@ -40,7 +40,7 @@ pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
         let history = get_history(conn, card.id).unwrap();
         if card.is_complete() {
             let hislen = history.len();
-            if hislen == 0 as usize {
+            if hislen == 0 {
                 panic! {"wtf {}", &card.question};
             }
             let stability = get_stability(conn, card.id);

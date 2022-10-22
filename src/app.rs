@@ -10,47 +10,40 @@ use tui::{
 use crate::tabs::add_card::logic::{DepState, NewCard};
 
 use crate::{
-    tabs::{
-        incread::logic::MainInc,
-        review::logic::MainReview,
-        browse::logic::Browse,
-    },
+    tabs::{browse::logic::Browse, incread::logic::MainInc, review::logic::MainReview},
     utils::misc::split_leftright_by_percent,
     widgets::textinput::Field,
     MyType, SpekiPaths,
 };
 
-
-
 use serde_derive::Deserialize;
 
-
 #[derive(Deserialize)]
-pub struct Config{
+pub struct Config {
     pub gptkey: Option<String>,
 }
 
 use toml;
 
-impl Config{
-    fn new(paths: &SpekiPaths) -> Self{
+impl Config {
+    fn new(paths: &SpekiPaths) -> Self {
         let contents = std::fs::read_to_string(&paths.config).expect("Error reading file");
         let config: Config = toml::from_str(&contents).expect("invalid config file");
         config
     }
 }
 
-pub struct Audio{
+pub struct Audio {
     pub source: rodio::OutputStream,
     pub handle: rodio::OutputStreamHandle,
     pub volume: f32,
 }
 
-impl Audio{
-    fn new() -> Option<Self>{
+impl Audio {
+    fn new() -> Option<Self> {
         let (source, handle) = rodio::OutputStream::try_default().unwrap();
         let volume = 0.2;
-        Some(Audio{
+        Some(Audio {
             source,
             handle,
             volume,
@@ -58,12 +51,11 @@ impl Audio{
     }
 }
 
-
-pub struct AppData{
+pub struct AppData {
     pub conn: Arc<Mutex<Connection>>,
     pub audio: Option<Audio>,
     pub paths: SpekiPaths,
-    pub config: Config
+    pub config: Config,
 }
 
 pub struct TabsState {
@@ -72,14 +64,11 @@ pub struct TabsState {
 }
 
 impl TabsState {
-    pub fn new(
-        conn: &Arc<Mutex<Connection>>,
-        audio: &Option<Audio>,
-    ) -> TabsState {
+    pub fn new(conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) -> TabsState {
         let mut tabs: Vec<Box<dyn Tab>> = vec![];
-        let revlist  = MainReview::new(conn, audio);
+        let revlist = MainReview::new(conn, audio);
         let addcards = NewCard::new(conn, DepState::None);
-        let incread  = MainInc::new(conn);
+        let incread = MainInc::new(conn);
         let importer = Importer::new(conn);
         let browse = Browse::new(conn);
 
@@ -129,9 +118,8 @@ impl TabsState {
 use crate::tabs::import::logic::Importer;
 use std::sync::{Arc, Mutex};
 
-use std::io::{Write, stdout};
 use crossterm::{queue, style::Print};
-
+use std::io::{stdout, Write};
 
 pub struct App {
     pub tabs: TabsState,
@@ -172,12 +160,12 @@ impl App {
             MyKey::F(1) => self.display_help = !self.display_help,
             MyKey::Alt('q') => self.should_quit = true,
             MyKey::Alt('m') => {
-                if self.appdata.audio.is_some(){
+                if self.appdata.audio.is_some() {
                     self.appdata.audio = None;
                 } else {
                     self.appdata.audio = Audio::new();
                 }
-            },
+            }
             key => self.tabs.keyhandler(&self.appdata, key),
         };
     }
@@ -246,23 +234,13 @@ quit: Alt+q
 
 use crate::MyKey;
 
-
-pub trait PopUp: Widget{
+pub trait PopUp: Widget {
     fn should_quit(&self) -> bool;
 }
 
-pub trait Widget{
-    fn keyhandler(
-        &mut self,
-        appdata: &AppData,
-        key: MyKey,
-    );
-    fn render(
-        &mut self,
-        f: &mut Frame<MyType>,
-        appdata: &AppData,
-        area: Rect,
-    );
+pub trait Widget {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey);
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect);
 }
 
 pub trait Tab: Widget {

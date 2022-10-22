@@ -124,14 +124,14 @@ pub struct Card {
 }
 
 #[derive(Clone, Debug)]
-pub enum CardTypeData{
+pub enum CardTypeData {
     Finished(FinishedInfo),
     Unfinished(UnfinishedInfo),
     Pending(PendingInfo),
 }
 
 #[derive(Clone, Debug)]
-pub struct FinishedInfo{
+pub struct FinishedInfo {
     pub strength: f32,
     pub stability: f32,
 }
@@ -146,12 +146,12 @@ impl Default for FinishedInfo {
 }
 
 #[derive(Clone, Debug)]
-pub struct UnfinishedInfo{
+pub struct UnfinishedInfo {
     pub skiptime: u32,
     pub skipduration: u32,
 }
 
-impl Default for UnfinishedInfo{
+impl Default for UnfinishedInfo {
     fn default() -> Self {
         Self {
             skiptime: get_current_unix(),
@@ -160,14 +160,10 @@ impl Default for UnfinishedInfo{
     }
 }
 
-
 #[derive(Clone, Debug, Default)]
-pub struct PendingInfo{
+pub struct PendingInfo {
     pub pos: u32,
 }
-
-
-
 
 impl Card {
     ///checks if the passed card should be resolved or not based on the completeness of its
@@ -227,14 +223,14 @@ impl Card {
         self
     }
 
-    pub fn dependencies<IDVec: Into<Vec<CardID>>>(mut self, dependencies: IDVec) -> Self{
-        for dependency in dependencies.into(){
+    pub fn dependencies<IDVec: Into<Vec<CardID>>>(mut self, dependencies: IDVec) -> Self {
+        for dependency in dependencies.into() {
             self.dependencies.push(dependency);
         }
         self
     }
-    pub fn dependents<IDVec: Into<Vec<CardID>>>(mut self, dependents: IDVec) -> Self{
-        for dependent in dependents.into(){
+    pub fn dependents<IDVec: Into<Vec<CardID>>>(mut self, dependents: IDVec) -> Self {
+        for dependent in dependents.into() {
             self.dependents.push(dependent);
         }
         self
@@ -349,17 +345,7 @@ use super::sql::{
 use crate::app::Audio;
 use crate::utils::aliases::*;
 
-
-
-
-
-
-
-
-
-
-
-pub struct CardInfo{
+pub struct CardInfo {
     id: CardID,
     frontside: String,
     suspended: bool,

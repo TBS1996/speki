@@ -1,16 +1,18 @@
 use rusqlite::Connection;
-use tui::widgets::Clear;
 use std::collections::HashSet;
 use std::fmt::Display;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::style::Style;
+use tui::widgets::Clear;
 
-use crate::app::{AppData, Widget, PopUp};
+use crate::app::{AppData, PopUp, Widget};
 use crate::utils::aliases::*;
 use crate::utils::card::CardType;
-use crate::utils::misc::{split_leftright, split_leftright_by_percent, split_updown_by_percent, centered_rect};
-use crate::utils::sql::fetch::CardQuery;
-use crate::utils::sql::update::{set_cardtype, set_suspended};
+use crate::utils::misc::{
+    centered_rect, split_leftright, split_leftright_by_percent, split_updown_by_percent,
+};
+use crate::utils::sql::fetch::{get_highest_pos, get_pending, is_pending, CardQuery};
+use crate::utils::sql::update::{set_cardtype, set_suspended, update_position};
 use crate::utils::statelist::KeyHandler;
 use crate::widgets::cardlist::CardItem;
 use crate::widgets::checkbox::CheckBox;
@@ -109,6 +111,22 @@ impl Browse {
         self.apply_filter(conn)
     }
 
+    fn save_pending_queue(&mut self, conn: &Arc<Mutex<Connection>>) {
+        let mut selected_cards = self
+            .selected_ids
+            .clone()
+            .into_iter()
+            .collect::<Vec<CardID>>();
+        selected_cards.reverse();
+        let highest_pos = get_highest_pos(conn);
+        for i in 0..selected_cards.len() {
+            let id = selected_cards[i];
+            if is_pending(conn, id) {
+                update_position(conn, id, i as u32 + highest_pos);
+            }
+        }
+    }
+
     fn apply_filter(&mut self, conn: &Arc<Mutex<Connection>>) {
         let mut typevec = vec![];
 
@@ -192,31 +210,58 @@ impl Browse {
                 1 => self.apply_suspended(appdata, true),
                 2 => self.apply_suspended(appdata, false),
                 3 => {
-                    let dependencies = self.selected_ids.clone().into_iter().collect::<Vec<CardID>>();
-                    if dependencies.is_empty() {return}
-                    let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependent(dependencies));
+                    let dependencies = self
+                        .selected_ids
+                        .clone()
+                        .into_iter()
+                        .collect::<Vec<CardID>>();
+                    if dependencies.is_empty() {
+                        return;
+                    }
+                    let addchild =
+                        AddChildWidget::new(&appdata.conn, Purpose::Dependent(dependencies));
                     self.popup = Some(Box::new(addchild));
-                },
+                }
                 4 => {
-                    let dependencies = self.selected_ids.clone().into_iter().collect::<Vec<CardID>>();
-                    if dependencies.is_empty() {return}
+                    let dependencies = self
+                        .selected_ids
+                        .clone()
+                        .into_iter()
+                        .collect::<Vec<CardID>>();
+                    if dependencies.is_empty() {
+                        return;
+                    }
                     let purpose = CardPurpose::NewDependency(dependencies);
                     let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
                     self.popup = Some(Box::new(cardfinder));
-                },
+                }
                 5 => {
-                    let dependents = self.selected_ids.clone().into_iter().collect::<Vec<CardID>>();
-                    if dependents.is_empty() {return}
-                    let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependency(dependents));
+                    let dependents = self
+                        .selected_ids
+                        .clone()
+                        .into_iter()
+                        .collect::<Vec<CardID>>();
+                    if dependents.is_empty() {
+                        return;
+                    }
+                    let addchild =
+                        AddChildWidget::new(&appdata.conn, Purpose::Dependency(dependents));
                     self.popup = Some(Box::new(addchild));
-                },
+                }
                 6 => {
-                    let dependents = self.selected_ids.clone().into_iter().collect::<Vec<CardID>>();
-                    if dependents.is_empty() {return}
+                    let dependents = self
+                        .selected_ids
+                        .clone()
+                        .into_iter()
+                        .collect::<Vec<CardID>>();
+                    if dependents.is_empty() {
+                        return;
+                    }
                     let purpose = CardPurpose::NewDependent(dependents);
                     let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
                     self.popup = Some(Box::new(cardfinder));
-                },
+                }
+                7 => self.save_pending_queue(&appdata.conn),
                 _ => return,
             }
             self.apply_filter(&appdata.conn);
@@ -235,12 +280,10 @@ impl Widget for Browse {
         use MyKey::*;
         use Selection::*;
 
-        if let Some(popup) = &mut self.popup{
+        if let Some(popup) = &mut self.popup {
             popup.keyhandler(appdata, key);
             return;
         }
-
-
 
         if let Nav(dir) = key {
             self.navigate(dir);
@@ -354,10 +397,8 @@ impl Widget for Browse {
             Style::default(),
         );
 
-
-        if let Some(popup) = &mut self.popup{
-
-            if popup.should_quit(){
+        if let Some(popup) = &mut self.popup {
+            if popup.should_quit() {
                 self.popup = None;
                 return;
             }
@@ -370,12 +411,8 @@ impl Widget for Browse {
                 area.width -= 4;
             }
 
-
-
             popup.render(f, appdata, area);
         }
-
-
     }
 }
 

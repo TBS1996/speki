@@ -295,6 +295,24 @@ pub fn fetch_card(conn: &Arc<Mutex<Connection>>, cid: u32) -> Card {
     fill_dependencies(conn, card)
 }
 
+pub fn get_pending_qty(conn: &Arc<Mutex<Connection>>) -> u32 {
+    conn.lock()
+        .unwrap()
+        .query_row("SELECT COUNT(*) FROM pending_cards", [], |row| {
+            Ok(row.get(0).unwrap())
+        })
+        .unwrap()
+}
+
+pub fn get_highest_pos(conn: &Arc<Mutex<Connection>>) -> u32 {
+    conn.lock()
+        .unwrap()
+        .query_row("SELECT MAX(position) FROM pending_cards", [], |row| {
+            Ok(row.get(0).unwrap())
+        })
+        .unwrap()
+}
+
 pub fn get_topics(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Topic>> {
     let mut vecoftops = Vec::<Topic>::new();
     conn.lock()
@@ -642,4 +660,32 @@ pub fn get_cardtype(conn: &Arc<Mutex<Connection>>, id: CardID) -> CardType {
         2 => CardType::Finished,
         _ => panic!(),
     }
+}
+
+pub fn is_pending(conn: &Arc<Mutex<Connection>>, id: CardID) -> bool {
+    CardType::Pending == get_cardtype(conn, id)
+}
+
+pub struct PendingItem {
+    pub id: CardID,
+    pub pos: u32,
+}
+
+pub fn get_pending(conn: &Arc<Mutex<Connection>>) -> Vec<PendingItem> {
+    let mut cardvec = Vec::<PendingItem>::new();
+    conn.lock()
+        .unwrap()
+        .prepare("Select * from pending_cards ORDER BY position ASC")
+        .unwrap()
+        .query_map([], |row| {
+            cardvec.push(PendingItem {
+                id: row.get(0).unwrap(),
+                pos: row.get(1).unwrap(),
+            });
+            Ok(())
+        })
+        .unwrap()
+        .for_each(|_| {}); // this is just to make the iterator execute, feels clumsy so let me
+                           // know if there's a better way
+    cardvec
 }

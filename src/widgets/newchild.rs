@@ -1,4 +1,4 @@
-use crate::app::{AppData, Widget, PopUp};
+use crate::app::{AppData, PopUp, Widget};
 use crate::utils::card::{CardType, CardTypeData, FinishedInfo, UnfinishedInfo};
 use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};
 use crate::utils::{aliases::*, card::Card};
@@ -23,8 +23,8 @@ pub enum Selection {
 
 pub enum Purpose {
     Source(TopicID),
-    Dependency(CardID),
-    Dependent(CardID),
+    Dependency(Vec<CardID>),
+    Dependent(Vec<CardID>),
 }
 
 pub struct AddChildWidget {
@@ -42,7 +42,6 @@ impl AddChildWidget {
         let question = Field::new();
         let answer = Field::new();
         let selection = Selection::Question;
-        let status = PopUpStatus::OnGoing;
         let should_quit = false;
 
         AddChildWidget {
@@ -60,28 +59,22 @@ impl AddChildWidget {
         match purpose {
             Purpose::Source(id) => {
                 prompt.push("Add new sourced card".to_string());
-                let sourcetext = load_inc_text(conn, *id).unwrap();
-                prompt.push(sourcetext);
             }
             Purpose::Dependency(id) => {
-                prompt.push("Add new dependent of: ".to_string());
-                let ques = fetch_question(conn, *id);
-                prompt.push(ques)
+                prompt.push("Add new dependent".to_string());
             }
             Purpose::Dependent(id) => {
-                prompt.push("Add new dependency of: ".to_string());
-                let ques = fetch_question(conn, *id);
-                prompt.push(ques)
+                prompt.push("Add new dependency".to_string());
             }
         }
         prompt
     }
 
     fn submit_card(&mut self, conn: &Arc<Mutex<Connection>>, isfinished: bool) {
-        let topic = match self.purpose {
-            Purpose::Source(id) => get_topic_of_inc(&conn, id).unwrap(),
-            Purpose::Dependent(id) => get_topic_of_card(&conn, id),
-            Purpose::Dependency(id) => get_topic_of_card(&conn, id),
+        let topic = match &self.purpose {
+            Purpose::Source(id) => get_topic_of_inc(&conn, *id).unwrap(),
+            Purpose::Dependent(id) => get_topic_of_card(&conn, id[0]),
+            Purpose::Dependency(id) => get_topic_of_card(&conn, id[0]),
         };
 
         let question = self.question.return_text();
@@ -103,12 +96,12 @@ impl AddChildWidget {
             .topic(topic)
             .source(source);
 
-        match self.purpose {
+        match &self.purpose {
             Purpose::Dependent(cid) => {
-                card = card.dependents([cid]);
+                card = card.dependents(cid.clone());
             }
             Purpose::Dependency(cid) => {
-                card = card.dependencies([cid]);
+                card = card.dependencies(cid.clone());
             }
             _ => {}
         }
@@ -116,7 +109,6 @@ impl AddChildWidget {
         self.should_quit = true;
     }
 }
-
 
 impl PopUp for AddChildWidget {
     fn should_quit(&self) -> bool {

@@ -1,18 +1,21 @@
 use rusqlite::Connection;
+use tui::widgets::Clear;
 use std::collections::HashSet;
 use std::fmt::Display;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::style::Style;
 
-use crate::app::{AppData, Widget};
+use crate::app::{AppData, Widget, PopUp};
 use crate::utils::aliases::*;
 use crate::utils::card::CardType;
-use crate::utils::misc::{split_leftright, split_leftright_by_percent, split_updown_by_percent};
+use crate::utils::misc::{split_leftright, split_leftright_by_percent, split_updown_by_percent, centered_rect};
 use crate::utils::sql::fetch::CardQuery;
 use crate::utils::sql::update::{set_cardtype, set_suspended};
 use crate::utils::statelist::KeyHandler;
 use crate::widgets::cardlist::CardItem;
 use crate::widgets::checkbox::CheckBox;
+use crate::widgets::find_card::{CardPurpose, FindCardWidget};
+use crate::widgets::newchild::{AddChildWidget, Purpose};
 use crate::widgets::numeric_input::NumPut;
 use crate::widgets::optional_bool_filter::{FilterSetting, OptCheckBox};
 use crate::{app::Tab, utils::statelist::StatefulList};
@@ -50,6 +53,7 @@ pub struct Browse {
     selected: StatefulList<CardItem>,
     selected_ids: HashSet<CardID>,
     filteractions: StatefulList<ActionItem>,
+    popup: Option<Box<dyn PopUp>>,
 }
 
 impl Browse {
@@ -80,6 +84,7 @@ impl Browse {
         );
         let selected_ids = HashSet::new();
         let filteractions = StatefulList::<ActionItem>::default();
+        let popup = None;
 
         let mut myself = Self {
             selection,
@@ -91,6 +96,7 @@ impl Browse {
             selected: StatefulList::new(),
             selected_ids,
             filteractions,
+            popup,
         };
         myself.apply_filter(conn);
         myself
@@ -185,6 +191,32 @@ impl Browse {
                 0 => self.clear_selected(&appdata.conn),
                 1 => self.apply_suspended(appdata, true),
                 2 => self.apply_suspended(appdata, false),
+                3 => {
+                    let dependencies = self.selected_ids.clone().into_iter().collect::<Vec<CardID>>();
+                    if dependencies.is_empty() {return}
+                    let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependent(dependencies));
+                    self.popup = Some(Box::new(addchild));
+                },
+                4 => {
+                    let dependencies = self.selected_ids.clone().into_iter().collect::<Vec<CardID>>();
+                    if dependencies.is_empty() {return}
+                    let purpose = CardPurpose::NewDependency(dependencies);
+                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
+                    self.popup = Some(Box::new(cardfinder));
+                },
+                5 => {
+                    let dependents = self.selected_ids.clone().into_iter().collect::<Vec<CardID>>();
+                    if dependents.is_empty() {return}
+                    let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependency(dependents));
+                    self.popup = Some(Box::new(addchild));
+                },
+                6 => {
+                    let dependents = self.selected_ids.clone().into_iter().collect::<Vec<CardID>>();
+                    if dependents.is_empty() {return}
+                    let purpose = CardPurpose::NewDependent(dependents);
+                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
+                    self.popup = Some(Box::new(cardfinder));
+                },
                 _ => return,
             }
             self.apply_filter(&appdata.conn);
@@ -202,14 +234,19 @@ impl Widget for Browse {
     fn keyhandler(&mut self, appdata: &crate::app::AppData, key: MyKey) {
         use MyKey::*;
         use Selection::*;
+
+        if let Some(popup) = &mut self.popup{
+            popup.keyhandler(appdata, key);
+            return;
+        }
+
+
+
         if let Nav(dir) = key {
             self.navigate(dir);
             return;
         }
         match (&self.selection, key) {
-            (_, Alt('1')) => self.apply_suspended(appdata, true),
-            (_, Alt('2')) => self.apply_suspended(appdata, false),
-            (_, Alt('3')) => self.clear_selected(&appdata.conn),
             (CardType, key) => {
                 self.cardtypes.items.keyhandler(key.clone());
                 if key == Enter || key == Char(' ') {
@@ -251,8 +288,8 @@ impl Widget for Browse {
     fn render(
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
-        _appdata: &crate::app::AppData,
-        area: tui::layout::Rect,
+        appdata: &crate::app::AppData,
+        mut area: tui::layout::Rect,
     ) {
         let chunks = split_leftright(
             [
@@ -316,6 +353,29 @@ impl Widget for Browse {
             "Selected",
             Style::default(),
         );
+
+
+        if let Some(popup) = &mut self.popup{
+
+            if popup.should_quit(){
+                self.popup = None;
+                return;
+            }
+            if area.height > 10 && area.width > 10 {
+                area = centered_rect(80, 70, area);
+                f.render_widget(Clear, area); //this clears out the background
+                area.x += 2;
+                area.y += 2;
+                area.height -= 4;
+                area.width -= 4;
+            }
+
+
+
+            popup.render(f, appdata, area);
+        }
+
+
     }
 }
 

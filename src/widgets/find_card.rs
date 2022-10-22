@@ -42,17 +42,23 @@ impl fmt::Display for CardMatch {
 }
 
 pub enum CardPurpose {
-    NewDependency(CardID),
-    NewDependent(CardID),
+    NewDependency(Vec<CardID>),
+    NewDependent(Vec<CardID>),
     NewCloze(TopicID),
 }
 
 impl FindCardWidget {
-    pub fn new(conn: &Arc<Mutex<Connection>>, prompt: String, purpose: CardPurpose) -> Self {
+    pub fn new(conn: &Arc<Mutex<Connection>>, purpose: CardPurpose) -> Self {
         let mut list = StatefulList::<CardMatch>::new();
         let searchterm = Field::new();
         list.reset_filter(conn, searchterm.return_text());
         let should_quit = false;
+        let prompt = match purpose{
+            CardPurpose::NewDependent(_) => "Add new dependent".to_string(),
+            CardPurpose::NewDependency(_) =>  "Add new dependency".to_string(),
+            _ => panic!(),
+        };
+
 
         FindCardWidget {
             prompt,
@@ -63,6 +69,7 @@ impl FindCardWidget {
         }
     }
 
+
     fn complete(&mut self, conn: &Arc<Mutex<Connection>>) {
         if self.list.state.selected().is_none() {
             return;
@@ -71,14 +78,18 @@ impl FindCardWidget {
         let idx = self.list.state.selected().unwrap();
         let chosen_id = self.list.items[idx].id;
 
-        match self.purpose {
-            CardPurpose::NewDependent(source_id) => {
-                update_both(conn, chosen_id, source_id).unwrap();
-                Card::check_resolved(chosen_id, conn);
+        match &self.purpose {
+            CardPurpose::NewDependent(ids) => {
+                for id in ids {
+                    update_both(conn, chosen_id, *id).unwrap();
+                    Card::check_resolved(chosen_id, conn);
+                }
             }
-            CardPurpose::NewDependency(source_id) => {
-                update_both(conn, source_id, chosen_id).unwrap();
-                Card::check_resolved(source_id, conn);
+            CardPurpose::NewDependency(ids) => {
+                for id in ids {
+                    update_both(conn, *id, chosen_id).unwrap();
+                    Card::check_resolved(*id, conn);
+                }
             }
             CardPurpose::NewCloze(_topic_id) => {
                 todo!();

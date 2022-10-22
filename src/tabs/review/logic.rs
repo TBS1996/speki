@@ -451,23 +451,21 @@ impl Widget for MainReview {
                 update_card_answer(&appdata.conn, id, answer);
             }
             Action::NewDependency(id) => {
-                let prompt = String::from("Add new dependency");
-                let purpose = CardPurpose::NewDependency(id);
-                let cardfinder = FindCardWidget::new(&appdata.conn, prompt, purpose);
+                let purpose = CardPurpose::NewDependency(vec![id]);
+                let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
                 self.popup = Some(Box::new(cardfinder));
             }
             Action::NewDependent(id) => {
-                let prompt = String::from("Add new dependent");
-                let purpose = CardPurpose::NewDependent(id);
-                let cardfinder = FindCardWidget::new(&appdata.conn, prompt, purpose);
+                let purpose = CardPurpose::NewDependent(vec![id]);
+                let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
                 self.popup = Some(Box::new(cardfinder));
             }
             Action::AddDependent(id) => {
-                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependency(id));
+                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependency(vec![id]));
                 self.popup = Some(Box::new(addchild));
             }
             Action::AddDependency(id) => {
-                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependent(id));
+                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependent(vec![id]));
                 self.popup = Some(Box::new(addchild));
             }
             Action::AddChild(id) => {

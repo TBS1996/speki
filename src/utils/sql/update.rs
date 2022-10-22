@@ -3,7 +3,7 @@ use crate::utils::aliases::*;
 use crate::utils::card::CardType;
 use crate::widgets::textinput::CursorPos;
 use rand::prelude::*;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, Result, ToSql};
 use std::fmt::Display;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -18,22 +18,26 @@ pub fn update_card<T, U, V, IDVec>(
 where
     T: Display,
     U: Display,
-    V: Display,
+    V: ToSql,
     IDVec: Into<Vec<CardID>>,
 {
     let idvec = idvec.into();
     let conn = conn.lock().unwrap();
     for id in idvec {
         conn.prepare(&format!(
-            "UPDATE {} SET {} = {} WHERE id = {}",
-            table, column, value, id
+            "UPDATE {} SET {} = ?1 WHERE id = {}",
+            table, column, id
         ))?
-        .execute(params![])?;
+        .execute(params![value])?;
     }
     Ok(())
 }
 
-pub fn set_suspended<IDVec: Into<Vec<CardID>>>(conn: &Arc<Mutex<Connection>>, id: IDVec, suspended: bool) {
+pub fn set_suspended<IDVec: Into<Vec<CardID>>>(
+    conn: &Arc<Mutex<Connection>>,
+    id: IDVec,
+    suspended: bool,
+) {
     update_card(conn, "cards", "suspended", suspended as u8, id).unwrap()
 }
 
@@ -61,8 +65,6 @@ pub fn set_cardtype(conn: &Arc<Mutex<Connection>>, id: CardID, cardtype: CardTyp
     };
     update_card(conn, "cards", "cardtype", cardtype, [id]).unwrap()
 }
-
-
 
 pub fn set_resolved(conn: &Arc<Mutex<Connection>>, id: CardID, resolved: bool) {
     update_card(conn, "cards", "resolved", resolved as u8, [id]).unwrap()

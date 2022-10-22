@@ -68,6 +68,7 @@ impl ForReview {
             .fetch_card_ids(conn);
         let mut pending_cards = CardQuery::default()
             .cardtype(vec![CardType::Pending])
+            .order_by("ORDER BY position DESC".to_string())
             .suspended(false)
             .resolved(true)
             .fetch_card_ids(conn);
@@ -75,7 +76,7 @@ impl ForReview {
         let active_increads = load_active_inc(conn).unwrap();
 
         unfinished_cards.shuffle(&mut thread_rng());
-        pending_cards.shuffle(&mut thread_rng());
+       // pending_cards.shuffle(&mut thread_rng());
         review_cards.shuffle(&mut thread_rng());
 
         ForReview {

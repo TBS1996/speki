@@ -106,6 +106,7 @@ impl fmt::Display for CardFilter {
 #[derive(Default)]
 pub struct CardQuery {
     filters: Vec<CardFilter>,
+    order_by: Option<String>,
     limit: Option<u32>,
 }
 
@@ -132,6 +133,9 @@ impl CardQuery {
             for _ in 0..4 {
                 query.pop();
             }
+        }
+        if let Some(orderby) = &self.order_by {
+            query.push_str(&format!("{} ", orderby));
         }
         if let Some(limit) = self.limit {
             query.push_str(&format!("LIMIT {}", limit));
@@ -201,6 +205,10 @@ impl CardQuery {
     }
     pub fn cardtype(mut self, val: Vec<CardType>) -> Self {
         self.filters.push(CardFilter::Cardtype(val));
+        self
+    }
+    pub fn order_by(mut self, val: String) -> Self {
+        self.order_by = Some(val);
         self
     }
     pub fn limit(mut self, val: u32) -> Self {

@@ -1,3 +1,4 @@
+use crate::app::{AppData, Widget, PopUp};
 use crate::utils::card::{CardType, CardTypeData, FinishedInfo, UnfinishedInfo};
 use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};
 use crate::utils::{aliases::*, card::Card};
@@ -11,8 +12,8 @@ use tui::{
 
 use crate::utils::misc::PopUpStatus;
 use crate::utils::sql::fetch::{get_topic_of_inc, load_inc_text};
-use crate::Direction;
 use crate::MyKey;
+use crate::{Direction, MyType};
 
 use std::sync::{Arc, Mutex};
 pub enum Selection {
@@ -30,9 +31,9 @@ pub struct AddChildWidget {
     pub prompt: Field,
     pub question: Field,
     pub answer: Field,
-    pub status: PopUpStatus,
     pub selection: Selection,
     pub purpose: Purpose,
+    pub should_quit: bool,
 }
 
 impl AddChildWidget {
@@ -42,14 +43,15 @@ impl AddChildWidget {
         let answer = Field::new();
         let selection = Selection::Question;
         let status = PopUpStatus::OnGoing;
+        let should_quit = false;
 
         AddChildWidget {
             prompt,
             question,
             answer,
-            status,
             selection,
             purpose,
+            should_quit,
         }
     }
 
@@ -73,22 +75,6 @@ impl AddChildWidget {
             }
         }
         prompt
-    }
-
-    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey) -> PopUpStatus {
-        use MyKey::*;
-        match key {
-            Esc => self.status = PopUpStatus::Finished,
-            Alt('f') => self.submit_card(conn, true),
-            Alt('u') => self.submit_card(conn, false),
-            Nav(Direction::Up) => self.selection = Selection::Question,
-            Nav(Direction::Down) => self.selection = Selection::Answer,
-            key => match self.selection {
-                Selection::Question => self.question.keyhandler(key),
-                Selection::Answer => self.answer.keyhandler(key),
-            },
-        }
-        self.status.clone()
     }
 
     fn submit_card(&mut self, conn: &Arc<Mutex<Connection>>, isfinished: bool) {
@@ -127,13 +113,19 @@ impl AddChildWidget {
             _ => {}
         }
         card.save_card(conn);
-        self.status = PopUpStatus::Finished;
+        self.should_quit = true;
     }
+}
 
-    pub fn render<B>(&mut self, f: &mut Frame<B>, area: Rect)
-    where
-        B: Backend,
-    {
+
+impl PopUp for AddChildWidget {
+    fn should_quit(&self) -> bool {
+        self.should_quit
+    }
+}
+
+impl Widget for AddChildWidget {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         let chunks = Layout::default()
             .direction(Vertical)
             .constraints(
@@ -158,5 +150,20 @@ impl AddChildWidget {
         self.prompt.render(f, prompt, false);
         self.question.render(f, question, qsel);
         self.answer.render(f, answer, asel);
+    }
+
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
+        use MyKey::*;
+        match key {
+            Esc => self.should_quit = true,
+            Alt('f') => self.submit_card(&appdata.conn, true),
+            Alt('u') => self.submit_card(&appdata.conn, false),
+            Nav(Direction::Up) => self.selection = Selection::Question,
+            Nav(Direction::Down) => self.selection = Selection::Answer,
+            key => match self.selection {
+                Selection::Question => self.question.keyhandler(key),
+                Selection::Answer => self.answer.keyhandler(key),
+            },
+        }
     }
 }

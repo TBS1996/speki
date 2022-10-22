@@ -1,3 +1,5 @@
+use crate::app::{AppData, PopUp, Widget};
+use crate::utils::sql::fetch::CardQuery;
 use crate::utils::statelist::{KeyHandler, StatefulList};
 use crate::utils::{
     aliases::*,
@@ -13,7 +15,6 @@ use tui::{
 };
 
 use super::message_box::draw_message;
-use crate::utils::misc::PopUpStatus;
 use crate::{MyKey, MyType};
 use std::sync::{Arc, Mutex};
 
@@ -21,8 +22,8 @@ pub struct FindCardWidget {
     pub prompt: String,
     pub searchterm: Field,
     pub list: StatefulList<CardMatch>,
-    pub status: PopUpStatus,
     pub purpose: CardPurpose,
+    pub should_quit: bool,
 }
 
 #[derive(Clone, PartialEq)]
@@ -51,30 +52,15 @@ impl FindCardWidget {
         let mut list = StatefulList::<CardMatch>::new();
         let searchterm = Field::new();
         list.reset_filter(conn, searchterm.return_text());
-
-        let status = PopUpStatus::OnGoing;
+        let should_quit = false;
 
         FindCardWidget {
             prompt,
             searchterm,
             list,
-            status,
             purpose,
+            should_quit,
         }
-    }
-
-    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey) -> PopUpStatus {
-        match key {
-            MyKey::Enter => self.complete(conn),
-            MyKey::Esc => self.status = PopUpStatus::Finished,
-            MyKey::Down => self.list.next(),
-            MyKey::Up => self.list.previous(),
-            key => {
-                self.searchterm.keyhandler(key);
-                self.list.reset_filter(conn, self.searchterm.return_text());
-            }
-        }
-        self.status.clone()
     }
 
     fn complete(&mut self, conn: &Arc<Mutex<Connection>>) {
@@ -98,27 +84,48 @@ impl FindCardWidget {
                 todo!();
             }
         }
-        self.status = PopUpStatus::Finished;
+        self.should_quit = true;
+    }
+}
+
+impl PopUp for FindCardWidget {
+    fn should_quit(&self) -> bool {
+        self.should_quit
+    }
+}
+
+impl Widget for FindCardWidget {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
+        match key {
+            MyKey::Enter => self.complete(&appdata.conn),
+            MyKey::Esc => self.should_quit = true,
+            MyKey::Down => self.list.next(),
+            MyKey::Up => self.list.previous(),
+            key => {
+                self.searchterm.keyhandler(key);
+                self.list
+                    .reset_filter(&appdata.conn, self.searchterm.return_text());
+            }
+        }
     }
 
-    pub fn render(&mut self, f: &mut Frame<MyType>, area: Rect) {
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, area: Rect) {
         let chunks = Layout::default()
             .direction(Vertical)
             .constraints(
                 [
-                    Constraint::Ratio(1, 10),
-                    Constraint::Ratio(1, 10),
-                    Constraint::Ratio(8, 10),
+                    Constraint::Length(1),
+                    Constraint::Length(3),
+                    Constraint::Min(1),
                 ]
                 .as_ref(),
             )
             .split(area);
 
         let (prompt, searchbar, matchlist) = (chunks[0], chunks[1], chunks[2]);
-
         draw_message(f, prompt, &self.prompt);
         self.searchterm.render(f, searchbar, false);
-        self.list.render(f, matchlist, false, "", Style::default());
+        self.list.render(f, matchlist, true, "", Style::default());
     }
 }
 
@@ -126,7 +133,13 @@ impl StatefulList<CardMatch> {
     pub fn reset_filter(&mut self, conn: &Arc<Mutex<Connection>>, mut searchterm: String) {
         let mut matching_cards = Vec::<CardMatch>::new();
         searchterm.pop();
-        let all_cards = load_card_matches(conn, &searchterm).unwrap();
+        let all_cards = CardQuery::default()
+            .contains(searchterm)
+            .limit(1000) //arbitrary
+            .fetch_generic(conn, |row| CardMatch {
+            question: row.get(1).unwrap(),
+            id: row.get(0).unwrap(),
+        });
         for card in all_cards {
             matching_cards.push(CardMatch {
                 question: card.question,

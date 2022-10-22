@@ -1,4 +1,4 @@
-use crate::app::{AppData, Audio, Widget};
+use crate::app::{AppData, Audio, PopUp, Widget};
 use crate::utils::aliases::*;
 use crate::utils::incread::IncRead;
 use crate::utils::misc::{get_dependencies, get_dependents};
@@ -109,10 +109,6 @@ impl StartQty {
         }
     }
 }
-pub enum PopUp {
-    CardSelecter(FindCardWidget),
-    AddChild(AddChildWidget),
-}
 
 pub struct MainReview {
     pub title: String,
@@ -120,7 +116,7 @@ pub struct MainReview {
     pub for_review: ForReview,
     pub start_qty: StartQty,
     pub automode: bool,
-    pub popup: Option<PopUp>,
+    pub popup: Option<Box<dyn PopUp>>,
 }
 
 use crate::utils::sql::fetch::{fetch_card, fetch_media, load_active_inc, CardQuery};
@@ -334,7 +330,6 @@ impl MainReview {
     }
 }
 
-
 impl Tab for MainReview {
     fn get_title(&self) -> String {
         "Review".to_string()
@@ -349,12 +344,7 @@ impl Tab for MainReview {
             ReviewMode::Unfinished(unf) => unf.get_manual(),
         }
     }
-
 }
-
-
-
-
 
 impl Widget for MainReview {
     fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, area: Rect) {
@@ -384,6 +374,12 @@ impl Widget for MainReview {
         }
 
         if let Some(popup) = &mut self.popup {
+            if popup.should_quit() {
+                self.popup = None;
+                self.update_dependencies(&appdata.conn);
+                return;
+            }
+
             if area.height > 10 && area.width > 10 {
                 area = centered_rect(80, 70, area);
                 f.render_widget(Clear, area); //this clears out the background
@@ -393,29 +389,14 @@ impl Widget for MainReview {
                 area.width -= 4;
             }
 
-            match popup {
-                crate::tabs::review::logic::PopUp::AddChild(child) => child.render(f, area),
-                crate::tabs::review::logic::PopUp::CardSelecter(cardselecter) => {
-                    cardselecter.render(f, area)
-                }
-            }
+            popup.render(f, appdata, area);
         }
     }
-
 
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         let mut action = Action::None;
         if let Some(popup) = &mut self.popup {
-            let wtf = match popup {
-                PopUp::CardSelecter(findcardwidget) => {
-                    findcardwidget.keyhandler(&appdata.conn, key)
-                }
-                PopUp::AddChild(addchildwidget) => addchildwidget.keyhandler(&appdata.conn, key),
-            };
-            if let PopUpStatus::Finished = wtf {
-                self.popup = None;
-                self.update_dependencies(&appdata.conn);
-            };
+            popup.keyhandler(appdata, key);
             return;
         }
 
@@ -473,25 +454,25 @@ impl Widget for MainReview {
                 let prompt = String::from("Add new dependency");
                 let purpose = CardPurpose::NewDependency(id);
                 let cardfinder = FindCardWidget::new(&appdata.conn, prompt, purpose);
-                self.popup = Some(PopUp::CardSelecter(cardfinder));
+                self.popup = Some(Box::new(cardfinder));
             }
             Action::NewDependent(id) => {
                 let prompt = String::from("Add new dependent");
                 let purpose = CardPurpose::NewDependent(id);
                 let cardfinder = FindCardWidget::new(&appdata.conn, prompt, purpose);
-                self.popup = Some(PopUp::CardSelecter(cardfinder));
+                self.popup = Some(Box::new(cardfinder));
             }
             Action::AddDependent(id) => {
                 let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependency(id));
-                self.popup = Some(PopUp::AddChild(addchild));
+                self.popup = Some(Box::new(addchild));
             }
             Action::AddDependency(id) => {
                 let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependent(id));
-                self.popup = Some(PopUp::AddChild(addchild));
+                self.popup = Some(Box::new(addchild));
             }
             Action::AddChild(id) => {
                 let addchild = AddChildWidget::new(&appdata.conn, Purpose::Source(id));
-                self.popup = Some(PopUp::AddChild(addchild));
+                self.popup = Some(Box::new(addchild));
             }
             Action::PlayBackAudio(id) => {
                 Card::play_backaudio(&appdata.conn, id, &appdata.audio);

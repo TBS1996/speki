@@ -247,6 +247,10 @@ quit: Alt+q
 use crate::MyKey;
 
 
+pub trait PopUp: Widget{
+    fn should_quit(&self) -> bool;
+}
+
 pub trait Widget{
     fn keyhandler(
         &mut self,

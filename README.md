@@ -9,8 +9,7 @@
 Flashcards for your terminal
 
 
-
-https://user-images.githubusercontent.com/56874491/197411577-fd31dd86-609c-45c5-912a-02ea21431a6e.mp4
+https://user-images.githubusercontent.com/56874491/197415847-43992a98-a9b8-4b63-ba4e-17c5a4204389.mp4
 
 
 

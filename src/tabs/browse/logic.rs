@@ -75,10 +75,9 @@ impl KeyHandler for InputItem {
         if self.writing {
             match key {
                 Char(c) => {
-                    if self.max.is_some() && self.max.unwrap() < self.searchfield.len() as u32 {
-                        return true;
+                    if self.max.is_none() || self.max.unwrap() > self.searchfield.len() as u32 {
+                        self.searchfield.push(c);
                     }
-                    self.searchfield.push(c);
                 }
                 Enter => self.writing = false,
                 Esc => {

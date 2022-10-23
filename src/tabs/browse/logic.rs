@@ -9,7 +9,7 @@ use crate::app::{AppData, PopUp, Widget};
 use crate::utils::aliases::*;
 use crate::utils::card::CardType;
 use crate::utils::misc::{
-    centered_rect, split_leftright
+    centered_rect, split_leftright, split_updown, split_updown_by_percent
 };
 use crate::utils::sql::fetch::{get_highest_pos, is_pending, CardQuery};
 use crate::utils::sql::update::{set_suspended, update_position};
@@ -93,7 +93,7 @@ impl Browse {
             FilterItem::Numitem(NumItem::new("Max stability:".to_string(), None)),
             FilterItem::Numitem(NumItem::new("Min stability:".to_string(), None)),
             FilterItem::Numitem(NumItem::new("Max strength:".to_string(), Some(100))),
-            FilterItem::Numitem(NumItem::new("Min strength:".to_string(), None)),
+            FilterItem::Numitem(NumItem::new("Min strength:".to_string(), Some(100))),
         ]);
         let selected_ids = HashSet::new();
         let selection = Selection::Filtered;
@@ -210,11 +210,12 @@ impl Browse {
             (Filters, Down) => Actions,
 
             (Filtered, Left) => Filters,
-            (Filtered, Right) => Selected,
+            (Filtered, Down) => Selected,
 
-            (Selected, Left) => Filtered,
+            (Selected, Up) => Filtered,
+            (Selected, Left) => Actions,
             (Actions, Up) => Filters,
-            (Actions, Right) => Filtered,
+            (Actions, Right) => Selected,
 
             _ => return,
         }
@@ -349,17 +350,17 @@ impl Widget for Browse {
     ) {
         let chunks = split_leftright(
             [
-                Constraint::Length(27),
+                Constraint::Length(24),
                 Constraint::Percentage(40),
-                Constraint::Percentage(40),
-                Constraint::Percentage(10),
+                //Constraint::Percentage(40),
             ],
             area,
         );
         let filters = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(11), Constraint::Min(1)].as_ref())
+            .constraints([Constraint::Ratio(10, 20), Constraint::Ratio(10, 20)].as_ref())
             .split(chunks[0]);
+        let filteredandselected = split_updown_by_percent([50, 50], chunks[1]);
 
         self.filters.render(
             f,
@@ -378,14 +379,14 @@ impl Widget for Browse {
         );
         self.filtered.render(
             f,
-            chunks[1],
+            filteredandselected[0],
             matches!(&self.selection, Selection::Filtered),
             "Filtered",
             Style::default(),
         );
         self.selected.render(
             f,
-            chunks[2],
+            filteredandselected[1],
             matches!(&self.selection, Selection::Selected),
             "Selected",
             Style::default(),
@@ -438,10 +439,10 @@ impl Default for StatefulList<ActionItem> {
             "Suspend".to_string(),
             "Unsuspend".to_string(),
             "Add new dependency".to_string(),
-            "Add existing dependency".to_string(),
+            "Add old dependency".to_string(),
             "Add new dependent".to_string(),
-            "Add existing dependent".to_string(),
-            "Add to pending queue".to_string(),
+            "Add old dependent".to_string(),
+            "Save to pending queue".to_string(),
         ];
         let items = actions
             .into_iter()

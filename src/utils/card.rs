@@ -1,7 +1,6 @@
 use crate::utils::sql::fetch::fetch_card;
 use rusqlite::Connection;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::watch::channel;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};

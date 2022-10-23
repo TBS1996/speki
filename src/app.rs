@@ -118,8 +118,6 @@ impl TabsState {
 use crate::tabs::import::logic::Importer;
 use std::sync::{Arc, Mutex};
 
-use crossterm::{queue, style::Print};
-use std::io::{stdout, Write};
 
 pub struct App {
     pub tabs: TabsState,

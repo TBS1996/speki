@@ -9,20 +9,19 @@ use crate::app::{AppData, PopUp, Widget};
 use crate::utils::aliases::*;
 use crate::utils::card::CardType;
 use crate::utils::misc::{
-    centered_rect, split_leftright, split_leftright_by_percent, split_updown_by_percent,
+    centered_rect, split_leftright
 };
-use crate::utils::sql::fetch::{get_highest_pos, get_pending, is_pending, CardQuery};
-use crate::utils::sql::update::{set_cardtype, set_suspended, update_position};
+use crate::utils::sql::fetch::{get_highest_pos, is_pending, CardQuery};
+use crate::utils::sql::update::{set_suspended, update_position};
 use crate::utils::statelist::KeyHandler;
 use crate::widgets::cardlist::CardItem;
-use crate::widgets::checkbox::{CheckBox, CheckBoxItem};
+use crate::widgets::checkbox::CheckBoxItem;
 use crate::widgets::find_card::{CardPurpose, FindCardWidget};
 use crate::widgets::newchild::{AddChildWidget, Purpose};
-use crate::widgets::numeric_input::{NumItem, NumPut};
-use crate::widgets::optional_bool_filter::{FilterSetting, OptCheckBox, OptItem};
+use crate::widgets::numeric_input::NumItem;
+use crate::widgets::optional_bool_filter::{FilterSetting, OptItem};
 use crate::{app::Tab, utils::statelist::StatefulList};
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 enum Selection {
     Filters,
@@ -44,17 +43,17 @@ enum Filter {
 }
 
 pub enum FilterItem {
-    checkboxitem(CheckBoxItem),
-    optitem(OptItem),
-    numitem(NumItem),
+    Checkboxitem(CheckBoxItem),
+    Optitem(OptItem),
+    Numitem(NumItem),
 }
 
 impl Display for FilterItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let val = match self {
-            Self::checkboxitem(val) => format!("{}", val),
-            Self::optitem(val) => format!("{}", val),
-            Self::numitem(val) => format!("{}", val),
+            Self::Checkboxitem(val) => format!("{}", val),
+            Self::Optitem(val) => format!("{}", val),
+            Self::Numitem(val) => format!("{}", val),
         };
         write!(f, "{}", val)
     }
@@ -63,9 +62,9 @@ impl Display for FilterItem {
 impl KeyHandler for FilterItem {
     fn keyhandler(&mut self, key: MyKey) -> bool {
         match self {
-            Self::checkboxitem(val) => val.keyhandler(key),
-            Self::optitem(val) => val.keyhandler(key),
-            Self::numitem(val) => val.keyhandler(key),
+            Self::Checkboxitem(val) => val.keyhandler(key),
+            Self::Optitem(val) => val.keyhandler(key),
+            Self::Numitem(val) => val.keyhandler(key),
         }
     }
 }
@@ -86,15 +85,15 @@ impl Browse {
         let cardlimit = 10000;
 
         let filters = StatefulList::with_items(vec![
-            FilterItem::checkboxitem(CheckBoxItem::new("Finished".to_string(), false)),
-            FilterItem::checkboxitem(CheckBoxItem::new("Unfinished".to_string(), false)),
-            FilterItem::checkboxitem(CheckBoxItem::new("Pending".to_string(), false)),
-            FilterItem::optitem(OptItem::new("Resolved".to_string())),
-            FilterItem::optitem(OptItem::new("Suspended".to_string())),
-            FilterItem::numitem(NumItem::new("Max stability:".to_string(), None)),
-            FilterItem::numitem(NumItem::new("Min stability:".to_string(), None)),
-            FilterItem::numitem(NumItem::new("Max strength:".to_string(), Some(100))),
-            FilterItem::numitem(NumItem::new("Min strength:".to_string(), None)),
+            FilterItem::Checkboxitem(CheckBoxItem::new("Finished".to_string(), false)),
+            FilterItem::Checkboxitem(CheckBoxItem::new("Unfinished".to_string(), false)),
+            FilterItem::Checkboxitem(CheckBoxItem::new("Pending".to_string(), false)),
+            FilterItem::Optitem(OptItem::new("Resolved".to_string())),
+            FilterItem::Optitem(OptItem::new("Suspended".to_string())),
+            FilterItem::Numitem(NumItem::new("Max stability:".to_string(), None)),
+            FilterItem::Numitem(NumItem::new("Min stability:".to_string(), None)),
+            FilterItem::Numitem(NumItem::new("Max strength:".to_string(), Some(100))),
+            FilterItem::Numitem(NumItem::new("Min strength:".to_string(), None)),
         ]);
         let selected_ids = HashSet::new();
         let selection = Selection::Filtered;
@@ -118,17 +117,17 @@ impl Browse {
     fn apply_filter(&mut self, conn: &Arc<Mutex<Connection>>) {
         let mut typevec = vec![];
 
-        if let FilterItem::checkboxitem(val) = &self.filters.items[0] {
+        if let FilterItem::Checkboxitem(val) = &self.filters.items[0] {
             if val.filter {
                 typevec.push(CardType::Finished);
             }
         }
-        if let FilterItem::checkboxitem(val) = &self.filters.items[1] {
+        if let FilterItem::Checkboxitem(val) = &self.filters.items[1] {
             if val.filter {
                 typevec.push(CardType::Unfinished);
             }
         }
-        if let FilterItem::checkboxitem(val) = &self.filters.items[2] {
+        if let FilterItem::Checkboxitem(val) = &self.filters.items[2] {
             if val.filter {
                 typevec.push(CardType::Pending);
             }
@@ -136,14 +135,14 @@ impl Browse {
 
         let mut query = CardQuery::default().cardtype(typevec);
 
-        if let FilterItem::optitem(val) = &self.filters.items[3] {
+        if let FilterItem::Optitem(val) = &self.filters.items[3] {
             match val.filter {
                 FilterSetting::TruePass => query = query.resolved(true),
                 FilterSetting::FalsePass => query = query.resolved(false),
                 _ => {}
             }
         }
-        if let FilterItem::optitem(val) = &self.filters.items[4] {
+        if let FilterItem::Optitem(val) = &self.filters.items[4] {
             match val.filter {
                 FilterSetting::TruePass => query = query.suspended(true),
                 FilterSetting::FalsePass => query = query.suspended(false),
@@ -151,25 +150,25 @@ impl Browse {
             }
         }
 
-        if let FilterItem::numitem(val) = &self.filters.items[5] {
+        if let FilterItem::Numitem(val) = &self.filters.items[5] {
             if let Some(num) = val.input.get_value() {
                 query = query.max_stability(num);
             }
         }
 
-        if let FilterItem::numitem(val) = &self.filters.items[6] {
+        if let FilterItem::Numitem(val) = &self.filters.items[6] {
             if let Some(num) = val.input.get_value() {
                 query = query.minimum_stability(num);
             }
         }
 
-        if let FilterItem::numitem(val) = &self.filters.items[7] {
+        if let FilterItem::Numitem(val) = &self.filters.items[7] {
             if let Some(num) = val.input.get_value() {
                 query = query.max_strength(num as f32 / 100.);
             }
         }
 
-        if let FilterItem::numitem(val) = &self.filters.items[8] {
+        if let FilterItem::Numitem(val) = &self.filters.items[8] {
             if let Some(num) = val.input.get_value() {
                 query = query.minimum_strength(num as f32 / 100.);
             }

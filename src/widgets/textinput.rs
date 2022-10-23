@@ -32,7 +32,7 @@ pub struct Field {
     scroll: u16,
     mode: Mode,
     buffer: String,
-    repeat: u16,
+    _repeat: u16,
     keyvec: Vec<MyKey>,
     text_alignment: Alignment,
     pub title: String,
@@ -62,7 +62,7 @@ impl Field {
             scroll: 0,
             mode: Mode::Insert,
             buffer: String::new(),
-            repeat: 1,
+            _repeat: 1,
             keyvec: vec![MyKey::Null; 5],
             text_alignment: Alignment::Left,
             title: "my title".to_string(),
@@ -86,29 +86,12 @@ impl Field {
         self.set_rowlens();
     }
 
-    fn update_vis_row_below_cursor(&mut self) {
-        self.set_visual_rows(self.cursor.row);
-    }
-
     pub fn new_with_text(text: String, row: usize, column: usize) -> Self {
         let mut field = Self::new();
         field.replace_text(text);
         field.cursor = CursorPos { row, column };
         //field.scroll_to_cursor();
         field
-    }
-
-    fn reset_keyvec(&mut self) {
-        self.keyvec = vec![MyKey::Null; 5];
-    }
-
-    fn is_keyvec_empty(&self) -> bool {
-        for key in &self.keyvec {
-            if key != &MyKey::Null {
-                return false;
-            }
-        }
-        true
     }
 
     pub fn set_normal_mode(&mut self) {
@@ -123,10 +106,6 @@ impl Field {
 
     pub fn set_win_height(&mut self, winheight: u16) {
         self.window_height = winheight - 2;
-    }
-
-    fn is_last_visual_row(&self) -> bool {
-        false
     }
 
     pub fn set_insert_mode(&mut self) {
@@ -662,7 +641,7 @@ impl Field {
         self.text[self.cursor.row] = leftext;
     }
 
-    fn delete_current_line(&mut self) {
+    fn _delete_current_line(&mut self) {
         if self.text.len() == 1 {
             self.text = vec![String::new()];
             self.cursor.column = 0;
@@ -723,7 +702,7 @@ impl Field {
         }
     }
 
-    fn right_char_match(&mut self, c: char) {
+    fn _right_char_match(&mut self, c: char) {
         for (col, chr) in self.text[self.cursor.row].chars().enumerate() {
             if col > self.cursor.column && chr == c {
                 self.cursor.column = col;
@@ -731,7 +710,7 @@ impl Field {
             }
         }
     }
-    fn left_char_match(&mut self, c: char) {
+    fn _left_char_match(&mut self, c: char) {
         let cursorpos = self.cursor.column;
         for (col, chr) in self.text[self.cursor.row].chars().enumerate() {
             if chr == c && col < cursorpos {
@@ -765,7 +744,7 @@ impl Field {
         panic!();
     }
 
-    fn scroll_to_cursor(&mut self) {
+    fn _scroll_to_cursor(&mut self) {
         let visline = self.current_abs_visual_line();
         self.scroll = std::cmp::max(visline as i32 - 2, 0) as u16;
     }
@@ -901,7 +880,7 @@ impl Field {
         self.set_insert_mode();
     }
 
-    fn replace_one_char(&mut self, chr: char) {
+    fn _replace_one_char(&mut self, chr: char) {
         self.text[self.cursor.row] = self.text[self.cursor.row]
             .chars()
             .enumerate()
@@ -1069,4 +1048,3 @@ impl Field {
         }
     }
 }
-

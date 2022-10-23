@@ -1,17 +1,15 @@
 use crate::app::{AppData, PopUp, Widget};
-use crate::utils::card::{CardType, CardTypeData, FinishedInfo, UnfinishedInfo};
-use crate::utils::sql::fetch::{fetch_question, get_topic_of_card};
+use crate::utils::card::{CardTypeData, FinishedInfo, UnfinishedInfo};
+use crate::utils::sql::fetch::get_topic_of_card;
 use crate::utils::{aliases::*, card::Card};
 use crate::widgets::textinput::Field;
 use rusqlite::Connection;
 use tui::{
-    backend::Backend,
     layout::{Constraint, Direction::Vertical, Layout, Rect},
     Frame,
 };
 
-use crate::utils::misc::PopUpStatus;
-use crate::utils::sql::fetch::{get_topic_of_inc, load_inc_text};
+use crate::utils::sql::fetch::get_topic_of_inc;
 use crate::MyKey;
 use crate::{Direction, MyType};
 
@@ -54,16 +52,16 @@ impl AddChildWidget {
         }
     }
 
-    fn add_prompt(conn: &Arc<Mutex<Connection>>, purpose: &Purpose) -> Field {
+    fn add_prompt(_conn: &Arc<Mutex<Connection>>, purpose: &Purpose) -> Field {
         let mut prompt = Field::new();
         match purpose {
-            Purpose::Source(id) => {
+            Purpose::Source(_) => {
                 prompt.push("Add new sourced card".to_string());
             }
-            Purpose::Dependency(id) => {
+            Purpose::Dependency(_) => {
                 prompt.push("Add new dependent".to_string());
             }
-            Purpose::Dependent(id) => {
+            Purpose::Dependent(_) => {
                 prompt.push("Add new dependency".to_string());
             }
         }
@@ -72,9 +70,9 @@ impl AddChildWidget {
 
     fn submit_card(&mut self, conn: &Arc<Mutex<Connection>>, isfinished: bool) {
         let topic = match &self.purpose {
-            Purpose::Source(id) => get_topic_of_inc(&conn, *id).unwrap(),
-            Purpose::Dependent(id) => get_topic_of_card(&conn, id[0]),
-            Purpose::Dependency(id) => get_topic_of_card(&conn, id[0]),
+            Purpose::Source(id) => get_topic_of_inc(conn, *id).unwrap(),
+            Purpose::Dependent(id) => get_topic_of_card(conn, id[0]),
+            Purpose::Dependency(id) => get_topic_of_card(conn, id[0]),
         };
 
         let question = self.question.return_text();
@@ -117,7 +115,7 @@ impl PopUp for AddChildWidget {
 }
 
 impl Widget for AddChildWidget {
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, area: Rect) {
         let chunks = Layout::default()
             .direction(Vertical)
             .constraints(

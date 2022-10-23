@@ -229,10 +229,7 @@ impl CardQuery {
         self.fetch_generic(conn, f)
     }
     pub fn fetch_card(self, conn: &Arc<Mutex<Connection>>) -> Vec<Card> {
-        let f = |row: &Row| {
-            let mut card = row2card(row);
-            card
-        };
+        //let f = |row: &Row| { row2card(row)};
         let mut cards = self.fetch_generic(conn, row2card);
         fill_card_vec(&mut cards, conn);
         cards

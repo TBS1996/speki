@@ -1,5 +1,4 @@
-#![forbid(unsafe_code)]
-#[allow(dead_code)] // too much lint spamming while developing otherwise
+#![allow(dead_code)]
 pub mod app;
 pub mod tabs;
 pub mod utils;
@@ -62,8 +61,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 use crossterm::{event::poll, Result};
-use crossterm::{queue, style::Print};
-use std::io::{stdout, Write};
 use std::time::Duration;
 fn run_app(terminal: &mut Terminal<MyType>, mut app: App) -> io::Result<()> {
     loop {

@@ -1,7 +1,7 @@
 use crate::utils::{
     card::{RecallGrade, Review},
     sql::{
-        fetch::{get_history, get_stability, load_cards},
+        fetch::{get_history, get_stability},
         update::update_strength,
     },
 };
@@ -10,12 +10,15 @@ use crate::utils::aliases::*;
 use rusqlite::Connection;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::{sql::{update::set_stability, fetch::CardQuery}, card::CardType};
+use super::{
+    card::CardType,
+    sql::{fetch::CardQuery, update::set_stability},
+};
 
 use std::sync::{Arc, Mutex};
 
 fn func(passed: f32, stability: f32) -> f32 {
-    let e = 2.7182_f32;
+    let e = std::f32::consts::E;
     e.powf((0.9_f32).log(e) * passed / stability)
 }
 
@@ -31,7 +34,9 @@ fn time_passed_since_review(review: &Review) -> f32 {
 }
 
 pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
-    let cards = CardQuery::default().cardtype(vec![CardType::Finished]).fetch_card(conn);
+    let cards = CardQuery::default()
+        .cardtype(vec![CardType::Finished])
+        .fetch_card(conn);
 
     let mut strength;
     let mut passed;

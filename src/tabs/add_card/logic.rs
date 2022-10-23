@@ -1,7 +1,6 @@
 use crate::app::AppData;
 use crate::app::Tab;
 use crate::app::Widget;
-use crate::utils::card::CardType;
 use crate::utils::card::CardTypeData;
 use crate::utils::card::FinishedInfo;
 use crate::utils::card::UnfinishedInfo;

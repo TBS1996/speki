@@ -16,7 +16,7 @@ use crate::{
     app::Tab,
     utils::{
         card::{Card, CardType, RecallGrade},
-        misc::{centered_rect, modecolor, PopUpStatus},
+        misc::{centered_rect, modecolor},
         sql::{
             fetch::get_cardtype,
             update::{
@@ -66,7 +66,7 @@ impl ForReview {
             .suspended(false)
             .resolved(true)
             .fetch_card_ids(conn);
-        let mut pending_cards = CardQuery::default()
+        let pending_cards = CardQuery::default()
             .cardtype(vec![CardType::Pending])
             .order_by("ORDER BY position DESC".to_string())
             .suspended(false)
@@ -76,7 +76,7 @@ impl ForReview {
         let active_increads = load_active_inc(conn).unwrap();
 
         unfinished_cards.shuffle(&mut thread_rng());
-       // pending_cards.shuffle(&mut thread_rng());
+        // pending_cards.shuffle(&mut thread_rng());
         review_cards.shuffle(&mut thread_rng());
 
         ForReview {

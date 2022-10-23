@@ -1,5 +1,4 @@
-use crate::{utils::sql::fetch::load_cards, MyKey};
-use rusqlite::Connection;
+use crate::MyKey;
 use tui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -11,15 +10,12 @@ use tui::{
 pub trait KeyHandler {
     // bool represents if the keyhandler used the key. If it didn't use the key, then StaefulList
     // will check if its gonna perform an action with that key instead.
-    fn keyhandler(&mut self, key: MyKey) -> bool {
+    fn keyhandler(&mut self, _key: MyKey) -> bool {
         false
     }
 }
 
-use std::{
-    fmt::Display,
-    sync::{Arc, Mutex},
-};
+use std::fmt::Display;
 
 #[derive(Clone)]
 pub struct StatefulList<T: Display + KeyHandler> {

@@ -1,11 +1,7 @@
 use crate::app::{AppData, PopUp, Widget};
 use crate::utils::sql::fetch::CardQuery;
 use crate::utils::statelist::{KeyHandler, StatefulList};
-use crate::utils::{
-    aliases::*,
-    card::Card,
-    sql::{fetch::load_card_matches, insert::update_both},
-};
+use crate::utils::{aliases::*, card::Card, sql::insert::update_both};
 use crate::widgets::textinput::Field;
 use rusqlite::Connection;
 use tui::style::Style;
@@ -53,12 +49,11 @@ impl FindCardWidget {
         let searchterm = Field::new();
         list.reset_filter(conn, searchterm.return_text());
         let should_quit = false;
-        let prompt = match purpose{
+        let prompt = match purpose {
             CardPurpose::NewDependent(_) => "Add new dependent".to_string(),
-            CardPurpose::NewDependency(_) =>  "Add new dependency".to_string(),
+            CardPurpose::NewDependency(_) => "Add new dependency".to_string(),
             _ => panic!(),
         };
-
 
         FindCardWidget {
             prompt,
@@ -68,7 +63,6 @@ impl FindCardWidget {
             should_quit,
         }
     }
-
 
     fn complete(&mut self, conn: &Arc<Mutex<Connection>>) {
         if self.list.state.selected().is_none() {
@@ -148,9 +142,9 @@ impl StatefulList<CardMatch> {
             .contains(searchterm)
             .limit(1000) //arbitrary
             .fetch_generic(conn, |row| CardMatch {
-            question: row.get(1).unwrap(),
-            id: row.get(0).unwrap(),
-        });
+                question: row.get(1).unwrap(),
+                id: row.get(0).unwrap(),
+            });
         for card in all_cards {
             matching_cards.push(CardMatch {
                 question: card.question,

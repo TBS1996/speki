@@ -7,7 +7,7 @@ use crate::{Direction, SpekiPaths};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::utils::card::{CardType, CardTypeData, PendingInfo};
+use crate::utils::card::{CardTypeData, PendingInfo};
 use crate::utils::{aliases::*, card};
 use crate::MyType;
 use anyhow::Result;
@@ -700,13 +700,6 @@ impl Template {
         }
     }
 
-    fn with_cloze_braces(string: String) -> String {
-        let mut formatted = "{{cloze:".to_string();
-        formatted.push_str(&string);
-        formatted.push_str(&"}}");
-        formatted
-    }
-
     fn with_braces(mut string: String) -> String {
         string.insert(0, '{');
         string.insert(0, '{');
@@ -724,8 +717,6 @@ impl Template {
         let topic = self.topics.get_selected_id().unwrap();
 
         for idx in 0..cardlen {
-            //dbg!(idx);
-
             let front_template = self.get_front_template(idx);
             let back_template = self.get_back_template(idx);
             let frontside = self.fill_front_view(front_template, idx);

@@ -13,6 +13,6 @@ pub mod newchild;
 pub mod numeric_input;
 pub mod optional_bool_filter;
 pub mod progress_bar;
-pub mod radiomenu;
+//pub mod radiomenu;
 pub mod textinput;
 pub mod topics;

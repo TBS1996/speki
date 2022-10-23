@@ -1,7 +1,4 @@
-use std::{
-    fmt::{write, Display},
-    ops::Range,
-};
+use std::fmt::Display;
 
 use tui::{layout::Rect, style::Style, Frame};
 

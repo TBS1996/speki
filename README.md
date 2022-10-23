@@ -1,5 +1,7 @@
 # Speki
-https://img.shields.io/reddit/subreddit-subscribers/speki?label=Subscribe%20to%20%2Fr%2Fspeki&style=social
+
+[![Subscribe to /r/speki](https://img.shields.io/reddit/subreddit-subscribers/speki?label=Subscribe%20to%20%2Fr%2Fspeki&style=social
+)](https://www.reddit.com/r/speki/)
 
 Flashcards for your terminal
 

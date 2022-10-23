@@ -9,7 +9,7 @@ use crate::app::{AppData, PopUp, Widget};
 use crate::utils::aliases::*;
 use crate::utils::card::CardType;
 use crate::utils::misc::{
-    centered_rect, split_leftright, split_updown, split_updown_by_percent
+    centered_rect, split_leftright, split_updown_by_percent
 };
 use crate::utils::sql::fetch::{get_highest_pos, is_pending, CardQuery};
 use crate::utils::sql::update::{set_suspended, update_position};

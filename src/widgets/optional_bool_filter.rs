@@ -39,7 +39,7 @@ impl KeyHandler for OptItem {
 }
 
 impl OptItem {
-    fn new(name: String) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name,
             filter: FilterSetting::AllPass,

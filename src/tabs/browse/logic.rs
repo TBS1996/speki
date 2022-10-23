@@ -15,19 +15,17 @@ use crate::utils::sql::fetch::{get_highest_pos, get_pending, is_pending, CardQue
 use crate::utils::sql::update::{set_cardtype, set_suspended, update_position};
 use crate::utils::statelist::KeyHandler;
 use crate::widgets::cardlist::CardItem;
-use crate::widgets::checkbox::CheckBox;
+use crate::widgets::checkbox::{CheckBox, CheckBoxItem};
 use crate::widgets::find_card::{CardPurpose, FindCardWidget};
 use crate::widgets::newchild::{AddChildWidget, Purpose};
-use crate::widgets::numeric_input::NumPut;
-use crate::widgets::optional_bool_filter::{FilterSetting, OptCheckBox};
+use crate::widgets::numeric_input::{NumItem, NumPut};
+use crate::widgets::optional_bool_filter::{FilterSetting, OptCheckBox, OptItem};
 use crate::{app::Tab, utils::statelist::StatefulList};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 enum Selection {
-    CardType,
-    CardStatus,
-    Numfilters,
+    Filters,
     Filtered,
     Selected,
     Actions,
@@ -45,12 +43,37 @@ enum Filter {
     Contains(String),
 }
 
+pub enum FilterItem {
+    checkboxitem(CheckBoxItem),
+    optitem(OptItem),
+    numitem(NumItem),
+}
+
+impl Display for FilterItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let val = match self {
+            Self::checkboxitem(val) => format!("{}", val),
+            Self::optitem(val) => format!("{}", val),
+            Self::numitem(val) => format!("{}", val),
+        };
+        write!(f, "{}", val)
+    }
+}
+
+impl KeyHandler for FilterItem {
+    fn keyhandler(&mut self, key: MyKey) -> bool {
+        match self {
+            Self::checkboxitem(val) => val.keyhandler(key),
+            Self::optitem(val) => val.keyhandler(key),
+            Self::numitem(val) => val.keyhandler(key),
+        }
+    }
+}
+
 pub struct Browse {
     selection: Selection,
-    cardtypes: CheckBox,
-    cardstatus: OptCheckBox,
-    numfilters: NumPut,
     cardlimit: u32,
+    filters: StatefulList<FilterItem>,
     filtered: StatefulList<CardItem>,
     selected: StatefulList<CardItem>,
     selected_ids: HashSet<CardID>,
@@ -61,39 +84,27 @@ pub struct Browse {
 impl Browse {
     pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
         let cardlimit = 10000;
-        let cardtypes = CheckBox::new(
-            "Card types".to_string(),
-            [
-                "Finished".to_string(),
-                "Unfinished".to_string(),
-                "Pending".to_string(),
-            ],
-            false,
-        );
-        let selection = Selection::Filtered;
-        let cardstatus = OptCheckBox::new(
-            "Status".to_string(),
-            ["Resolved".to_string(), "Suspended".to_string()],
-        );
-        let numfilters = NumPut::new(
-            String::from("Numeric filters"),
-            [
-                ("Max stability".to_string(), None),
-                ("Min stability".to_string(), None),
-                ("Max strength".to_string(), Some(100)),
-                ("Min strength".to_string(), None),
-            ],
-        );
+
+        let filters = StatefulList::with_items(vec![
+            FilterItem::checkboxitem(CheckBoxItem::new("Finished".to_string(), false)),
+            FilterItem::checkboxitem(CheckBoxItem::new("Unfinished".to_string(), false)),
+            FilterItem::checkboxitem(CheckBoxItem::new("Pending".to_string(), false)),
+            FilterItem::optitem(OptItem::new("Resolved".to_string())),
+            FilterItem::optitem(OptItem::new("Suspended".to_string())),
+            FilterItem::numitem(NumItem::new("Max stability:".to_string(), None)),
+            FilterItem::numitem(NumItem::new("Min stability:".to_string(), None)),
+            FilterItem::numitem(NumItem::new("Max strength:".to_string(), Some(100))),
+            FilterItem::numitem(NumItem::new("Min strength:".to_string(), None)),
+        ]);
         let selected_ids = HashSet::new();
+        let selection = Selection::Filtered;
         let filteractions = StatefulList::<ActionItem>::default();
         let popup = None;
 
         let mut myself = Self {
             selection,
-            cardtypes,
-            cardstatus,
-            numfilters,
             cardlimit,
+            filters,
             filtered: StatefulList::new(),
             selected: StatefulList::new(),
             selected_ids,
@@ -102,6 +113,75 @@ impl Browse {
         };
         myself.apply_filter(conn);
         myself
+    }
+
+    fn apply_filter(&mut self, conn: &Arc<Mutex<Connection>>) {
+        let mut typevec = vec![];
+
+        if let FilterItem::checkboxitem(val) = &self.filters.items[0] {
+            if val.filter {
+                typevec.push(CardType::Finished);
+            }
+        }
+        if let FilterItem::checkboxitem(val) = &self.filters.items[1] {
+            if val.filter {
+                typevec.push(CardType::Unfinished);
+            }
+        }
+        if let FilterItem::checkboxitem(val) = &self.filters.items[2] {
+            if val.filter {
+                typevec.push(CardType::Pending);
+            }
+        }
+
+        let mut query = CardQuery::default().cardtype(typevec);
+
+        if let FilterItem::optitem(val) = &self.filters.items[3] {
+            match val.filter {
+                FilterSetting::TruePass => query = query.resolved(true),
+                FilterSetting::FalsePass => query = query.resolved(false),
+                _ => {}
+            }
+        }
+        if let FilterItem::optitem(val) = &self.filters.items[4] {
+            match val.filter {
+                FilterSetting::TruePass => query = query.suspended(true),
+                FilterSetting::FalsePass => query = query.suspended(false),
+                _ => {}
+            }
+        }
+
+        if let FilterItem::numitem(val) = &self.filters.items[5] {
+            if let Some(num) = val.input.get_value() {
+                query = query.max_stability(num);
+            }
+        }
+
+        if let FilterItem::numitem(val) = &self.filters.items[6] {
+            if let Some(num) = val.input.get_value() {
+                query = query.minimum_stability(num);
+            }
+        }
+
+        if let FilterItem::numitem(val) = &self.filters.items[7] {
+            if let Some(num) = val.input.get_value() {
+                query = query.max_strength(num as f32 / 100.);
+            }
+        }
+
+        if let FilterItem::numitem(val) = &self.filters.items[8] {
+            if let Some(num) = val.input.get_value() {
+                query = query.minimum_strength(num as f32 / 100.);
+            }
+        }
+
+        let items = query
+            .fetch_carditems(conn)
+            .into_iter()
+            .filter(|card| !self.selected_ids.contains(&card.id))
+            .collect();
+
+        self.filtered = StatefulList::with_items(items);
     }
 
     fn clear_selected(&mut self, conn: &Arc<Mutex<Connection>>) {
@@ -123,70 +203,20 @@ impl Browse {
         }
     }
 
-    fn apply_filter(&mut self, conn: &Arc<Mutex<Connection>>) {
-        let mut typevec = vec![];
-
-        if self.cardtypes.items.items[0].filter {
-            typevec.push(CardType::Finished);
-        }
-        if self.cardtypes.items.items[1].filter {
-            typevec.push(CardType::Unfinished);
-        }
-        if self.cardtypes.items.items[2].filter {
-            typevec.push(CardType::Pending);
-        }
-        let mut query = CardQuery::default().cardtype(typevec);
-
-        match self.cardstatus.items.items[0].filter {
-            FilterSetting::TruePass => query = query.resolved(true),
-            FilterSetting::FalsePass => query = query.resolved(false),
-            _ => {}
-        }
-        match self.cardstatus.items.items[1].filter {
-            FilterSetting::TruePass => query = query.suspended(true),
-            FilterSetting::FalsePass => query = query.suspended(false),
-            _ => {}
-        }
-
-        if let Some(val) = self.numfilters.items.items[0].input.get_value() {
-            query = query.max_stability(val);
-        }
-        if let Some(val) = self.numfilters.items.items[1].input.get_value() {
-            query = query.minimum_stability(val);
-        }
-        if let Some(val) = self.numfilters.items.items[2].input.get_value() {
-            query = query.max_strength(val as f32 / 100.);
-        }
-        if let Some(val) = self.numfilters.items.items[3].input.get_value() {
-            query = query.minimum_strength(val as f32 / 100.);
-        }
-
-        let items = query
-            .fetch_carditems(conn)
-            .into_iter()
-            .filter(|card| !self.selected_ids.contains(&card.id))
-            .collect();
-
-        self.filtered = StatefulList::with_items(items);
-    }
-
     fn navigate(&mut self, dir: NavDir) {
         use NavDir::*;
         use Selection::*;
         self.selection = match (&self.selection, dir) {
-            (CardType, Right) => Selection::Filtered,
-            (CardType, Down) => Selection::CardStatus,
-            (Filtered, Right) => Selection::Selected,
-            (Filtered, Left) => Selection::CardType,
-            (Selected, Left) => Selection::Filtered,
-            (CardStatus, Right) => Selection::Filtered,
-            (CardStatus, Up) => Selection::CardType,
-            (CardStatus, Down) => Selection::Numfilters,
-            (Numfilters, Right) => Selection::Filtered,
-            (Numfilters, Up) => Selection::CardStatus,
-            (Numfilters, Down) => Selection::Actions,
-            (Actions, Up) => Selection::Numfilters,
-            (Actions, Right) => Selection::Filtered,
+            (Filters, Right) => Filtered,
+            (Filters, Down) => Actions,
+
+            (Filtered, Left) => Filters,
+            (Filtered, Right) => Selected,
+
+            (Selected, Left) => Filtered,
+            (Actions, Up) => Filters,
+            (Actions, Right) => Filtered,
+
             _ => return,
         }
     }
@@ -286,17 +316,9 @@ impl Widget for Browse {
             return;
         }
         match (&self.selection, key) {
-            (CardType, key) => {
-                self.cardtypes.items.keyhandler(key.clone());
-                if key == Enter || key == Char(' ') {
-                    self.apply_filter(&appdata.conn);
-                }
-            }
-            (CardStatus, key) => {
-                self.cardstatus.items.keyhandler(key.clone());
-                if key == Left || key == Right || key == Char('l') || key == Char('h') {
-                    self.apply_filter(&appdata.conn);
-                }
+            (Filters, key) => {
+                self.filters.keyhandler(key);
+                self.apply_filter(&appdata.conn);
             }
             (Filtered, Enter) | (Filtered, Char(' ')) => {
                 if let Some(item) = self.filtered.take_selected_item() {
@@ -315,12 +337,8 @@ impl Widget for Browse {
                 }
             }
             (Selected, key) => self.selected.keyhandler(key),
-            (Actions, Enter) => self.do_action(appdata),
+            (Actions, Enter) | (Actions, Char(' ')) => self.do_action(appdata),
             (Actions, key) => self.filteractions.keyhandler(key),
-            (Numfilters, key) => {
-                self.numfilters.items.keyhandler(key);
-                self.apply_filter(&appdata.conn);
-            }
         }
     }
 
@@ -341,39 +359,20 @@ impl Widget for Browse {
         );
         let filters = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(
-                [
-                    Constraint::Max(5),
-                    Constraint::Max(4),
-                    Constraint::Max(6),
-                    Constraint::Max(9),
-                ]
-                .as_ref(),
-            )
+            .constraints([Constraint::Length(11), Constraint::Min(1)].as_ref())
             .split(chunks[0]);
 
-        self.cardtypes.items.render(
+        self.filters.render(
             f,
             filters[0],
-            matches!(&self.selection, Selection::CardType),
-            &self.cardtypes.title,
+            matches!(&self.selection, Selection::Filters),
+            "Filters",
             Style::default(),
         );
-        self.cardstatus.items.render(
-            f,
-            filters[1],
-            matches!(&self.selection, Selection::CardStatus),
-            &self.cardstatus.title,
-            Style::default(),
-        );
-        self.numfilters.render(
-            f,
-            filters[2],
-            matches!(&self.selection, Selection::Numfilters),
-        );
+
         self.filteractions.render(
             f,
-            filters[3],
+            filters[1],
             matches!(&self.selection, Selection::Actions),
             "Actions",
             Style::default(),

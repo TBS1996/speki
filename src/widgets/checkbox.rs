@@ -5,7 +5,7 @@ use crate::{
     MyKey,
 };
 use std::fmt;
-impl Display for Item {
+impl Display for CheckBoxItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ending = match &self.filter {
             true => "🗹",
@@ -15,12 +15,12 @@ impl Display for Item {
     }
 }
 
-pub struct Item {
+pub struct CheckBoxItem {
     pub name: String,
     pub filter: bool,
 }
 
-impl KeyHandler for Item {
+impl KeyHandler for CheckBoxItem {
     fn keyhandler(&mut self, key: MyKey) -> bool {
         if let MyKey::Enter | MyKey::Char(' ') = key {
             self.filter ^= true;
@@ -30,15 +30,15 @@ impl KeyHandler for Item {
     }
 }
 
-impl Item {
-    fn new(name: String, filter: bool) -> Self {
+impl CheckBoxItem {
+    pub fn new(name: String, filter: bool) -> Self {
         Self { name, filter }
     }
 }
 
 pub struct CheckBox {
     pub title: String,
-    pub items: StatefulList<Item>,
+    pub items: StatefulList<CheckBoxItem>,
 }
 
 impl CheckBox {
@@ -46,7 +46,7 @@ impl CheckBox {
         let strvec = items.into();
         let mut itemvec = vec![];
         for x in strvec {
-            itemvec.push(Item::new(x.to_string(), filter));
+            itemvec.push(CheckBoxItem::new(x.to_string(), filter));
         }
         let items = StatefulList::with_items(itemvec);
         Self { title, items }

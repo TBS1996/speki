@@ -17,7 +17,7 @@ pub struct PosIntField {
     max_value: Option<u32>,
 }
 
-impl KeyHandler for Item {
+impl KeyHandler for NumItem {
     fn keyhandler(&mut self, key: MyKey) -> bool {
         match key {
             MyKey::Char(c) if c.is_ascii_digit() => {
@@ -58,14 +58,14 @@ impl PosIntField {
     }
 }
 
-pub struct Item {
+pub struct NumItem {
     pub name: String,
     pub input: PosIntField,
     pub max_value: Option<u32>,
 }
 
-impl Item {
-    fn new(name: String, max_value: Option<u32>) -> Self {
+impl NumItem {
+    pub fn new(name: String, max_value: Option<u32>) -> Self {
         Self {
             name,
             input: PosIntField::new(max_value),
@@ -74,15 +74,19 @@ impl Item {
     }
 }
 
-impl Display for Item {
+impl Display for NumItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.name, self.input.get_text())
+        let mut val = self.input.get_text();
+        if val.is_empty() {
+            val = "~".to_string();
+        }
+        write!(f, "{} {}", self.name, val)
     }
 }
 
 pub struct NumPut {
     pub title: String,
-    pub items: StatefulList<Item>,
+    pub items: StatefulList<NumItem>,
 }
 
 impl NumPut {
@@ -90,8 +94,8 @@ impl NumPut {
         let names = v
             .into()
             .into_iter()
-            .map(|name| Item::new(name.0, name.1))
-            .collect::<Vec<Item>>();
+            .map(|name| NumItem::new(name.0, name.1))
+            .collect::<Vec<NumItem>>();
 
         Self {
             title,

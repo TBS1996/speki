@@ -8,9 +8,7 @@ use tui::widgets::Clear;
 use crate::app::{AppData, PopUp, Widget};
 use crate::utils::aliases::*;
 use crate::utils::card::CardType;
-use crate::utils::misc::{
-    centered_rect, split_leftright, split_updown_by_percent
-};
+use crate::utils::misc::{centered_rect, split_leftright, split_updown_by_percent};
 use crate::utils::sql::fetch::{get_highest_pos, is_pending, CardQuery};
 use crate::utils::sql::update::{set_suspended, update_position};
 use crate::utils::statelist::KeyHandler;
@@ -46,6 +44,72 @@ pub enum FilterItem {
     Checkboxitem(CheckBoxItem),
     Optitem(OptItem),
     Numitem(NumItem),
+    Search(InputItem),
+}
+
+pub struct InputItem {
+    prompt: String,
+    searchfield: String,
+    writing: bool,
+    max: Option<u32>,
+}
+
+impl Display for InputItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let val = match (self.writing, self.searchfield.is_empty()) {
+            (false, false) => self.searchfield.clone(),
+            (false, true) => "~".to_string(),
+            (true, _) => {
+                let mut field = self.searchfield.clone();
+                field.push('_');
+                field
+            }
+        };
+        write!(f, "{}: {}", self.prompt, val)
+    }
+}
+
+impl KeyHandler for InputItem {
+    fn keyhandler(&mut self, key: MyKey) -> bool {
+        use MyKey::*;
+        if self.writing {
+            match key {
+                Char(c) => {
+                    if self.max.is_some() && self.max.unwrap() < self.searchfield.len() as u32 {
+                        return true;
+                    }
+                    self.searchfield.push(c);
+                }
+                Enter => self.writing = false,
+                Esc => {
+                    self.searchfield.clear();
+                    self.writing = false;
+                }
+                Backspace if !self.searchfield.is_empty() => {
+                    self.searchfield.pop();
+                }
+                _ => return false,
+            }
+            true
+        } else {
+            if let MyKey::Enter = key {
+                self.writing = true;
+                return true;
+            }
+            false
+        }
+    }
+}
+
+impl InputItem {
+    pub fn new(prompt: String, max: Option<u32>) -> Self {
+        Self {
+            prompt,
+            searchfield: String::new(),
+            writing: false,
+            max,
+        }
+    }
 }
 
 impl Display for FilterItem {
@@ -54,6 +118,7 @@ impl Display for FilterItem {
             Self::Checkboxitem(val) => format!("{}", val),
             Self::Optitem(val) => format!("{}", val),
             Self::Numitem(val) => format!("{}", val),
+            Self::Search(val) => format!("{}", val),
         };
         write!(f, "{}", val)
     }
@@ -65,6 +130,7 @@ impl KeyHandler for FilterItem {
             Self::Checkboxitem(val) => val.keyhandler(key),
             Self::Optitem(val) => val.keyhandler(key),
             Self::Numitem(val) => val.keyhandler(key),
+            Self::Search(val) => val.keyhandler(key),
         }
     }
 }
@@ -85,15 +151,16 @@ impl Browse {
         let cardlimit = 10000;
 
         let filters = StatefulList::with_items(vec![
-            FilterItem::Checkboxitem(CheckBoxItem::new("Finished".to_string(), false)),
-            FilterItem::Checkboxitem(CheckBoxItem::new("Unfinished".to_string(), false)),
-            FilterItem::Checkboxitem(CheckBoxItem::new("Pending".to_string(), false)),
+            FilterItem::Checkboxitem(CheckBoxItem::new("Finished".to_string(), true)),
+            FilterItem::Checkboxitem(CheckBoxItem::new("Unfinished".to_string(), true)),
+            FilterItem::Checkboxitem(CheckBoxItem::new("Pending".to_string(), true)),
             FilterItem::Optitem(OptItem::new("Resolved".to_string())),
             FilterItem::Optitem(OptItem::new("Suspended".to_string())),
-            FilterItem::Numitem(NumItem::new("Max stability:".to_string(), None)),
-            FilterItem::Numitem(NumItem::new("Min stability:".to_string(), None)),
-            FilterItem::Numitem(NumItem::new("Max strength:".to_string(), Some(100))),
-            FilterItem::Numitem(NumItem::new("Min strength:".to_string(), Some(100))),
+            FilterItem::Search(InputItem::new("Search".to_string(), Some(20))),
+            FilterItem::Numitem(NumItem::new("Max stability".to_string(), None)),
+            FilterItem::Numitem(NumItem::new("Min stability".to_string(), None)),
+            FilterItem::Numitem(NumItem::new("Max strength".to_string(), Some(100))),
+            FilterItem::Numitem(NumItem::new("Min strength".to_string(), Some(100))),
         ]);
         let selected_ids = HashSet::new();
         let selection = Selection::Filtered;
@@ -150,25 +217,31 @@ impl Browse {
             }
         }
 
-        if let FilterItem::Numitem(val) = &self.filters.items[5] {
-            if let Some(num) = val.input.get_value() {
-                query = query.max_stability(num);
+        if let FilterItem::Search(val) = &self.filters.items[5] {
+            if !val.searchfield.is_empty() {
+                query = query.contains(val.searchfield.clone());
             }
         }
 
         if let FilterItem::Numitem(val) = &self.filters.items[6] {
             if let Some(num) = val.input.get_value() {
-                query = query.minimum_stability(num);
+                query = query.max_stability(num);
             }
         }
 
         if let FilterItem::Numitem(val) = &self.filters.items[7] {
             if let Some(num) = val.input.get_value() {
-                query = query.max_strength(num as f32 / 100.);
+                query = query.minimum_stability(num);
             }
         }
 
         if let FilterItem::Numitem(val) = &self.filters.items[8] {
+            if let Some(num) = val.input.get_value() {
+                query = query.max_strength(num as f32 / 100.);
+            }
+        }
+
+        if let FilterItem::Numitem(val) = &self.filters.items[9] {
             if let Some(num) = val.input.get_value() {
                 query = query.minimum_strength(num as f32 / 100.);
             }

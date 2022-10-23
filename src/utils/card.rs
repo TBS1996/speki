@@ -1,6 +1,7 @@
 use crate::utils::sql::fetch::fetch_card;
 use rusqlite::Connection;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::watch::channel;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -259,17 +260,17 @@ impl Card {
         let dependencies = self.dependencies.clone();
         let dependents = self.dependents.clone();
         let finished = self.is_complete();
-        let card_id = save_card(&conn, self);
+        let card_id = save_card(conn, self);
 
         if finished {
-            revlog_new(&conn, card_id, Review::from(&RecallGrade::Decent)).unwrap();
+            revlog_new(conn, card_id, Review::from(&RecallGrade::Decent)).unwrap();
         }
 
         for dependency in dependencies {
-            update_both(&conn, card_id, dependency).unwrap();
+            update_both(conn, card_id, dependency).unwrap();
         }
         for dependent in dependents {
-            update_both(&conn, dependent, card_id).unwrap();
+            update_both(conn, dependent, card_id).unwrap();
             Self::check_resolved(dependent, conn);
         }
 
@@ -279,11 +280,11 @@ impl Card {
 
     pub fn check_resolved(id: u32, conn: &Arc<Mutex<Connection>>) -> bool {
         let mut change_detected = false;
-        let mut card = fetch_card(&conn, id);
+        let mut card = fetch_card(conn, id);
         let mut is_resolved = true;
 
         for dependency in &card.dependencies {
-            let dep_card = fetch_card(&conn, *dependency);
+            let dep_card = fetch_card(conn, *dependency);
             if !dep_card.resolved || !dep_card.is_complete() {
                 is_resolved = false;
                 break;
@@ -292,7 +293,7 @@ impl Card {
         if card.resolved != is_resolved {
             change_detected = true;
             card.resolved = is_resolved;
-            set_resolved(&conn, card.id, card.resolved);
+            set_resolved(conn, card.id, card.resolved);
 
             for dependent in card.dependents {
                 Card::check_resolved(dependent, conn);
@@ -302,32 +303,32 @@ impl Card {
     }
 
     pub fn new_review(conn: &Arc<Mutex<Connection>>, id: CardID, review: RecallGrade) {
-        revlog_new(&conn, id, Review::from(&review)).unwrap();
+        revlog_new(conn, id, Review::from(&review)).unwrap();
         super::interval::calc_stability(conn, id);
     }
     pub fn complete_card(conn: &Arc<Mutex<Connection>>, id: CardID) {
-        let card = fetch_card(&conn, id);
-        remove_unfinished(&conn, id).unwrap();
-        new_finished(&conn, id).unwrap();
-        revlog_new(&conn, id, Review::from(&RecallGrade::Decent)).unwrap();
+        let card = fetch_card(conn, id);
+        remove_unfinished(conn, id).unwrap();
+        new_finished(conn, id).unwrap();
+        revlog_new(conn, id, Review::from(&RecallGrade::Decent)).unwrap();
         for dependent in card.dependents {
             Card::check_resolved(dependent, conn);
         }
     }
 
     pub fn activate_card(conn: &Arc<Mutex<Connection>>, id: CardID) {
-        remove_pending(&conn, id).unwrap();
-        new_finished(&conn, id).unwrap();
+        remove_pending(conn, id).unwrap();
+        new_finished(conn, id).unwrap();
     }
 
     pub fn play_frontaudio(conn: &Arc<Mutex<Connection>>, id: CardID, audio: &Option<Audio>) {
-        let card = fetch_card(&conn, id);
+        let card = fetch_card(conn, id);
         if let Some(path) = card.frontaudio {
             crate::utils::misc::play_audio(audio, path);
         }
     }
     pub fn play_backaudio(conn: &Arc<Mutex<Connection>>, id: CardID, audio: &Option<Audio>) {
-        let card = fetch_card(&conn, id);
+        let card = fetch_card(conn, id);
         if let Some(path) = card.backaudio {
             crate::utils::misc::play_audio(audio, path);
         }

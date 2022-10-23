@@ -363,9 +363,9 @@ pub fn get_history(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<Vec<Review>
 
 pub fn row2card(row: &Row) -> Card {
     let cardtype = match row.get::<usize, u32>(7).unwrap() {
-        0 => CardTypeData::Finished(FinishedInfo::default()),
+        0 => CardTypeData::Pending(PendingInfo::default()),
         1 => CardTypeData::Unfinished(UnfinishedInfo::default()),
-        2 => CardTypeData::Pending(PendingInfo::default()),
+        2 => CardTypeData::Finished(FinishedInfo::default()),
         _ => panic!(),
     };
     let id = row.get(0).unwrap();

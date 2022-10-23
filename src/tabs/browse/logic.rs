@@ -214,6 +214,7 @@ impl Browse {
 
             (Selected, Up) => Filtered,
             (Selected, Left) => Actions,
+
             (Actions, Up) => Filters,
             (Actions, Right) => Selected,
 

@@ -14,7 +14,7 @@ https://user-images.githubusercontent.com/56874491/196013353-846df752-7587-4b63-
 
 ### Windows  
 
-[Click to download binary](https://github.com/TBS1996/speki/releases/download/v0.1.11/speki.exe)
+[Click to download binary](https://github.com/TBS1996/speki/releases/download/dev/speki-dev-x86_64-windows.zip)
 
 It will probably be flagged as dangerous by windows
 

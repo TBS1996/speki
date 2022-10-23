@@ -10,7 +10,7 @@ Flashcards for your terminal
 
 
 
-https://user-images.githubusercontent.com/56874491/196013353-846df752-7587-4b63-b0fa-416de64cdb1b.mp4
+https://user-images.githubusercontent.com/56874491/197411577-fd31dd86-609c-45c5-912a-02ea21431a6e.mp4
 
 
 

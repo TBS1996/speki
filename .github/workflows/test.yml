@@ -92,7 +92,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Release AUR package
-        uses: jbouter/aur-releaser@${{steps.tag.outputs.tag}}
+        uses: jbouter/aur-releaser@0.2.8
         with:
           pkgname: speki
           pkgbuild: ./PKGBUILD

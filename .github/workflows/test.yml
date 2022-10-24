@@ -87,13 +87,19 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CARGO_API_KEY }} --allow-dirty
-  aur-publish:
+  aur-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Publish AUR package
-        uses: ATiltedTree/create-aur-release@v1
+      - uses: actions/checkout@v2
+
+      - name: Release AUR package
+        uses: jbouter/aur-releaser@<TAG>
         with:
-          package_name: speki
-          commit_username: "tbs1996"
-          commit_email: torberge@outlook.com
+          pkgname: speki
+          pkgbuild: ./PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update AUR package
+          ssh_keyscan_types: rsa,dsa,ecdsa,ed25519
+

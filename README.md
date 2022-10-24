@@ -51,11 +51,8 @@ You can get cargo by [installing rust](https://www.rust-lang.org/tools/install)
 
 ### Ubuntu
 
-If you get the following error on ubuntu: 
-`--- stderr thread 'main' panicked at '"pkg-config" "--libs" "--cflags" "alsa" did not exit successfully: exit status: 1 error: could not find system library 'alsa' required by the 'alsa-sys' crate `
+If you install with Cargo, you will also need to install the following package: `libasound2-dev` 
 
-Try installing `libasound2-dev` 
-If you get the same error on another distro, try finding the equivalent to that dependency and installing it.
 
 
 ## Features

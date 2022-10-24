@@ -862,8 +862,8 @@ impl Template {
     }
     pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &Option<Audio>) {
         use MyKey::*;
-        use Selected::*;
 
+        use Selected::*;
         if let MyKey::Nav(dir) = key {
             self.navigate(dir);
             return;

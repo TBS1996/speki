@@ -844,20 +844,20 @@ impl Template {
         use Direction::*;
         use Selected::*;
 
-        match (&self.selected, dir) {
-            (Preview, Down) => self.selected = Selected::Front,
+        self.selected = match (&self.selected, dir) {
+            (Preview, Down) => Selected::Front,
 
-            (Front, Down) => self.selected = Selected::Back,
-            (Front, Up) => self.selected = Selected::Preview,
+            (Front, Down) => Selected::Back,
+            (Front, Up) => Selected::Preview,
 
-            (Back, Up) => self.selected = Selected::Front,
-            (Back, Down) => self.selected = Selected::Import,
+            (Back, Up) => Selected::Front,
+            (Back, Down) => Selected::Import,
 
-            (Import, Up) => self.selected = Selected::Back,
+            (Import, Up) => Selected::Back,
 
-            (Preview, Right) => self.selected = Selected::Topics,
-            (Topics, Left) => self.selected = Selected::Preview,
-            (_, _) => {}
+            (Preview, Right) => Selected::Topics,
+            (Topics, Left) => Selected::Preview,
+            (_, _) => return,
         };
     }
     pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &Option<Audio>) {

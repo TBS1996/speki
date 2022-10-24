@@ -180,7 +180,7 @@ fn extract_image(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Opt
     let res = match re.captures(trd)?.get(1) {
         Some(res) => {
             let mut imagepath = paths.media.clone();
-            imagepath.push(format!("{}/{}", deckname, res.as_str().to_string()));
+            imagepath.push(format!("{}/{}", deckname, res.as_str()));
             Some(imagepath)
         }
         None => None,
@@ -352,7 +352,7 @@ impl Template {
 
                 let mut keypath = paths.media.clone();
                 let mut valpath = paths.media.clone();
-                keypath.push(format!("{}/{}", &deckname, key.to_string()));
+                keypath.push(format!("{}/{}", &deckname, key));
                 valpath.push(format!("{}/{}", &deckname, val));
 
                 std::fs::rename(keypath, valpath)?;
@@ -591,7 +591,7 @@ impl Template {
     ) -> Result<()> {
         let guard = conn.lock().unwrap();
         let mut stmt = guard.prepare("SELECT id, mid, flds FROM notes")?;
-        let foo = stmt.query_map([], |row| {
+        stmt.query_map([], |row| {
             let id: NoteID = row.get::<usize, NoteID>(0).unwrap();
             let model_id: ModelID = row.get::<usize, ModelID>(1).unwrap();
             let fields: Vec<CardField> = row
@@ -605,14 +605,10 @@ impl Template {
                     CardField { text, audio, image }
                 })
                 .collect();
-            Ok((id, Note { model_id, fields }))
-        })?;
-
-        for x in foo {
-            let y = x.unwrap();
-            let (id, note) = y;
-            self.notes.insert(id, note.clone());
-        }
+            self.notes.insert(id, Note { model_id, fields });
+            Ok(())
+        })?
+        .for_each(|_| {});
 
         Ok(())
     }

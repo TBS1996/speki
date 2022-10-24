@@ -71,3 +71,19 @@ jobs:
             target/${{ matrix.target }}/release/speki-${{ matrix.artifact_prefix }}.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  publish-cargo:
+    name: Publishing to Cargo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: |
+          sudo apt-get update
+          sudo apt-get install libasound2-dev
+      - uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CARGO_API_KEY }} --allow-dirty

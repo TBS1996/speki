@@ -724,8 +724,6 @@ impl Template {
             let backside = self.fill_back_view(back_template, idx);
             let media = self.get_media(idx);
 
-            //    dbg!(afterprepare);
-
             if idx % 10 == 0 {
                 let _ = transmitter.try_send(ImportProgress {
                     curr_index: idx,

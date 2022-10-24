@@ -2,7 +2,8 @@ name: Continuous Deployment
 
 on:
   push:
-
+    tags:
+      - "v*.*.*"
 
 jobs:
   publish:

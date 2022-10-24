@@ -31,7 +31,6 @@ use std::sync::{Arc, Mutex};
 pub struct ImportProgress {
     pub curr_index: usize,
     pub total: usize,
-    //   pub front: String,
     //   pub back: String,
 }
 

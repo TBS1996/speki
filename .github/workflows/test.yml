@@ -93,7 +93,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Release AUR package
-        uses: jbouter/aur-releaser@0.2.15
+        uses: jbouter/aur-releaser@0.2.16
         with:
           pkgname: my-awesome-package
           pkgbuild: ./PKGBUILD

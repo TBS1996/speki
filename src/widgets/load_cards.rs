@@ -106,6 +106,7 @@ impl CardField {
 struct Kort {
     note_id: NoteID,
     template_ord: usize,
+    reps: u32,
 }
 #[derive(Clone, Debug)]
 struct Note {
@@ -140,44 +141,43 @@ use regex::Regex;
 fn cloze_format(trd: &mut String, ord: u32) {
     let mut pattern = r"\{\{c".to_string();
     pattern.push_str(&ord.to_string());
-    pattern.push_str(&r"::(.*?)\}\}");
+    pattern.push_str(r"::(.*?)\}\}");
     let re = Regex::new(&pattern).unwrap();
-    *trd = re.replace_all(&trd, "[...]").to_string();
+    *trd = re.replace_all(trd, "[...]").to_string();
 }
 fn hide_close(trd: &mut String) {
     let pattern = r"\{\{c\d*::(?P<inside_cloze>(.*?))\}\}";
     let re = Regex::new(pattern).unwrap();
-    *trd = re.replace_all(&trd, "$inside_cloze").to_string();
+    *trd = re.replace_all(trd, "$inside_cloze").to_string();
 }
 fn strip_cloze(trd: &mut String) {
     let pattern = r"\{\{cloze\d*:(?P<inside_cloze>(.*?))\}\}";
     let re = Regex::new(pattern).unwrap();
-    *trd = re.replace_all(&trd, "{{$inside_cloze}}").to_string();
+    *trd = re.replace_all(trd, "{{$inside_cloze}}").to_string();
 }
 fn remove_useless_formatting(trd: &mut String) {
     let pattern = r"(<br />|<br>|<br/>)".to_string();
     let re = Regex::new(&pattern).unwrap();
-    *trd = re.replace_all(&trd, "\n").to_string();
+    *trd = re.replace_all(trd, "\n").to_string();
 
     let pattern = r"(<.*?>)".to_string();
     let re = Regex::new(&pattern).unwrap();
-    *trd = re.replace_all(&trd, "").to_string();
+    *trd = re.replace_all(trd, "").to_string();
 
     let pattern = r"&nbsp;".to_string();
     let re = Regex::new(&pattern).unwrap();
-    *trd = re.replace_all(&trd, "").to_string();
+    *trd = re.replace_all(trd, "").to_string();
 
     let pattern = r"&quot;".to_string();
     let re = Regex::new(&pattern).unwrap();
-    *trd = re.replace_all(&trd, "").to_string();
+    *trd = re.replace_all(trd, "").to_string();
 }
 
 fn extract_image(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Option<PathBuf> {
     let pattern = "<img src=\"(.*?)\" />".to_string();
     let re = Regex::new(&pattern).unwrap();
-    let foo = re.captures(&trd)?;
 
-    let res = match foo.get(1) {
+    let res = match re.captures(trd)?.get(1) {
         Some(res) => {
             let mut imagepath = paths.media.clone();
             imagepath.push(format!("{}/{}", deckname, res.as_str().to_string()));
@@ -185,14 +185,14 @@ fn extract_image(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Opt
         }
         None => None,
     };
-    *trd = re.replace_all(&trd, "").to_string();
+    *trd = re.replace_all(trd, "").to_string();
     return res;
 }
 
 fn extract_audio(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Option<PathBuf> {
     let pattern = r"\[sound:(.*?)\]".to_string();
     let re = Regex::new(&pattern).unwrap();
-    let foo = re.captures(&trd)?;
+    let foo = re.captures(trd)?;
 
     let res = match foo.get(1) {
         Some(res) => {
@@ -568,18 +568,19 @@ impl Template {
 
     fn load_cards(&mut self, conn: &Arc<Mutex<Connection>>) -> Result<()> {
         let guard = conn.lock().unwrap();
-        let mut stmt = guard.prepare("SELECT nid, ord FROM cards").unwrap();
-        let foo = stmt.query_map([], |row| {
+        let mut stmt = guard.prepare("SELECT nid, ord, reps FROM cards").unwrap();
+        stmt.query_map([], |row| {
             let note_id: NoteID = row.get::<usize, NoteID>(0).unwrap();
             let template_ord: usize = row.get::<usize, usize>(1).unwrap();
-            Ok(Kort {
+            let reps: u32 = row.get::<usize, u32>(2).unwrap();
+            self.cards.push(Kort {
                 note_id,
                 template_ord,
-            })
-        })?;
-        for x in foo {
-            self.cards.push(x.unwrap());
-        }
+                reps,
+            });
+            Ok(())
+        })?
+        .for_each(|_| {});
         Ok(())
     }
     fn load_notes(
@@ -794,7 +795,7 @@ impl Template {
                 .fields
                 .iter()
                 .map(|field| {
-                    let lines = vec![Spans::from(format!("{}", field))];
+                    let lines = vec![Spans::from(String::from(field))];
                     ListItem::new(lines).style(Style::default())
                 })
                 .collect();
@@ -845,7 +846,7 @@ impl Template {
         self.back_template.render(f, bottomleft, selected.back);
         self.front_view.render(f, topright, false);
         self.back_view.render(f, bottomright, false);
-        draw_button(f, button, &format!("Import cards!"), selected.import);
+        draw_button(f, button, "Import cards!", selected.import);
     }
     fn navigate(&mut self, dir: Direction) {
         use Direction::*;

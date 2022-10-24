@@ -84,10 +84,10 @@ impl KeyHandler for InputItem {
                     self.searchfield.clear();
                     self.writing = false;
                 }
-                Backspace if !self.searchfield.is_empty() => {
+                Backspace => {
                     self.searchfield.pop();
                 }
-                _ => return false,
+                _ => {}
             }
             true
         } else {

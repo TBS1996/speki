@@ -207,7 +207,7 @@ impl MainReview {
         let selection = UnfSelection::Question;
         let mut question = Field::new();
         let mut answer = Field::new();
-        let card = fetch_card(&conn, id);
+        let card = fetch_card(conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
         let dependencies = get_dependencies(conn, id);
@@ -230,13 +230,13 @@ impl MainReview {
         let selection = ReviewSelection::RevealButton;
         let mut question = Field::new();
         let mut answer = Field::new();
-        let card = fetch_card(&conn, id);
+        let card = fetch_card(conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);
         let dependencies = get_dependencies(conn, id);
         let dependents = get_dependents(conn, id);
         let cardrater = CardRater::new();
-        let media = fetch_media(&conn, id);
+        let media = fetch_media(conn, id);
         let cardreview = CardReview {
             id,
             question,
@@ -264,7 +264,7 @@ impl MainReview {
         let dependencies = get_dependencies(conn, id);
         let dependents = get_dependents(conn, id);
         let cardrater = CardRater::new();
-        let media = fetch_media(&conn, id);
+        let media = fetch_media(conn, id);
         let cardreview = CardReview {
             id,
             question,
@@ -286,7 +286,7 @@ impl MainReview {
     }
     pub fn inc_done(&mut self, id: IncID, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
         let active = false;
-        update_inc_active(&conn, id, active).unwrap();
+        update_inc_active(conn, id, active).unwrap();
         self.random_mode(conn, audio);
     }
 

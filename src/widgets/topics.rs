@@ -60,7 +60,6 @@ impl TopicList {
         };
         foo.add_kids();
         foo.sort_topics();
-        foo.next();
         foo
     }
 
@@ -306,7 +305,7 @@ impl TopicList {
     }
 
     pub fn sort_topics(&mut self) {
-        let mut ids = vec![1 as u32];
+        let mut ids = vec![1];
 
         self.items[0].ancestors = 0;
 
@@ -324,13 +323,13 @@ impl TopicList {
     }
 
     pub fn reload_topics(&mut self, conn: &Arc<Mutex<Connection>>) {
-        self.items = get_topics(&conn).unwrap();
+        self.items = get_topics(conn).unwrap();
         self.add_kids();
         self.sort_topics();
     }
 
     pub fn next(&mut self) {
-        if self.items.len() == 0 {
+        if self.items.is_empty() {
             return;
         };
 
@@ -348,7 +347,7 @@ impl TopicList {
     }
 
     pub fn previous(&mut self) {
-        if self.items.len() == 0 {
+        if self.items.is_empty() {
             return;
         };
 
@@ -373,14 +372,14 @@ impl TopicList {
                     inner.name.addchar(c);
                     let id = inner.id;
                     let name = inner.name.return_text();
-                    update_topic_name(&conn, id, name);
+                    update_topic_name(conn, id, name);
                     self.reload_topics(conn);
                 }
                 Backspace => {
                     inner.name.backspace();
                     let id = inner.id;
                     let name = inner.name.return_text();
-                    update_topic_name(&conn, id, name);
+                    update_topic_name(conn, id, name);
                     self.reload_topics(conn);
                 }
                 Enter => {
@@ -433,7 +432,7 @@ impl TopicList {
                     if self.is_last_sibling(topic.id) {
                         return;
                     }
-                    if self.items[index as usize].children.len() > 0 {
+                    if self.items[index as usize].children.is_empty() {
                         return;
                     }
                     self.shift_right(conn, index as u32);

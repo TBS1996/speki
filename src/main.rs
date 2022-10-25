@@ -129,7 +129,7 @@ impl MyKey {
         if let Key(key) = event {
             let modifiers = key.modifiers;
 
-            if modifiers == event::KeyModifiers::ALT {
+            if modifiers == event::KeyModifiers::ALT || modifiers == event::KeyModifiers::META {
                 match key.code {
                     KeyCode::Char('h') | KeyCode::Left => return Some(MyKey::Nav(Direction::Left)),
                     KeyCode::Char('j') | KeyCode::Down => return Some(MyKey::Nav(Direction::Down)),

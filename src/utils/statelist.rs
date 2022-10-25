@@ -26,18 +26,20 @@ pub struct StatefulList<T: Display + KeyHandler> {
 
 impl<T: Display + KeyHandler> StatefulList<T> {
     pub fn with_items(items: Vec<T>) -> StatefulList<T> {
-        StatefulList {
+        let mut thelist = Self {
             state: ListState::default(),
             items,
-            fixed_fields: false,
-        }
+            fixed_fields: true,
+        };
+        thelist.next();
+        thelist
     }
     pub fn new() -> StatefulList<T> {
         let items = Vec::<T>::new();
         StatefulList {
             state: ListState::default(),
             items,
-            fixed_fields: false,
+            fixed_fields: true,
         }
     }
 
@@ -69,6 +71,13 @@ impl<T: Display + KeyHandler> StatefulList<T> {
             Some(self.items.remove(idx))
         } else {
             None
+        }
+    }
+
+    pub fn push(&mut self, item: T) {
+        self.items.push(item);
+        if self.state.selected().is_none() {
+            self.state.select(Some(0));
         }
     }
 
@@ -108,6 +117,19 @@ impl<T: Display + KeyHandler> StatefulList<T> {
         self.state.select(Some(i));
     }
 
+    fn home_key(&mut self) {
+        if !self.items.is_empty() {
+            self.state.select(Some(0));
+        }
+    }
+
+    fn end_key(&mut self) {
+        if !self.items.is_empty() {
+            let qty = self.items.len();
+            self.state.select(Some(qty - 1));
+        }
+    }
+
     pub fn keyhandler(&mut self, key: MyKey) {
         if let Some(idx) = self.state.selected() {
             if self.items[idx].keyhandler(key.clone()) {
@@ -120,6 +142,8 @@ impl<T: Display + KeyHandler> StatefulList<T> {
             MyKey::Char('j') | MyKey::Down => self.next(),
             MyKey::Char('J') if !self.fixed_fields => self.move_item_down(),
             MyKey::Char('K') if !self.fixed_fields => self.move_item_up(),
+            MyKey::Home => self.home_key(),
+            MyKey::End => self.end_key(),
             _ => {}
         }
     }

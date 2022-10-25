@@ -7,9 +7,9 @@ use tui::widgets::Clear;
 
 use crate::app::{AppData, PopUp, Widget};
 use crate::utils::aliases::*;
-use crate::utils::card::CardType;
+use crate::utils::card::{Card, CardType};
 use crate::utils::misc::{centered_rect, split_leftright, split_updown_by_percent};
-use crate::utils::sql::fetch::{get_highest_pos, is_pending, CardQuery};
+use crate::utils::sql::fetch::{fetch_card, get_highest_pos, is_pending, CardQuery};
 use crate::utils::sql::update::{set_suspended, update_position};
 use crate::utils::statelist::KeyHandler;
 use crate::widgets::cardlist::CardItem;
@@ -18,7 +18,9 @@ use crate::widgets::find_card::{CardPurpose, FindCardWidget};
 use crate::widgets::newchild::{AddChildWidget, Purpose};
 use crate::widgets::numeric_input::NumItem;
 use crate::widgets::optional_bool_filter::{FilterSetting, OptItem};
+use crate::widgets::textinput::Field;
 use crate::{app::Tab, utils::statelist::StatefulList};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 enum Selection {
@@ -143,6 +145,11 @@ pub struct Browse {
     selected_ids: HashSet<CardID>,
     filteractions: StatefulList<ActionItem>,
     popup: Option<Box<dyn PopUp>>,
+    question: Field,
+    answer: Field,
+    dependencies: StatefulList<CardItem>,
+    dependents: StatefulList<CardItem>,
+    cards: HashMap<CardID, Card>,
 }
 
 impl Browse {
@@ -165,6 +172,11 @@ impl Browse {
         let selection = Selection::Filtered;
         let filteractions = StatefulList::<ActionItem>::default();
         let popup = None;
+        let question = Field::new();
+        let answer = Field::new();
+        let dependencies = StatefulList::new();
+        let dependents = StatefulList::new();
+        let cards = HashMap::new();
 
         let mut myself = Self {
             selection,
@@ -175,7 +187,13 @@ impl Browse {
             selected_ids,
             filteractions,
             popup,
+            question,
+            answer,
+            dependencies,
+            dependents,
+            cards,
         };
+
         myself.apply_filter(conn);
         myself
     }
@@ -294,6 +312,17 @@ impl Browse {
         }
     }
 
+    fn reload_card(&mut self, id: CardID, conn: &Arc<Mutex<Connection>>) {
+        if !self.cards.contains_key(&id) {
+            let card = fetch_card(conn, id);
+            self.cards.insert(id, card);
+        }
+        let card = self.cards.get(&id).unwrap();
+        let dependencies = card.dependencies.clone();
+        let dependents = card.dependents.clone();
+    
+    }
+
     fn apply_suspended(&self, appdata: &AppData, suspend: bool) {
         set_suspended(
             &appdata.conn,
@@ -397,7 +426,7 @@ impl Widget for Browse {
                 if let Some(item) = self.filtered.take_selected_item() {
                     if !self.selected_ids.contains(&item.id) {
                         self.selected_ids.insert(item.id);
-                        self.selected.items.push(item);
+                        self.selected.push(item);
                     }
                 }
             }
@@ -406,7 +435,7 @@ impl Widget for Browse {
             (Selected, Enter) | (Selected, Char(' ')) => {
                 if let Some(item) = self.selected.take_selected_item() {
                     self.selected_ids.remove(&item.id);
-                    self.filtered.items.push(item);
+                    self.filtered.push(item);
                 }
             }
             (Selected, key) => self.selected.keyhandler(key),
@@ -424,8 +453,8 @@ impl Widget for Browse {
         let chunks = split_leftright(
             [
                 Constraint::Length(24),
-                Constraint::Percentage(40),
-                //Constraint::Percentage(40),
+                Constraint::Percentage(50),
+               // Constraint::Percentage(25),
             ],
             area,
         );
@@ -434,7 +463,15 @@ impl Widget for Browse {
             .constraints([Constraint::Ratio(10, 20), Constraint::Ratio(10, 20)].as_ref())
             .split(chunks[0]);
         let filteredandselected = split_updown_by_percent([50, 50], chunks[1]);
-
+/*
+        let rightcol = split_updown_by_percent([25, 25, 25, 25], chunks[2]);
+        self.dependents
+            .render(f, rightcol[0], false, "Dependents", Style::default());
+        self.question.render(f, rightcol[1], false);
+        self.answer.render(f, rightcol[2], false);
+        self.dependencies
+            .render(f, rightcol[3], false, "Dependencies", Style::default());
+*/
         self.filters.render(
             f,
             filters[0],
@@ -517,10 +554,7 @@ impl Default for StatefulList<ActionItem> {
             "Add old dependent".to_string(),
             "Save to pending queue".to_string(),
         ];
-        let items = actions
-            .into_iter()
-            .map(|action| ActionItem::new(action))
-            .collect();
+        let items = actions.into_iter().map(ActionItem::new).collect();
         StatefulList::with_items(items)
     }
 }

@@ -156,7 +156,7 @@ impl App {
             MyKey::SwapTab => self.tabs.swap_right(),
             MyKey::BackSwapTab => self.tabs.swap_left(),
             MyKey::F(1) => self.display_help = !self.display_help,
-            MyKey::Alt('q') => self.should_quit = true,
+            MyKey::Alt('q')  | MyKey::Alt('Q')=> self.should_quit = true,
             MyKey::Alt('m') => {
                 if self.appdata.audio.is_some() {
                     self.appdata.audio = None;

@@ -152,7 +152,6 @@ impl CardReview {
 
     pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         self.set_selection(area);
-        self.view.debug_show_cursor(f);
 
         let resolved = is_resolved(&appdata.conn, self.cardview.card.id);
         if !resolved {

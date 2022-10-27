@@ -13,6 +13,7 @@ use crate::utils::sql::init_db;
 use crossterm::{
     event::{
         self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        MouseEvent, MouseEventKind,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -39,6 +40,7 @@ fn main() -> Result<()> {
     )?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+    terminal.show_cursor()?;
 
     // create app and run it
     let app = App::new(is_new_db, paths);
@@ -103,14 +105,17 @@ pub enum MyKey {
     Ctrl(char),
     Alt(char),
     Null,
-    Nav(Direction),
+    Nav(NavDir),
     DeleteCard,
     SwapTab,
     BackSwapTab,
+    KeyPress((u16, u16)),
+    ScrollUp,
+    ScrollDown,
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum Direction {
+pub enum NavDir {
     Up,
     Down,
     Left,
@@ -126,17 +131,24 @@ impl MyKey {
             return Some(MyKey::Paste(paste));
         }
 
+        if let Mouse(mouse) = event {
+            match mouse.kind {
+                MouseEventKind::Down(_) => return Some(MyKey::KeyPress((mouse.column, mouse.row))),
+                MouseEventKind::ScrollUp => return Some(MyKey::ScrollUp),
+                MouseEventKind::ScrollDown => return Some(MyKey::ScrollDown),
+                _ => {}
+            }
+        }
+
         if let Key(key) = event {
             let modifiers = key.modifiers;
 
             if modifiers == event::KeyModifiers::ALT || modifiers == event::KeyModifiers::META {
                 match key.code {
-                    KeyCode::Char('h') | KeyCode::Left => return Some(MyKey::Nav(Direction::Left)),
-                    KeyCode::Char('j') | KeyCode::Down => return Some(MyKey::Nav(Direction::Down)),
-                    KeyCode::Char('k') | KeyCode::Up => return Some(MyKey::Nav(Direction::Up)),
-                    KeyCode::Char('l') | KeyCode::Right => {
-                        return Some(MyKey::Nav(Direction::Right))
-                    }
+                    KeyCode::Char('h') | KeyCode::Left => return Some(MyKey::Nav(NavDir::Left)),
+                    KeyCode::Char('j') | KeyCode::Down => return Some(MyKey::Nav(NavDir::Down)),
+                    KeyCode::Char('k') | KeyCode::Up => return Some(MyKey::Nav(NavDir::Up)),
+                    KeyCode::Char('l') | KeyCode::Right => return Some(MyKey::Nav(NavDir::Right)),
                     KeyCode::Char(c) => return Some(MyKey::Alt(c)),
                     _ => {}
                 }

@@ -1,9 +1,11 @@
 use crate::app::Audio;
+use crate::utils::misc::{View, split_leftright_by_percent, split_updown_by_percent};
+use crate::utils::statelist::{StatefulList, TextItem};
 use crate::widgets::button::draw_button;
 use crate::widgets::textinput::Field;
 use crate::widgets::topics::TopicList;
 use crate::MyKey;
-use crate::{Direction, SpekiPaths};
+use crate::{NavDir, SpekiPaths};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -12,6 +14,7 @@ use crate::utils::{aliases::*, card};
 use crate::MyType;
 use anyhow::Result;
 use rusqlite::Connection;
+use tui::layout::Rect;
 use std::fs;
 use tui::widgets::ListState;
 use tui::{
@@ -43,44 +46,6 @@ pub enum LoadState {
     OnGoing,
     Finished,
     Importing, // e.g.  70/500 cards imported...
-}
-
-#[derive(Clone, Debug)]
-enum Selected {
-    Front,
-    Back,
-    Topics,
-    Import,
-    Preview,
-}
-
-struct IsSelected {
-    front: bool,
-    back: bool,
-    topics: bool,
-    import: bool,
-    preview: bool,
-}
-
-impl IsSelected {
-    fn new(selected: &Selected) -> Self {
-        let mut foo = IsSelected {
-            front: false,
-            back: false,
-            topics: false,
-            import: false,
-            preview: false,
-        };
-
-        match selected {
-            Selected::Front => foo.front = true,
-            Selected::Back => foo.back = true,
-            Selected::Topics => foo.topics = true,
-            Selected::Import => foo.import = true,
-            Selected::Preview => foo.preview = true,
-        };
-        foo
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -222,8 +187,9 @@ pub struct Template {
     front_view: Field,
     back_view: Field,
     topics: TopicList,
-    selected: Selected,
     pub state: LoadState,
+    view: View,
+    fields: StatefulList<TextItem>,
 }
 
 impl Template {
@@ -231,6 +197,9 @@ impl Template {
         let cards = vec![];
         let notes: HashMap<NoteID, Note> = HashMap::new();
         let models: HashMap<ModelID, Model> = HashMap::new();
+        let view = View::default();
+        let fields = StatefulList::new();
+
         let mut temp = Template {
             cards,
             notes,
@@ -241,8 +210,9 @@ impl Template {
             front_template: Field::new(),
             back_template: Field::new(),
             topics: TopicList::new(conn),
-            selected: Selected::Preview,
             state: LoadState::OnGoing,
+            view,
+            fields,
         };
         temp.init(&deckname, paths);
         temp.front_view.stickytitle = true;
@@ -326,6 +296,12 @@ impl Template {
             .replace_text(self.fill_front_view(self.front_template.return_text(), self.viewpos));
         self.back_view
             .replace_text(self.fill_back_view(self.back_template.return_text(), self.viewpos));
+
+        self.fields.items = {
+            let model = self.selected_model();
+            model.fields.iter().map(|item| {TextItem::new(item.clone())}).collect()
+        };
+
     }
 
     fn refresh_views(&mut self) {
@@ -737,73 +713,39 @@ impl Template {
         }
     }
 
-    pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
-        let selected = IsSelected::new(&self.selected);
-
-        let leftright = Layout::default()
-            .direction(Horizontal)
-            .constraints([Constraint::Ratio(2, 3), Constraint::Ratio(1, 3)].as_ref())
-            .split(area);
+    fn set_sorted(&mut self, area: Rect){
+        let leftright = split_leftright_by_percent([66, 33], area);
 
         let (left, right) = (leftright[0], leftright[1]);
-        let rightcol = Layout::default()
-            .direction(Vertical)
-            .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-            .split(right);
-
+        let rightcol = split_updown_by_percent([50, 50], right);
         let (thetopics, thefields) = (rightcol[0], rightcol[1]);
-
-        let updown = Layout::default()
-            .direction(Vertical)
-            .constraints(
-                [
-                    Constraint::Ratio(1, 5),
-                    Constraint::Ratio(1, 3),
-                    Constraint::Ratio(1, 3),
-                    Constraint::Ratio(1, 5),
-                ]
-                .as_ref(),
-            )
-            .split(left);
-
+        let updown = split_updown_by_percent([20, 30, 30, 20], left);
         let (preview, up, down, button) = (updown[0], updown[1], updown[2], updown[3]);
 
-        let toprow = Layout::default()
-            .direction(Horizontal)
-            .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-            .split(up);
-
-        let bottomrow = Layout::default()
-            .direction(Horizontal)
-            .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-            .split(down);
+        let toprow = split_leftright_by_percent([50, 50], up);
+        let bottomrow = split_leftright_by_percent([50, 50], down);
 
         let (topleft, topright) = (toprow[0], toprow[1]);
         let (bottomleft, bottomright) = (bottomrow[0], bottomrow[1]);
 
-        let flds: Vec<ListItem> = {
-            let model = self.selected_model();
-            let lines = model
-                .fields
-                .iter()
-                .map(|field| {
-                    let lines = vec![Spans::from(String::from(field))];
-                    ListItem::new(lines).style(Style::default())
-                })
-                .collect();
-            lines
-        };
-        let fieldlist = List::new(flds).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Available fields"),
-        );
-        f.render_stateful_widget(fieldlist, thefields, &mut ListState::default());
-        self.front_template.set_win_height(topleft.height);
-        self.front_template.set_rowlen(topleft.width);
-        self.back_template.set_win_height(bottomleft.height);
-        self.back_template.set_rowlen(bottomleft.width);
+        self.front_template.set_dimensions(topleft);
+        self.back_template.set_dimensions(bottomleft);
 
+        self.view.areas.insert("topics", thetopics);
+        self.view.areas.insert("preview", preview);
+        self.view.areas.insert("front_template", topleft);
+        self.view.areas.insert("front_view", topright);
+        self.view.areas.insert("back_template", bottomleft);
+        self.view.areas.insert("back_view", bottomright);
+        self.view.areas.insert("import", button);
+        self.view.areas.insert("fields", thefields);
+
+    }
+
+    pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
+        self.set_sorted(area);
+
+       
         let media = self.get_media(self.viewpos);
         let mut frontstring = "Front side ".to_string();
         let mut backstring = "Back side ".to_string();
@@ -824,53 +766,36 @@ impl Template {
 
         draw_button(
             f,
-            preview,
+            self.view.get_area("preview"),
             &format!(
                 "Previewing card {} out of {}",
                 self.viewpos + 1,
                 self.cards.len()
             ),
-            selected.preview,
+            self.view.name_selected("preview"),
         );
+
+        self.fields.render(f, self.view.get_area("fields"), self.view.name_selected("fields"), "Fields", Style::default());
         self.topics
-            .render(f, thetopics, selected.topics, "Topics", Style::default());
-        self.front_template.render(f, topleft, selected.front);
-        self.back_template.render(f, bottomleft, selected.back);
-        self.front_view.render(f, topright, false);
-        self.back_view.render(f, bottomright, false);
-        draw_button(f, button, "Import cards!", selected.import);
+            .render(f, self.view.get_area("topics"), self.view.name_selected("topics"), "Topics", Style::default());
+        self.front_template.render(f, self.view.get_area("front_template"), self.view.name_selected("front_template"));
+        self.back_template.render(f, self.view.get_area("back_template"), self.view.name_selected("back_template"));
+        self.front_view.render(f, self.view.get_area("front_view"), self.view.name_selected("front_view"));
+        self.back_view.render(f, self.view.get_area("back_view"), self.view.name_selected("back_view"));
+        draw_button(f, self.view.get_area("import"), "Import cards!", self.view.name_selected("import"));
     }
-    fn navigate(&mut self, dir: Direction) {
-        use Direction::*;
-        use Selected::*;
 
-        self.selected = match (&self.selected, dir) {
-            (Preview, Down) => Selected::Front,
-
-            (Front, Down) => Selected::Back,
-            (Front, Up) => Selected::Preview,
-
-            (Back, Up) => Selected::Front,
-            (Back, Down) => Selected::Import,
-
-            (Import, Up) => Selected::Back,
-
-            (Preview, Right) => Selected::Topics,
-            (Topics, Left) => Selected::Preview,
-            (_, _) => return,
-        };
-    }
     pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &Option<Audio>) {
         use MyKey::*;
 
-        use Selected::*;
         if let MyKey::Nav(dir) = key {
-            self.navigate(dir);
+            self.view.navigate(dir);
             return;
         }
 
-        match (&self.selected, key) {
-            (_, Alt('s')) => {
+        match key {
+            KeyPress(pos) => self.view.cursor = pos,
+            Alt('s') => {
                 let front_text = self.front_template.return_text();
                 let back_text = self.back_template.return_text();
                 self.front_template.replace_text(back_text);
@@ -878,7 +803,7 @@ impl Template {
                 self.update_template();
                 self.refresh_template_and_view();
             }
-            (Preview, Char('l')) | (Preview, Right) => {
+            Char('l') | Right if self.view.name_selected("preview")=> {
                 if self.viewpos < self.notes.len() - 1 {
                     self.viewpos += 1;
                     self.refresh_template_and_view();
@@ -886,7 +811,7 @@ impl Template {
                     self.play_back_audio(audio);
                 }
             }
-            (Preview, Char('h')) | (Preview, Left) => {
+            Char('h') | Left if self.view.name_selected("preview")=> {
                 if self.viewpos > 0 {
                     self.viewpos -= 1;
                     self.refresh_template_and_view();
@@ -894,20 +819,20 @@ impl Template {
                     self.play_back_audio(audio);
                 }
             }
-            (Import, Enter) => self.state = LoadState::Importing,
-            (_, Esc) => self.state = LoadState::Finished,
-            (Front, key) => {
+            Enter if self.view.name_selected("import")=> self.state = LoadState::Importing,
+            Esc => self.state = LoadState::Finished,
+            key if self.view.name_selected("front_template")=> {
                 self.front_template.keyhandler(key);
                 self.update_template();
                 self.refresh_views();
             }
-            (Back, key) => {
+            key if self.view.name_selected("back_template")=> {
                 self.back_template.keyhandler(key);
                 self.update_template();
                 self.refresh_views();
             }
-            (Topics, key) => self.topics.keyhandler(key, conn),
-            (_, _) => {}
+            key if self.view.name_selected("topics")=> self.topics.keyhandler(key, conn),
+            _ => {}
         }
     }
 }

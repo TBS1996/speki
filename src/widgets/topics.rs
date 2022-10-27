@@ -59,6 +59,7 @@ impl TopicList {
             writing: None,
         };
         foo.add_kids();
+        foo.next();
         foo.sort_topics();
         foo
     }

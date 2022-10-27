@@ -1,11 +1,13 @@
 use std::{
+    collections::HashMap,
     fs::File,
     io::{BufReader, Write},
     path::PathBuf,
-    sync::{Arc, Mutex}, time::{UNIX_EPOCH, SystemTime},
+    sync::{Arc, Mutex},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{app::Audio, tabs::review::logic::ReviewMode, widgets::cardlist::CardItem};
+use crate::{app::Audio, tabs::review::logic::ReviewMode, widgets::cardlist::CardItem, NavDir};
 use rusqlite::Connection;
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -72,24 +74,36 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+// sometimes splitting would leave a small gap, so this function fills the gaps
+fn fill_areas(areas: &mut Vec<Rect>, direction: Direction) {
+    match direction {
+        Direction::Horizontal => {
+            for i in 0..areas.len() - 1 {
+                areas[i].width = areas[i + 1].x - areas[i].x;
+            }
+        }
+        Direction::Vertical => {
+            for i in 0..areas.len() - 1 {
+                areas[i].height = areas[i + 1].y - areas[i].y;
+            }
+        }
+    }
+}
+
 pub fn split_updown_by_percent<C: Into<Vec<u16>>>(constraints: C, area: Rect) -> Vec<Rect> {
-    split_by_percent(constraints.into(), area, Direction::Vertical)
+    let mut constraintvec: Vec<Constraint> = vec![];
+    for c in constraints.into() {
+        constraintvec.push(Constraint::Percentage(c));
+    }
+    split(constraintvec, area, Direction::Vertical)
 }
 
 pub fn split_leftright_by_percent<C: Into<Vec<u16>>>(constraints: C, area: Rect) -> Vec<Rect> {
-    split_by_percent(constraints.into(), area, Direction::Horizontal)
-}
-
-fn split_by_percent(constraints: Vec<u16>, area: Rect, direction: Direction) -> Vec<Rect> {
     let mut constraintvec: Vec<Constraint> = vec![];
-    for c in constraints {
+    for c in constraints.into() {
         constraintvec.push(Constraint::Percentage(c));
     }
-
-    Layout::default()
-        .direction(direction)
-        .constraints(constraintvec.as_ref())
-        .split(area)
+    split(constraintvec, area, Direction::Horizontal)
 }
 
 pub fn split_updown<C: Into<Vec<Constraint>>>(constraints: C, area: Rect) -> Vec<Rect> {
@@ -101,10 +115,12 @@ pub fn split_leftright<C: Into<Vec<Constraint>>>(constraints: C, area: Rect) -> 
 }
 
 fn split(constraints: Vec<Constraint>, area: Rect, direction: Direction) -> Vec<Rect> {
-    Layout::default()
-        .direction(direction)
+    let mut areas = Layout::default()
+        .direction(direction.clone())
         .constraints(constraints)
-        .split(area)
+        .split(area);
+    fill_areas(&mut areas, direction);
+    areas
 }
 
 #[derive(Deserialize, Debug)]
@@ -270,48 +286,175 @@ impl SpekiPaths {
     }
 }
 
-
-
-
-
-
 /*
-
-
-
-
-
-
-struct tab{
-    canvas: Canvas,
-    cursor: Cursor,
-}
-
-
-canvas:
-list<Widget>
-
-
-Widget:
-object
-area 
-
-
-
 
 
 
 */
 
-
-
-
-pub fn get_current_unix() -> u32{
+pub fn get_current_unix() -> u32 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs() as u32
 }
 
+impl Default for View {
+    fn default() -> Self {
+        let areas = HashMap::new();
+        let cursor = (0, 4);
+        Self { areas, cursor }
+    }
+}
 
+#[derive(Clone)]
+pub struct View {
+    pub areas: HashMap<&'static str, Rect>,
+    pub cursor: (u16, u16),
+}
 
+impl View {
+    pub fn get_area(&self, name: &'static str) -> Rect {
+        *self.areas.get(name).unwrap()
+    }
+    pub fn is_selected(&self, area: Rect) -> bool {
+        Self::isitselected(area, &self.cursor)
+    }
+
+    pub fn name_selected(&self, name: &'static str) -> bool {
+        self.is_selected(*self.areas.get(name).unwrap())
+    }
+
+    pub fn validate_pos(&mut self) {
+        for (_, area) in self.areas.iter() {
+            if self.is_selected(*area) {
+                return;
+            }
+        }
+        let area = self.areas.values().next().unwrap();
+        self.cursor = (area.x, area.y);
+    }
+
+    pub fn isitselected(area: Rect, cursor: &(u16, u16)) -> bool {
+        cursor.0 >= area.x
+            && cursor.0 < area.x + area.width
+            && cursor.1 >= area.y
+            && cursor.1 < area.y + area.height
+    }
+
+    fn move_cursor<F>(&mut self, mut func: F)
+    where
+        F: FnMut(&mut (u16, u16), &Rect),
+    {
+        let areas: Vec<Rect> = self.areas.values().cloned().collect();
+        let mut currentarea = areas[0];
+        let mut new_pos = self.cursor;
+        for area in &areas {
+            if Self::isitselected(*area, &self.cursor) {
+                currentarea = *area;
+            }
+        }
+        func(&mut new_pos, &currentarea);
+        for area in &areas {
+            // validating that new pos is in an area
+            if Self::isitselected(*area, &new_pos) {
+                self.cursor = new_pos;
+                return;
+            }
+        }
+    }
+
+    pub fn move_right(&mut self) {
+        let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
+            new_pos.0 = currentarea.x + currentarea.width + 1;
+        };
+        self.move_cursor(closure);
+    }
+    pub fn move_left(&mut self) {
+        let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
+            new_pos.0 = std::cmp::max(currentarea.x, 1) - 1;
+        };
+        self.move_cursor(closure);
+    }
+    pub fn move_up(&mut self) {
+        let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
+            new_pos.1 = std::cmp::max(currentarea.y, 1) - 1;
+        };
+        self.move_cursor(closure);
+    }
+    pub fn move_down(&mut self) {
+        let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
+            new_pos.1 = currentarea.y + currentarea.height + 1;
+        };
+        self.move_cursor(closure);
+    }
+
+    pub fn navigate(&mut self, direction: NavDir) {
+        match direction {
+            NavDir::Up => self.move_up(),
+            NavDir::Down => self.move_down(),
+            NavDir::Left => self.move_left(),
+            NavDir::Right => self.move_right(),
+        }
+    }
+
+    /*
+        pub fn move_up(&mut self) {
+            let mut new_ypos = self.cursor.1.;
+            let mut areamatch = false;
+            for area in &self.areas {
+                if area.x <= self.cursor.0
+                    && area.x + area.width >= self.cursor.0
+                    && area.y < self.cursor.1
+                    && !self.is_selected(*area)
+                {
+                    if areamatch {
+                        new_ypos = std::cmp::max(new_ypos, area.y + area.height - 1);
+                    } else {
+                        new_ypos = area.y + area.height / 2;
+                    }
+                    areamatch = true;
+                }
+            }
+            self.cursor.1 = new_ypos;
+        }
+        pub fn move_down(&mut self) {
+            let mut new_ypos = self.cursor.1;
+            let mut areamatch = false;
+            for area in &self.areas {
+                if area.x < self.cursor.0
+                    && area.x + area.width > self.cursor.0
+                    && area.y > self.cursor.1
+                    && !self.is_selected(*area)
+                {
+                    if areamatch {
+                        new_ypos = std::cmp::min(new_ypos, area.y);
+                    } else {
+                        new_ypos = area.y;
+                    }
+                    areamatch = true;
+                }
+            }
+            self.cursor.1 = new_ypos;
+        }
+    pub fn move_right(&mut self) {
+            let mut new_xpos = self.cursor.0;
+            let mut areamatch = false;
+            for area in &self.areas {
+                if area.y < self.cursor.1
+                    && area.y + area.height > self.cursor.1
+                    && area.x > self.cursor.0
+                    && !self.is_selected(*area)
+                {
+                    if areamatch {
+                        new_xpos = std::cmp::min(new_xpos, area.x);
+                    } else {
+                        new_xpos = area.x
+                    }
+                    areamatch = true;
+                }
+            }
+            self.cursor.0 = new_xpos;
+        }
+    */
+}

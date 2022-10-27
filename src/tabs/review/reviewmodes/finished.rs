@@ -1,87 +1,127 @@
 use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
+use tui::{layout::{Constraint, Direction, Layout, Rect}, Frame, style::Style};
 
 use crate::{
+    app::{AppData, Widget},
     tabs::review::logic::Action,
     utils::{
-        aliases::CardID, card::RecallGrade, sql::update::set_suspended, statelist::StatefulList,
+        aliases::CardID,
+        card::{Card, RecallGrade, CardView},
+        misc::{
+            get_dependencies, get_dependents, split_leftright_by_percent, split_updown,
+            split_updown_by_percent, View,
+        },
+        sql::{
+            fetch::{fetch_card, fetch_media, is_resolved},
+            update::set_suspended,
+        },
+        statelist::StatefulList,
     },
     widgets::{
-        cardlist::CardItem, cardrater::CardRater, load_cards::MediaContents, textinput::Field,
+        cardlist::CardItem, cardrater::CardRater, load_cards::MediaContents, textinput::Field, button::draw_button,
     },
-    MyKey,
+    MyKey, MyType,
 };
 
-pub enum ReviewSelection {
-    Question,
-    Answer,
-    Dependencies,
-    Dependents,
-    RevealButton,
-    CardRater,
-}
-
 pub struct CardReview {
-    pub id: CardID,
-    pub question: Field,
-    pub answer: Field,
-    pub dependencies: StatefulList<CardItem>,
-    pub dependents: StatefulList<CardItem>,
+    pub cardview: CardView,
     pub reveal: bool,
-    pub selection: ReviewSelection,
     pub cardrater: CardRater,
-    pub media: MediaContents,
+    view: View,
 }
 
 impl CardReview {
+    pub fn new(id: CardID, appdata: &AppData) -> Self {
+        Card::play_frontaudio(&appdata.conn, id, &appdata.audio);
+        let cardview = CardView::new_from_id(&appdata.conn, id);
+        let reveal = false;
+        let cardrater = CardRater::new();
+        let view = View::default();
+        Self {
+            cardview,
+            reveal,
+            cardrater,
+            view,
+        }
+    }
+
+    pub fn set_selection(&mut self, area: Rect) {
+        let updown = split_updown([Constraint::Ratio(9, 10), Constraint::Min(5)], area);
+
+        let (up, down) = (updown[0], updown[1]);
+
+        let leftright = split_leftright_by_percent([66, 33], up);
+        let bottomleftright = split_leftright_by_percent([66, 33], down);
+
+        let left = leftright[0];
+        let right = leftright[1];
+
+        let rightcolumn = split_updown_by_percent([50, 50], right);
+        let leftcolumn = split_updown_by_percent([50, 50], left);
+
+
+        self.view.areas.insert("question", leftcolumn[0]);
+        self.view.areas.insert("answer", leftcolumn[1]);
+        self.view.areas.insert("dependents", rightcolumn[0]);
+        self.view.areas.insert("dependencies", rightcolumn[1]);
+        self.view.areas.insert("cardrater", bottomleftright[0]);
+        self.view.areas.insert("bottomright", bottomleftright[1]);
+    }
+
     pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, action: &mut Action) {
         use MyKey::*;
-        use ReviewSelection::*;
 
-        if let MyKey::Nav(dir) = &key {
-            self.rev_nav(dir);
+        if let MyKey::Nav(dir) = key {
+            self.view.navigate(dir);
             return;
         }
-        match (&self.selection, key) {
-            (_, Alt('s')) => {
+
+        match key {
+            KeyPress(pos) => self.view.cursor = pos,
+            Alt('s') => {
                 *action = Action::SkipRev(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
+                    self.cardview.question.return_text(),
+                    self.cardview.answer.return_text(),
+                    self.cardview.card.id,
                 )
             }
-            (_, Alt('t')) => *action = Action::NewDependent(self.id),
-            (_, Alt('y')) => *action = Action::NewDependency(self.id),
-            (_, Alt('T')) => *action = Action::AddDependent(self.id),
-            (_, Alt('Y')) => *action = Action::AddDependency(self.id),
-            (_, Alt('i')) => {
-                set_suspended(conn, [self.id], true);
+            Alt('t') => *action = Action::NewDependent(self.cardview.card.id),
+            Alt('y') => *action = Action::NewDependency(self.cardview.card.id),
+            Alt('T') => *action = Action::AddDependent(self.cardview.card.id),
+            Alt('Y') => *action = Action::AddDependency(self.cardview.card.id),
+            Alt('i') => {
+                set_suspended(conn, [self.cardview.card.id], true);
                 *action = Action::SkipRev(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
+                    self.cardview.question.return_text(),
+                    self.cardview.answer.return_text(),
+                    self.cardview.card.id,
                 );
             }
-            (RevealButton, Char(' ')) | (RevealButton, Enter) => {
+            Char(' ') | Enter if self.view.name_selected("answer") => {
                 self.reveal = true;
-                self.selection = CardRater;
-                *action = Action::PlayBackAudio(self.id);
+                self.view.move_down();
+                *action = Action::PlayBackAudio(self.cardview.card.id);
             }
-            (Question, key) => self.question.keyhandler(key),
-            (Answer, key) => self.answer.keyhandler(key),
+            key if self.view.name_selected("question") => self.cardview.question.keyhandler(key),
+            key if self.view.name_selected("answer") => self.cardview.answer.keyhandler(key),
 
-            (CardRater, Char(num))
-                if num.is_digit(10) && (1..5).contains(&num.to_digit(10).unwrap()) =>
+            Char(num)
+                if self.view.name_selected("cardrater")
+                    && num.is_ascii_digit()
+                    && (1..5).contains(&num.to_digit(10).unwrap()) =>
             {
                 *action = Action::Review(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
+                    self.cardview.question.return_text(),
+                    self.cardview.answer.return_text(),
+                    self.cardview.card.id,
                     num,
                 )
             }
-            (CardRater, Char(' ')) | (CardRater, Enter) if self.cardrater.selection.is_some() => {
+            Char(' ') | Enter
+                if self.view.name_selected("cardrater") && self.cardrater.selection.is_some() =>
+            {
                 let foo = self.cardrater.selection.clone().unwrap();
                 let num = match foo {
                     RecallGrade::None => '1',
@@ -90,50 +130,64 @@ impl CardReview {
                     RecallGrade::Easy => '4',
                 };
                 *action = Action::Review(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
+                    self.cardview.question.return_text(),
+                    self.cardview.answer.return_text(),
+                    self.cardview.card.id,
                     num,
                 )
             }
-            (CardRater, Char(' ')) | (CardRater, Enter) => {
+            Char(' ') | Enter if self.view.name_selected("cardrater") => {
                 *action = Action::SkipRev(
-                    self.question.return_text(),
-                    self.answer.return_text(),
-                    self.id,
+                    self.cardview.question.return_text(),
+                    self.cardview.answer.return_text(),
+                    self.cardview.card.id,
                 )
             }
-            (CardRater, key) => self.cardrater.keyhandler(key),
-            (_, _) => {}
-        }
-    }
-    fn rev_nav(&mut self, dir: &crate::Direction) {
-        use crate::Direction::*;
-        use ReviewSelection::*;
-        match (&self.selection, dir) {
-            (Question, Right) => self.selection = Dependents,
-            (Question, Down) if self.reveal => self.selection = Answer,
-            (Question, Down) => self.selection = RevealButton,
-
-            (Answer, Right) => self.selection = Dependencies,
-            (Answer, Up) => self.selection = Question,
-            (Answer, Down) if self.reveal => self.selection = CardRater,
-
-            (Dependencies, Left) if self.reveal => self.selection = Answer,
-            (Dependencies, Left) => self.selection = RevealButton,
-            (Dependencies, Up) => self.selection = Dependents,
-
-            (Dependents, Left) => self.selection = Question,
-            (Dependents, Down) => self.selection = Dependencies,
-
-            (RevealButton, Right) => self.selection = Dependencies,
-            (RevealButton, Up) => self.selection = Question,
-
-            (CardRater, Right) => self.selection = Dependencies,
-            (CardRater, Up) => self.selection = Answer,
+            key if self.view.name_selected("cardrater") => self.cardrater.keyhandler(key),
             _ => {}
         }
     }
+
+
+
+    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+        self.set_selection(area);
+
+        let resolved = is_resolved(&appdata.conn, self.cardview.card.id);
+        if !resolved {
+            self.reveal = true;
+            self.cardrater.selection = None;
+        }
+
+        self.cardview.question.set_rowlen(self.view.get_area("question").width);
+        self.cardview.answer.set_rowlen(self.view.get_area("answer").width);
+        self.cardview.question.set_win_height(self.view.get_area("question").height);
+        self.cardview.answer.set_win_height(self.view.get_area("answer").height);
+
+        self.cardview.question.render(f, self.view.get_area("question"), self.view.name_selected("question"));
+        if self.reveal {
+            self.cardview.answer.render(f, self.view.get_area("answer"), self.view.name_selected("answer"));
+            self.cardrater.render(f, self.view.get_area("cardrater"), self.view.name_selected("cardrater"));
+        } else {
+            draw_button(f, self.view.get_area("answer"), "Space to reveal", self.view.name_selected("answer"));
+        }
+
+        self.cardview.dependencies.render(
+            f,
+            self.view.get_area("dependencies"),
+            self.view.name_selected("dependencies"),
+            "Dependencies",
+            Style::default(),
+        );
+        self.cardview.dependents.render(
+            f,
+            self.view.get_area("dependents"),
+            self.view.name_selected("dependents"),
+            "Dependents",
+            Style::default(),
+        );
+    }
+
 
     pub fn get_manual(&self) -> String {
         r#"
@@ -147,4 +201,5 @@ impl CardReview {
                 "#
         .to_string()
     }
+
 }

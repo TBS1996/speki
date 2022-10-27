@@ -3,7 +3,7 @@ use crate::widgets::button::draw_button;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::topics::TopicList;
 use crate::MyKey;
-use crate::{utils::misc::split_updown_by_percent, Direction, SpekiPaths};
+use crate::{utils::misc::split_updown_by_percent, NavDir, SpekiPaths};
 use std::fs::File;
 
 use crate::widgets::ankimporter::Ankimporter;
@@ -215,8 +215,8 @@ impl Importer {
             (Anki, Enter) | (Anki, Char(' ')) => {
                 self.menu = Menu::Anki(Ankimporter::new());
             }
-            (Local, Nav(Direction::Down)) => self.selection = Selection::Anki,
-            (Anki, Nav(Direction::Up)) => self.selection = Selection::Local,
+            (Local, Nav(NavDir::Down)) => self.selection = Selection::Anki,
+            (Anki, Nav(NavDir::Up)) => self.selection = Selection::Local,
             (_, _) => {}
         }
     }

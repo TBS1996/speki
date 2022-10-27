@@ -1,4 +1,4 @@
-use crate::MyKey;
+use crate::{app::AppData, MyKey};
 use tui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -15,7 +15,7 @@ pub trait KeyHandler {
     }
 }
 
-use std::fmt::Display;
+use std::fmt::{write, Display};
 
 #[derive(Clone)]
 pub struct StatefulList<T: Display + KeyHandler> {
@@ -34,6 +34,15 @@ impl<T: Display + KeyHandler> StatefulList<T> {
         thelist.next();
         thelist
     }
+
+    pub fn with_generic<W, U>(input: Vec<W>, transformer: U) -> StatefulList<T>
+    where
+        U: FnMut(W) -> T,
+    {
+        let generic_vec = input.into_iter().map(transformer).collect();
+        Self::with_items(generic_vec)
+    }
+
     pub fn new() -> StatefulList<T> {
         let items = Vec::<T>::new();
         StatefulList {
@@ -144,6 +153,8 @@ impl<T: Display + KeyHandler> StatefulList<T> {
             MyKey::Char('K') if !self.fixed_fields => self.move_item_up(),
             MyKey::Home => self.home_key(),
             MyKey::End => self.end_key(),
+            MyKey::ScrollUp => self.previous(),
+            MyKey::ScrollDown => self.next(),
             _ => {}
         }
     }
@@ -207,3 +218,21 @@ impl<T: Copy + Display + KeyHandler> StatefulList<T> {
 }
 
 use crate::MyType;
+
+#[derive(Clone)]
+pub struct TextItem {
+    text: String,
+}
+
+impl TextItem {
+    pub fn new(text: String) -> Self {
+        Self { text }
+    }
+}
+
+impl KeyHandler for TextItem {}
+impl Display for TextItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text)
+    }
+}

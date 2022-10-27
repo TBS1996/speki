@@ -1,70 +1,79 @@
 use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
+use tui::{layout::Rect, backend::Backend, Frame, style::Style};
 
 use crate::{
     tabs::review::logic::Action,
-    utils::{aliases::IncID, incread::IncRead},
-    MyKey,
+    utils::{aliases::{IncID, CardID}, incread::{IncRead, IncListItem}, misc::{View, split_leftright_by_percent, split_updown_by_percent}, statelist::StatefulList},
+    MyKey, app::AppData, MyType,
 };
 
-
 pub struct IncMode {
-    pub id: IncID,
     pub source: IncRead,
-    pub selection: IncSelection,
+    view: View,
 }
-
-pub enum IncSelection {
-    Source,
-    Clozes,
-    Extracts,
-}
-
-
-
 
 
 impl IncMode {
-    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, action: &mut Action) {
-        use IncSelection::*;
-        use MyKey::*;
+    fn set_selection(&mut self, area: Rect){
+        let mainvec = split_leftright_by_percent([75, 15], area);
+        let (editing, rightside) = (mainvec[0], mainvec[1]);
+        let rightvec = split_updown_by_percent([10, 40, 40], rightside);
 
-        if let MyKey::Nav(dir) = &key {
-            self.inc_nav(dir);
-            return;
-        }
-        match (&self.selection, key) {
-            (_, Alt('d')) => {
-                *action = Action::IncDone(
-                    self.source.source.return_text(),
-                    self.id,
-                    self.source.source.cursor.clone(),
-                )
-            }
-            (_, Alt('s')) => {
-                *action = Action::IncNext(
-                    self.source.source.return_text(),
-                    self.id,
-                    self.source.source.cursor.clone(),
-                )
-            }
-            (Source, Alt('a')) => *action = Action::AddChild(self.id),
-            (Source, key) => self.source.keyhandler(conn, key),
-            (_, _) => {}
+        self.view.areas.insert("editing", editing);
+        self.view.areas.insert("source", rightvec[0]);
+        self.view.areas.insert("extracts", rightvec[1]);
+        self.view.areas.insert("clozes", rightvec[2]);
+    }
+
+    pub fn new(appdata: &AppData, id: CardID) -> Self{
+        let source = IncRead::new(&appdata.conn, id);
+        let view = View::default();
+        Self {
+            source, 
+            view,
         }
     }
-    fn inc_nav(&mut self, dir: &crate::Direction) {
-        use crate::Direction::*;
-        use IncSelection::*;
-        match (&self.selection, dir) {
-            (Source, Right) => self.selection = Extracts,
 
-            (Clozes, Up) => self.selection = Extracts,
-            (Clozes, Left) => self.selection = Source,
+ pub fn render(&mut self, f: &mut Frame<MyType>, _conn: &Arc<Mutex<Connection>>, area: Rect)
+    {
+        self.set_selection(area);
+        self.source.source.render(f, self.view.get_area("editing"), self.view.name_selected("editing"));
+        self.source.extracts.render(f, self.view.get_area("extracts"), self.view.name_selected("extracts"), "Extracts", Style::default());
+        self.source.clozes.render(f, self.view.get_area("clozes"), self.view.name_selected("clozes"), "Clozes", Style::default());
+    }
 
-            (Extracts, Left) => self.selection = Source,
-            (Extracts, Down) => self.selection = Clozes,
+
+    
+    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, action: &mut Action) {
+        use MyKey::*;
+
+        if let MyKey::Nav(dir) = key {
+            self.view.navigate(dir);
+            return;
+        }
+
+        match key {
+            KeyPress(pos) => self.view.cursor = pos,
+            Alt('d') => {
+                *action = Action::IncDone(
+                    self.source.source.return_text(),
+                    self.source.id,
+                    self.source.source.cursor.clone(),
+                )
+            }
+            Alt('s') => {
+                *action = Action::IncNext(
+                    self.source.source.return_text(),
+                    self.source.id,
+                    self.source.source.cursor.clone(),
+                )
+            }
+            Alt('a') if self.view.name_selected("editing") => *action = Action::AddChild(self.source.id),
+            key if self.view.name_selected("extracts") => self.source.extracts.keyhandler(key),
+            key if self.view.name_selected("clozes") => self.source.clozes.keyhandler(key),
+            key if self.view.name_selected("editing") => self.source.keyhandler(conn, key),
             _ => {}
         }
     }
@@ -79,8 +88,7 @@ impl IncMode {
         make cloze (visual mode): Alt+z
         add child card(in text widget): Alt+a
 
-                "#.to_string()
+                "#
+        .to_string()
     }
-
-
 }

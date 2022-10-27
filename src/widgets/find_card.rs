@@ -70,6 +70,9 @@ impl FindCardWidget {
         }
 
         let idx = self.list.state.selected().unwrap();
+        if idx - 1 > self.list.items.len() {
+            return;
+        }
         let chosen_id = self.list.items[idx].id;
 
         match &self.purpose {
@@ -152,6 +155,14 @@ impl StatefulList<CardMatch> {
             });
         }
         self.items = matching_cards;
+        if self.items.len() == 0 {
+            self.state.select(None)
+        } else {
+            if let Some(idx) = self.state.selected() {
+                let new_index = std::cmp::min(idx, self.items.len() - 1);
+                self.state.select(Some(new_index));
+            }
+        }
     }
 
     pub fn choose_card(&self) -> u32 {

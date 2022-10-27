@@ -1,14 +1,14 @@
 use rusqlite::Connection;
 use std::collections::HashSet;
 use std::fmt::Display;
-use tui::layout::{Constraint, Direction, Layout};
+use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::Style;
 use tui::widgets::Clear;
 
 use crate::app::{AppData, PopUp, Widget};
 use crate::utils::aliases::*;
 use crate::utils::card::{Card, CardType};
-use crate::utils::misc::{centered_rect, split_leftright, split_updown_by_percent};
+use crate::utils::misc::{centered_rect, split_leftright, split_updown_by_percent, View};
 use crate::utils::sql::fetch::{fetch_card, get_highest_pos, is_pending, CardQuery};
 use crate::utils::sql::update::{set_suspended, update_position};
 use crate::utils::statelist::KeyHandler;
@@ -22,13 +22,6 @@ use crate::widgets::textinput::Field;
 use crate::{app::Tab, utils::statelist::StatefulList};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-
-enum Selection {
-    Filters,
-    Filtered,
-    Selected,
-    Actions,
-}
 
 enum Filter {
     Suspended(bool),
@@ -137,7 +130,6 @@ impl KeyHandler for FilterItem {
 }
 
 pub struct Browse {
-    selection: Selection,
     cardlimit: u32,
     filters: StatefulList<FilterItem>,
     filtered: StatefulList<CardItem>,
@@ -150,6 +142,7 @@ pub struct Browse {
     dependencies: StatefulList<CardItem>,
     dependents: StatefulList<CardItem>,
     cards: HashMap<CardID, Card>,
+    view: View,
 }
 
 impl Browse {
@@ -169,7 +162,6 @@ impl Browse {
             FilterItem::Numitem(NumItem::new("Min strength".to_string(), Some(100))),
         ]);
         let selected_ids = HashSet::new();
-        let selection = Selection::Filtered;
         let filteractions = StatefulList::<ActionItem>::default();
         let popup = None;
         let question = Field::new();
@@ -177,9 +169,9 @@ impl Browse {
         let dependencies = StatefulList::new();
         let dependents = StatefulList::new();
         let cards = HashMap::new();
+        let view = View::default();
 
         let mut myself = Self {
-            selection,
             cardlimit,
             filters,
             filtered: StatefulList::new(),
@@ -192,6 +184,7 @@ impl Browse {
             dependencies,
             dependents,
             cards,
+            view,
         };
 
         myself.apply_filter(conn);
@@ -281,7 +274,10 @@ impl Browse {
     }
 
     fn save_pending_queue(&mut self, conn: &Arc<Mutex<Connection>>) {
-        let highest_pos = get_highest_pos(conn);
+        let highest_pos = match get_highest_pos(conn) {
+            Some(pos) => pos,
+            None => return, // if pending_cards is empty
+        };
 
         for i in 0..self.selected.items.len() {
             let id = self.selected.items[i].id;
@@ -293,23 +289,7 @@ impl Browse {
     }
 
     fn navigate(&mut self, dir: NavDir) {
-        use NavDir::*;
-        use Selection::*;
-        self.selection = match (&self.selection, dir) {
-            (Filters, Right) => Filtered,
-            (Filters, Down) => Actions,
-
-            (Filtered, Left) => Filters,
-            (Filtered, Down) => Selected,
-
-            (Selected, Up) => Filtered,
-            (Selected, Left) => Actions,
-
-            (Actions, Up) => Filters,
-            (Actions, Right) => Selected,
-
-            _ => return,
-        }
+        self.view.navigate(dir);
     }
 
     fn reload_card(&mut self, id: CardID, conn: &Arc<Mutex<Connection>>) {
@@ -320,7 +300,6 @@ impl Browse {
         let card = self.cards.get(&id).unwrap();
         let dependencies = card.dependencies.clone();
         let dependents = card.dependents.clone();
-    
     }
 
     fn apply_suspended(&self, appdata: &AppData, suspend: bool) {
@@ -329,6 +308,27 @@ impl Browse {
             self.selected_ids.iter().cloned().collect::<Vec<CardID>>(),
             suspend,
         )
+    }
+
+    fn set_selected(&mut self, area: Rect) {
+        let chunks = split_leftright(
+            [
+                Constraint::Length(24),
+                Constraint::Percentage(50),
+                // Constraint::Percentage(25),
+            ],
+            area,
+        );
+        let filters = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Ratio(10, 20), Constraint::Ratio(10, 20)].as_ref())
+            .split(chunks[0]);
+        let filteredandselected = split_updown_by_percent([50, 50], chunks[1]);
+        self.view.areas.insert("filters", filters[0]);
+        self.view.areas.insert("actions", filters[1]);
+        self.view.areas.insert("filtered", filteredandselected[0]);
+        self.view.areas.insert("selected", filteredandselected[1]);
+        //self.view.validate_pos();
     }
 
     fn do_action(&mut self, appdata: &AppData) {
@@ -406,7 +406,6 @@ impl Tab for Browse {
 impl Widget for Browse {
     fn keyhandler(&mut self, appdata: &crate::app::AppData, key: MyKey) {
         use MyKey::*;
-        use Selection::*;
 
         if let Some(popup) = &mut self.popup {
             popup.keyhandler(appdata, key);
@@ -417,12 +416,9 @@ impl Widget for Browse {
             self.navigate(dir);
             return;
         }
-        match (&self.selection, key) {
-            (Filters, key) => {
-                self.filters.keyhandler(key);
-                self.apply_filter(&appdata.conn);
-            }
-            (Filtered, Enter) | (Filtered, Char(' ')) => {
+        match key {
+            KeyPress(pos) => self.view.cursor = pos,
+            Enter | Char(' ') if self.view.name_selected("filtered") => {
                 if let Some(item) = self.filtered.take_selected_item() {
                     if !self.selected_ids.contains(&item.id) {
                         self.selected_ids.insert(item.id);
@@ -430,17 +426,22 @@ impl Widget for Browse {
                     }
                 }
             }
-            (Filtered, key) => self.filtered.keyhandler(key),
 
-            (Selected, Enter) | (Selected, Char(' ')) => {
+            Enter | Char(' ') if self.view.name_selected("selected") => {
                 if let Some(item) = self.selected.take_selected_item() {
                     self.selected_ids.remove(&item.id);
                     self.filtered.push(item);
                 }
             }
-            (Selected, key) => self.selected.keyhandler(key),
-            (Actions, Enter) | (Actions, Char(' ')) => self.do_action(appdata),
-            (Actions, key) => self.filteractions.keyhandler(key),
+            Enter | Char(' ') if self.view.name_selected("actions") => self.do_action(appdata),
+            key if self.view.name_selected("filtered") => self.filtered.keyhandler(key),
+            key if self.view.name_selected("selected") => self.selected.keyhandler(key),
+            key if self.view.name_selected("actions") => self.filteractions.keyhandler(key),
+            key if self.view.name_selected("filters") => {
+                self.filters.keyhandler(key);
+                self.apply_filter(&appdata.conn);
+            }
+            _ => {}
         }
     }
 
@@ -450,54 +451,33 @@ impl Widget for Browse {
         appdata: &crate::app::AppData,
         mut area: tui::layout::Rect,
     ) {
-        let chunks = split_leftright(
-            [
-                Constraint::Length(24),
-                Constraint::Percentage(50),
-               // Constraint::Percentage(25),
-            ],
-            area,
-        );
-        let filters = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Ratio(10, 20), Constraint::Ratio(10, 20)].as_ref())
-            .split(chunks[0]);
-        let filteredandselected = split_updown_by_percent([50, 50], chunks[1]);
-/*
-        let rightcol = split_updown_by_percent([25, 25, 25, 25], chunks[2]);
-        self.dependents
-            .render(f, rightcol[0], false, "Dependents", Style::default());
-        self.question.render(f, rightcol[1], false);
-        self.answer.render(f, rightcol[2], false);
-        self.dependencies
-            .render(f, rightcol[3], false, "Dependencies", Style::default());
-*/
+        self.set_selected(area);
         self.filters.render(
             f,
-            filters[0],
-            matches!(&self.selection, Selection::Filters),
+            self.view.get_area("filters"),
+            self.view.name_selected("filters"),
             "Filters",
             Style::default(),
         );
 
         self.filteractions.render(
             f,
-            filters[1],
-            matches!(&self.selection, Selection::Actions),
+            self.view.get_area("actions"),
+            self.view.name_selected("actions"),
             "Actions",
             Style::default(),
         );
         self.filtered.render(
             f,
-            filteredandselected[0],
-            matches!(&self.selection, Selection::Filtered),
+            self.view.get_area("filtered"),
+            self.view.name_selected("filtered"),
             "Filtered",
             Style::default(),
         );
         self.selected.render(
             f,
-            filteredandselected[1],
-            matches!(&self.selection, Selection::Selected),
+            self.view.get_area("selected"),
+            self.view.name_selected("selected"),
             "Selected",
             Style::default(),
         );
@@ -521,8 +501,7 @@ impl Widget for Browse {
     }
 }
 
-use crate::Direction as NavDir;
-use crate::MyKey;
+use crate::{MyKey, NavDir};
 
 struct ActionItem {
     text: String,

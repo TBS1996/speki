@@ -61,11 +61,13 @@ impl ForReview {
             .suspended(false)
             .resolved(true)
             .fetch_card_ids(conn);
+
         let mut unfinished_cards = CardQuery::default()
             .unfinished_due()
             .suspended(false)
             .resolved(true)
             .fetch_card_ids(conn);
+
         let pending_cards = CardQuery::default()
             .cardtype(vec![CardType::Pending])
             .order_by("ORDER BY position DESC".to_string())
@@ -74,9 +76,7 @@ impl ForReview {
             .fetch_card_ids(conn);
 
         let active_increads = load_active_inc(conn).unwrap();
-
         unfinished_cards.shuffle(&mut thread_rng());
-        // pending_cards.shuffle(&mut thread_rng());
         review_cards.shuffle(&mut thread_rng());
 
         ForReview {
@@ -120,12 +120,12 @@ pub struct MainReview {
     pub popup: Option<Box<dyn PopUp>>,
 }
 
-use crate::utils::sql::fetch::{fetch_card, fetch_media, load_active_inc, CardQuery};
+use crate::utils::sql::fetch::{load_active_inc, CardQuery};
 
 impl MainReview {
-    pub fn new(conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) -> Self {
+    pub fn new(appdata: &AppData) -> Self {
         let mode = ReviewMode::Done;
-        let for_review = ForReview::new(conn);
+        let for_review = ForReview::new(&appdata.conn);
         let start_qty = StartQty::new(&for_review);
 
         let mut myself = Self {
@@ -136,23 +136,23 @@ impl MainReview {
             automode: true,
             popup: None,
         };
-        myself.random_mode(conn, audio);
+        myself.random_mode(appdata);
         myself
     }
 
     fn update_dependencies(&mut self, conn: &Arc<Mutex<Connection>>) {
         match &mut self.mode {
             ReviewMode::Review(rev) => {
-                rev.dependencies = get_dependencies(conn, rev.id);
-                rev.dependents = get_dependents(conn, rev.id);
+                rev.cardview.dependencies = get_dependencies(conn, rev.cardview.card.id);
+                rev.cardview.dependents = get_dependents(conn, rev.cardview.card.id);
             }
             ReviewMode::Unfinished(rev) => {
                 rev.dependencies = get_dependencies(conn, rev.id);
                 rev.dependents = get_dependents(conn, rev.id);
             }
             ReviewMode::Pending(rev) => {
-                rev.dependencies = get_dependencies(conn, rev.id);
-                rev.dependents = get_dependents(conn, rev.id);
+                rev.cardview.dependencies = get_dependencies(conn, rev.cardview.card.id);
+                rev.cardview.dependents = get_dependents(conn, rev.cardview.card.id);
             }
             _ => {}
         }
@@ -160,7 +160,7 @@ impl MainReview {
 
     // randomly choose a mode between active, unfinished and inc read, if theyre all done,
     // start with pending cards, if theyre all done, declare nothing left to review
-    pub fn random_mode(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
+    pub fn random_mode(&mut self, appdata: &AppData) {
         let act: u32 = self.for_review.review_cards.len() as u32;
         let unf: u32 = self.for_review.unfinished_cards.len() as u32 + act;
         let inc: u32 = self.for_review.active_increads.len() as u32 + unf;
@@ -168,7 +168,7 @@ impl MainReview {
         let pending_qty = self.for_review.pending_cards.len() as u32;
         if inc == 0 {
             if pending_qty > 0 {
-                self.new_pending_mode(conn, audio);
+                self.new_pending_mode(appdata);
             } else {
                 self.mode = ReviewMode::Done;
             }
@@ -179,126 +179,54 @@ impl MainReview {
         let rand = rng.gen_range(0..inc);
 
         if rand < act {
-            self.new_review_mode(conn, audio);
+            self.new_review_mode(appdata);
         } else if rand < unf {
-            self.new_unfinished_mode(conn, audio);
+            self.new_unfinished_mode(appdata);
         } else if rand < inc {
-            self.new_inc_mode(conn);
+            self.new_inc_mode(appdata);
         } else {
             panic!();
         };
     }
 
-    pub fn new_inc_mode(&mut self, conn: &Arc<Mutex<Connection>>) {
+    pub fn new_inc_mode(&mut self, appdata: &AppData) {
         let id = self.for_review.active_increads.remove(0);
-        let selection = IncSelection::Source;
-        let source = IncRead::new(conn, id);
-        let inc = IncMode {
-            id,
-            source,
-            selection,
-        };
-
+        let inc = IncMode::new(appdata, id);
         self.mode = ReviewMode::IncRead(inc);
     }
-    pub fn new_unfinished_mode(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
+
+    pub fn new_unfinished_mode(&mut self, appdata: &AppData) {
         let id = self.for_review.unfinished_cards.remove(0);
-        Card::play_frontaudio(conn, id, audio);
-        let selection = UnfSelection::Question;
-        let mut question = Field::new();
-        let mut answer = Field::new();
-        let card = fetch_card(conn, id);
-        question.replace_text(card.question);
-        answer.replace_text(card.answer);
-        let dependencies = get_dependencies(conn, id);
-        let dependents = get_dependents(conn, id);
-        let unfcard = UnfCard {
-            id,
-            question,
-            answer,
-            dependencies,
-            dependents,
-            selection,
-        };
+        let unfcard = UnfCard::new(appdata, id);
         self.mode = ReviewMode::Unfinished(unfcard);
+        Card::play_frontaudio(&appdata.conn, id, &appdata.audio);
     }
 
-    pub fn new_pending_mode(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
+    pub fn new_pending_mode(&mut self, appdata: &AppData) {
         let id = self.for_review.pending_cards.remove(0);
-        Card::play_frontaudio(conn, id, audio);
-        let reveal = false;
-        let selection = ReviewSelection::RevealButton;
-        let mut question = Field::new();
-        let mut answer = Field::new();
-        let card = fetch_card(conn, id);
-        question.replace_text(card.question);
-        answer.replace_text(card.answer);
-        let dependencies = get_dependencies(conn, id);
-        let dependents = get_dependents(conn, id);
-        let cardrater = CardRater::new();
-        let media = fetch_media(conn, id);
-        let cardreview = CardReview {
-            id,
-            question,
-            answer,
-            dependencies,
-            dependents,
-            reveal,
-            selection,
-            cardrater,
-            media,
-        };
-
+        let cardreview = CardReview::new(id, appdata);
         self.mode = ReviewMode::Pending(cardreview);
     }
-    pub fn new_review_mode(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
-        let id = self.for_review.review_cards.remove(0);
-        Card::play_frontaudio(conn, id, audio);
-        let reveal = false;
-        let selection = ReviewSelection::RevealButton;
-        let mut question = Field::new();
-        let mut answer = Field::new();
-        let card = fetch_card(conn, id);
-        question.replace_text(card.question);
-        answer.replace_text(card.answer);
-        let dependencies = get_dependencies(conn, id);
-        let dependents = get_dependents(conn, id);
-        let cardrater = CardRater::new();
-        let media = fetch_media(conn, id);
-        let cardreview = CardReview {
-            id,
-            question,
-            dependencies,
-            dependents,
-            answer,
-            reveal,
-            selection,
-            cardrater,
-            media,
-        };
 
+    pub fn new_review_mode(&mut self, appdata: &AppData) {
+        let id = self.for_review.review_cards.remove(0);
+        let cardreview = CardReview::new(id, appdata);
         self.mode = ReviewMode::Review(cardreview);
     }
 
-    pub fn inc_next(&mut self, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>, id: IncID) {
-        self.random_mode(conn, audio);
-        double_inc_skip_duration(conn, id).unwrap();
+    pub fn inc_next(&mut self, appdata: &AppData, id: IncID) {
+        self.random_mode(appdata);
+        double_inc_skip_duration(&appdata.conn, id).unwrap();
     }
-    pub fn inc_done(&mut self, id: IncID, conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) {
+    pub fn inc_done(&mut self, appdata: &AppData, id: IncID) {
         let active = false;
-        update_inc_active(conn, id, active).unwrap();
-        self.random_mode(conn, audio);
+        update_inc_active(&appdata.conn, id, active).unwrap();
+        self.random_mode(appdata);
     }
 
-    pub fn new_review(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        id: CardID,
-        recallgrade: RecallGrade,
-        audio: &Option<Audio>,
-    ) {
-        Card::new_review(conn, id, recallgrade);
-        self.random_mode(conn, audio);
+    pub fn new_review(&mut self, appdata: &AppData, id: CardID, recallgrade: RecallGrade) {
+        Card::new_review(&appdata.conn, id, recallgrade);
+        self.random_mode(appdata);
     }
 
     pub fn draw_progress_bar(&mut self, f: &mut Frame<MyType>, area: Rect) {
@@ -368,8 +296,8 @@ impl Widget for MainReview {
 
         match &mut self.mode {
             ReviewMode::Done => draw_done(f, area),
-            ReviewMode::Review(review) => review.render(f, &appdata.conn, area),
-            ReviewMode::Pending(pending) => pending.render(f, &appdata.conn, area),
+            ReviewMode::Review(review) => review.render(f, appdata, area),
+            ReviewMode::Pending(pending) => pending.render(f, appdata, area),
             ReviewMode::Unfinished(unfinished) => unfinished.render(f, &appdata.conn, area),
             ReviewMode::IncRead(inc) => inc.render(f, &appdata.conn, area),
         }
@@ -412,11 +340,11 @@ impl Widget for MainReview {
 
         match action {
             Action::IncNext(source, id, cursor) => {
-                self.inc_next(&appdata.conn, &appdata.audio, id);
+                self.inc_next(appdata, id);
                 update_inc_text(&appdata.conn, source, id, &cursor).unwrap();
             }
             Action::IncDone(source, id, cursor) => {
-                self.inc_done(id, &appdata.conn, &appdata.audio);
+                self.inc_done(appdata, id);
                 update_inc_text(&appdata.conn, source, id, &cursor).unwrap();
             }
             Action::Review(question, answer, id, char) => {
@@ -430,24 +358,24 @@ impl Widget for MainReview {
                 if get_cardtype(&appdata.conn, id) == CardType::Pending {
                     Card::activate_card(&appdata.conn, id);
                 }
-                self.new_review(&appdata.conn, id, grade, &appdata.audio);
+                self.new_review(appdata, id, grade);
                 update_card_question(&appdata.conn, id, question);
                 update_card_answer(&appdata.conn, id, answer);
             }
             Action::SkipUnf(question, answer, id) => {
-                self.random_mode(&appdata.conn, &appdata.audio);
+                self.random_mode(appdata);
                 update_card_question(&appdata.conn, id, question);
                 update_card_answer(&appdata.conn, id, answer);
                 double_skip_duration(&appdata.conn, id);
             }
             Action::SkipRev(question, answer, id) => {
-                self.random_mode(&appdata.conn, &appdata.audio);
+                self.random_mode(appdata);
                 update_card_question(&appdata.conn, id, question);
                 update_card_answer(&appdata.conn, id, answer);
             }
             Action::CompleteUnf(question, answer, id) => {
                 Card::complete_card(&appdata.conn, id);
-                self.random_mode(&appdata.conn, &appdata.audio);
+                self.random_mode(appdata);
                 update_card_question(&appdata.conn, id, question);
                 update_card_answer(&appdata.conn, id, answer);
             }
@@ -477,7 +405,7 @@ impl Widget for MainReview {
                 Card::play_backaudio(&appdata.conn, id, &appdata.audio);
             }
             Action::Refresh => {
-                *self = crate::tabs::review::logic::MainReview::new(&appdata.conn, &appdata.audio);
+                *self = crate::tabs::review::logic::MainReview::new(appdata);
             }
             Action::None => {}
         }
@@ -490,6 +418,7 @@ pub fn draw_done(f: &mut Frame<crate::MyType>, area: Rect) {
     field.render(f, area, false);
 }
 
+#[allow(clippy::single_match)]
 pub fn mode_done(key: MyKey, action: &mut Action) {
     match key {
         MyKey::Alt('r') => *action = Action::Refresh,
@@ -515,6 +444,6 @@ pub enum Action {
 }
 use crate::MyKey;
 
-use super::reviewmodes::finished::{CardReview, ReviewSelection};
-use super::reviewmodes::incread::{IncMode, IncSelection};
-use super::reviewmodes::unfinished::{UnfCard, UnfSelection};
+use super::reviewmodes::finished::CardReview;
+use super::reviewmodes::incread::IncMode;
+use super::reviewmodes::unfinished::UnfCard;

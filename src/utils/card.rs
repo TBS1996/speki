@@ -1,4 +1,6 @@
 use crate::utils::sql::fetch::fetch_card;
+use crate::widgets::cardlist::CardItem;
+use crate::widgets::textinput::Field;
 use rusqlite::Connection;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -342,6 +344,7 @@ use super::sql::{
     insert::{save_card, update_both},
     update::set_resolved,
 };
+use super::statelist::StatefulList;
 use crate::app::Audio;
 use crate::utils::aliases::*;
 
@@ -353,4 +356,46 @@ pub struct CardInfo {
     cardtype: CardType,
     strength: f32,
     stability: f32,
+}
+
+pub struct CardView {
+    pub card: Card,
+    pub question: Field,
+    pub answer: Field,
+    pub dependencies: StatefulList<CardItem>,
+    pub dependents: StatefulList<CardItem>,
+}
+
+impl CardView {
+    pub fn new_from_id(conn: &Arc<Mutex<Connection>>, id: CardID) -> Self {
+        let card = fetch_card(conn, id);
+        let question = Field::new_with_text(card.question.clone(), 0, 0);
+        let answer = Field::new_with_text(card.answer.clone(), 0, 0);
+        let dependencies = {
+            let carditems = card
+                .dependencies
+                .clone()
+                .into_iter()
+                .map(|id| CardItem::from_id(conn, id))
+                .collect();
+            StatefulList::with_items(carditems)
+        };
+        let dependents = {
+            let carditems = card
+                .dependents
+                .clone()
+                .into_iter()
+                .map(|id| CardItem::from_id(conn, id))
+                .collect();
+            StatefulList::with_items(carditems)
+        };
+
+        Self {
+            card,
+            question,
+            answer,
+            dependencies,
+            dependents,
+        }
+    }
 }

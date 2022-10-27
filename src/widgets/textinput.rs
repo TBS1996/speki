@@ -90,7 +90,6 @@ impl Field {
         let mut field = Self::new();
         field.replace_text(text);
         field.cursor = CursorPos { row, column };
-        //field.scroll_to_cursor();
         field
     }
 
@@ -106,6 +105,11 @@ impl Field {
 
     pub fn set_win_height(&mut self, winheight: u16) {
         self.window_height = winheight - 2;
+    }
+
+    pub fn set_dimensions(&mut self, area: Rect) {
+        self.set_rowlen(area.width);
+        self.set_win_height(area.height);
     }
 
     pub fn set_insert_mode(&mut self) {

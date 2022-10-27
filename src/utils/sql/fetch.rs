@@ -309,13 +309,26 @@ pub fn get_pending_qty(conn: &Arc<Mutex<Connection>>) -> u32 {
         .unwrap()
 }
 
-pub fn get_highest_pos(conn: &Arc<Mutex<Connection>>) -> u32 {
+pub fn is_table_empty(conn: &Arc<Mutex<Connection>>, table_name: String) -> bool {
+    let query = format!("SELECT EXISTS (SELECT 1 FROM {})", table_name);
     conn.lock()
         .unwrap()
-        .query_row("SELECT MAX(position) FROM pending_cards", [], |row| {
-            Ok(row.get(0).unwrap())
+        .query_row(&query, [], |row| {
+            Ok(row.get::<usize, usize>(0).unwrap())
         })
-        .unwrap()
+        .unwrap() == 0
+}
+
+
+pub fn get_highest_pos(conn: &Arc<Mutex<Connection>>) -> Option<u32> {
+    if is_table_empty(conn, "pending_cards".to_string()) {return None}
+    let highest = conn.lock()
+            .unwrap()
+            .query_row("SELECT MAX(position) FROM pending_cards", [], |row| {
+                Ok(row.get(0).unwrap())
+            })
+            .unwrap();
+    Some(highest)
 }
 
 pub fn get_topics(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Topic>> {

@@ -11,7 +11,7 @@ use tui::{
 
 use crate::utils::sql::fetch::get_topic_of_inc;
 use crate::MyKey;
-use crate::{Direction, MyType};
+use crate::{MyType, NavDir};
 
 use std::sync::{Arc, Mutex};
 pub enum Selection {
@@ -148,8 +148,8 @@ impl Widget for AddChildWidget {
             Esc => self.should_quit = true,
             Alt('f') => self.submit_card(&appdata.conn, true),
             Alt('u') => self.submit_card(&appdata.conn, false),
-            Nav(Direction::Up) => self.selection = Selection::Question,
-            Nav(Direction::Down) => self.selection = Selection::Answer,
+            Nav(NavDir::Up) => self.selection = Selection::Question,
+            Nav(NavDir::Down) => self.selection = Selection::Answer,
             key => match self.selection {
                 Selection::Question => self.question.keyhandler(key),
                 Selection::Answer => self.answer.keyhandler(key),

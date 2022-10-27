@@ -7,7 +7,7 @@ use tui::{
     Frame,
 };
 
-use crate::tabs::add_card::logic::{DepState, NewCard};
+use crate::tabs::add_card::logic::NewCard;
 
 use crate::{
     tabs::{browse::logic::Browse, incread::logic::MainInc, review::logic::MainReview},
@@ -64,13 +64,13 @@ pub struct TabsState {
 }
 
 impl TabsState {
-    pub fn new(conn: &Arc<Mutex<Connection>>, audio: &Option<Audio>) -> TabsState {
+    pub fn new(appdata: &AppData) -> TabsState {
         let mut tabs: Vec<Box<dyn Tab>> = vec![];
-        let revlist = MainReview::new(conn, audio);
-        let addcards = NewCard::new(conn, DepState::None);
-        let incread = MainInc::new(conn);
-        let importer = Importer::new(conn);
-        let browse = Browse::new(conn);
+        let revlist = MainReview::new(appdata);
+        let addcards = NewCard::new(&appdata.conn);
+        let incread = MainInc::new(&appdata.conn);
+        let importer = Importer::new(&appdata.conn);
+        let browse = Browse::new(&appdata.conn);
 
         tabs.push(Box::new(revlist));
         tabs.push(Box::new(addcards));
@@ -133,13 +133,13 @@ impl App {
         ));
         let config = Config::new(&paths);
         let audio = Audio::new();
-        let tabs = TabsState::new(&conn, &audio);
         let appdata = AppData {
             conn,
             audio,
             config,
             paths,
         };
+        let tabs = TabsState::new(&appdata);
 
         App {
             tabs,
@@ -151,6 +151,7 @@ impl App {
 
     pub fn keyhandler(&mut self, key: MyKey) {
         match key {
+            MyKey::KeyPress(pos) if pos.1 < 4 => self.press_tab(pos),
             MyKey::Tab => self.tabs.next(),
             MyKey::BackTab => self.tabs.previous(),
             MyKey::SwapTab => self.tabs.swap_right(),
@@ -175,13 +176,25 @@ impl App {
         self.tabs.render(f, &self.appdata, area);
     }
 
+
+    fn press_tab(&mut self, pos: (u16, u16)){
+        let mut xpos = 1;
+        let padlen = 3;
+        for (index, tab) in self.tabs.tabs.iter().enumerate(){
+            let title = tab.get_title();
+            xpos += title.len() + padlen;
+            if xpos > pos.0 as usize {
+                self.tabs.index = index;
+                return;
+            }
+        }
+
+    }
+
     fn render_tab_menu(&self, f: &mut Frame<MyType>, area: Rect) -> Rect {
         let chunks = Layout::default()
             .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
             .split(area);
-
-        //let block = Block::default().style(Style::default().bg(Color::Rgb(20, 31, 31)));
-        //f.render_widget(block, f.size());
 
         let titles = self
             .tabs

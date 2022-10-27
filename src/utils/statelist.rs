@@ -1,4 +1,4 @@
-use crate::{app::AppData, MyKey};
+use crate::MyKey;
 use tui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -15,7 +15,7 @@ pub trait KeyHandler {
     }
 }
 
-use std::fmt::{write, Display};
+use std::fmt::Display;
 
 #[derive(Clone)]
 pub struct StatefulList<T: Display + KeyHandler> {

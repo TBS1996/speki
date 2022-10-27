@@ -3,19 +3,16 @@ use crate::app::PopUp;
 use crate::app::Tab;
 use crate::app::Widget;
 use crate::utils::misc::split_leftright_by_percent;
-use crate::utils::misc::split_updown;
 use crate::utils::misc::split_updown_by_percent;
 use crate::utils::misc::View;
 use crate::utils::sql::update::update_inc_text;
 use crate::MyKey;
 use crate::MyType;
-use crate::NavDir;
 
 use crate::utils::aliases::*;
 use crate::utils::statelist::StatefulList;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::topics::TopicList;
-use tui::layout::Constraint;
 use tui::layout::Rect;
 use tui::style::Style;
 use tui::widgets::Clear;
@@ -107,7 +104,7 @@ impl MainInc {
         let items = load_inc_items(conn, 1).unwrap();
         let inclist = StatefulList::with_items(items);
         let extracts = StatefulList::<IncListItem>::new();
-        let mut topics = TopicList::new(conn);
+        let topics = TopicList::new(conn);
         let focused: Option<IncRead> = None;
         let popup = None;
         let view = View::default();

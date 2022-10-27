@@ -9,7 +9,7 @@ use crate::app::{AppData, PopUp, Widget};
 use crate::utils::aliases::*;
 use crate::utils::card::{Card, CardType};
 use crate::utils::misc::{centered_rect, split_leftright, split_updown_by_percent, View};
-use crate::utils::sql::fetch::{fetch_card, get_highest_pos, is_pending, CardQuery};
+use crate::utils::sql::fetch::{get_highest_pos, is_pending, CardQuery};
 use crate::utils::sql::update::{set_suspended, update_position};
 use crate::utils::statelist::KeyHandler;
 use crate::widgets::cardlist::CardItem;
@@ -292,15 +292,15 @@ impl Browse {
         self.view.navigate(dir);
     }
 
+    /*
     fn reload_card(&mut self, id: CardID, conn: &Arc<Mutex<Connection>>) {
         if !self.cards.contains_key(&id) {
             let card = fetch_card(conn, id);
             self.cards.insert(id, card);
         }
         let card = self.cards.get(&id).unwrap();
-        let dependencies = card.dependencies.clone();
-        let dependents = card.dependents.clone();
     }
+    */
 
     fn apply_suspended(&self, appdata: &AppData, suspend: bool) {
         set_suspended(

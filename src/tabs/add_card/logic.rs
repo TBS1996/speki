@@ -16,15 +16,7 @@ use tui::layout::Rect;
 use tui::style::Style;
 use tui::Frame;
 
-
-
-
-
 use crate::widgets::topics::TopicList;
-
-
-
-
 
 //#[derive(Clone)]
 pub struct NewCard {
@@ -37,10 +29,9 @@ pub struct NewCard {
 
 use std::sync::{Arc, Mutex};
 
-
 impl NewCard {
     pub fn new(conn: &Arc<Mutex<Connection>>) -> NewCard {
-        let mut topics = TopicList::new(conn);
+        let topics = TopicList::new(conn);
         let view = View::default();
 
         NewCard {
@@ -61,13 +52,10 @@ impl NewCard {
             Up => self.view.move_up(),
             Down => self.view.move_down(),
         }
-
-
     }
 
-    fn make_prompt(conn: &Arc<Mutex<Connection>>) -> String {
+    fn make_prompt(_conn: &Arc<Mutex<Connection>>) -> String {
         "Add new card".to_string()
-       
     }
 
     pub fn submit_card(&mut self, conn: &Arc<Mutex<Connection>>, iscompleted: bool) {
@@ -83,13 +71,12 @@ impl NewCard {
         };
 
         //(conn, question, answer, topic, source, iscompleted);
-        let mut card = Card::new(status)
+        let card = Card::new(status)
             .question(question)
             .answer(answer)
             .topic(topic)
             .source(source);
 
-      
         card.save_card(conn);
         *self = Self::new(conn);
     }
@@ -99,7 +86,7 @@ impl NewCard {
     pub fn home(&mut self) {}
     pub fn end(&mut self) {}
 
-    fn set_selection(&mut self, area: Rect){
+    fn set_selection(&mut self, area: Rect) {
         self.view.areas.clear();
         let chunks = split_leftright_by_percent([75, 15], area);
         let left = chunks[0];
@@ -110,11 +97,7 @@ impl NewCard {
         self.view.areas.insert("question", chunks[1]);
         self.view.areas.insert("answer", chunks[2]);
     }
-
 }
-
-
-
 
 impl Tab for NewCard {
     fn get_title(&self) -> String {
@@ -144,19 +127,20 @@ impl Widget for NewCard {
             Alt('f') => self.submit_card(&appdata.conn, true),
             Alt('u') => self.submit_card(&appdata.conn, false),
             Alt('g') => {
-            if let Some(key) = &appdata.config.gptkey {
-                let answer = get_gpt3_response(key, &self.question.return_text());
-                self.answer.replace_text(answer);
-            }}
+                if let Some(key) = &appdata.config.gptkey {
+                    let answer = get_gpt3_response(key, &self.question.return_text());
+                    self.answer.replace_text(answer);
+                }
+            }
             key if self.view.name_selected("question") => self.question.keyhandler(key),
-            key if self.view.name_selected("answer")=> self.answer.keyhandler(key),
-            key if self.view.name_selected("topics")=> self.topics.keyhandler(key, &appdata.conn),
+            key if self.view.name_selected("answer") => self.answer.keyhandler(key),
+            key if self.view.name_selected("topics") => self.topics.keyhandler(key, &appdata.conn),
             _ => {}
         }
     }
     fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, area: Rect) {
         self.set_selection(area);
-        
+
         self.topics.render(
             f,
             *self.view.areas.get("topics").unwrap(),
@@ -164,19 +148,20 @@ impl Widget for NewCard {
             "Topics",
             Style::default(),
         );
-        draw_message(f, *self.view.areas.get("prompt").unwrap(), self.prompt.as_str());
+        draw_message(
+            f,
+            *self.view.areas.get("prompt").unwrap(),
+            self.prompt.as_str(),
+        );
         self.question.render(
             f,
             *self.view.areas.get("question").unwrap(),
             self.view.name_selected("question"),
-            
         );
-        self.answer
-            .render(f, *self.view.areas.get("answer").unwrap(), self.view.name_selected("answer"));
+        self.answer.render(
+            f,
+            *self.view.areas.get("answer").unwrap(),
+            self.view.name_selected("answer"),
+        );
     }
 }
-
-
-
-
-

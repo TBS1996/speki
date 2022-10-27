@@ -1,11 +1,11 @@
 use crate::app::Audio;
-use crate::utils::misc::{View, split_leftright_by_percent, split_updown_by_percent};
+use crate::utils::misc::{split_leftright_by_percent, split_updown_by_percent, View};
 use crate::utils::statelist::{StatefulList, TextItem};
 use crate::widgets::button::draw_button;
 use crate::widgets::textinput::Field;
 use crate::widgets::topics::TopicList;
 use crate::MyKey;
-use crate::{NavDir, SpekiPaths};
+use crate::SpekiPaths;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -14,19 +14,9 @@ use crate::utils::{aliases::*, card};
 use crate::MyType;
 use anyhow::Result;
 use rusqlite::Connection;
-use tui::layout::Rect;
 use std::fs;
-use tui::widgets::ListState;
-use tui::{
-    layout::{
-        Constraint,
-        Direction::{Horizontal, Vertical},
-        Layout,
-    },
-    style::Style,
-    text::Spans,
-    widgets::{Block, Borders, List, ListItem},
-};
+use tui::layout::Rect;
+use tui::style::Style;
 
 use std::sync::{Arc, Mutex};
 
@@ -149,7 +139,7 @@ fn extract_image(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Opt
         None => None,
     };
     *trd = re.replace_all(trd, "").to_string();
-    return res;
+    res
 }
 
 fn extract_audio(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Option<PathBuf> {
@@ -160,13 +150,13 @@ fn extract_audio(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Opt
     let res = match foo.get(1) {
         Some(res) => {
             let mut audiopath = paths.media.clone();
-            audiopath.push(format!("{}/{}", deckname, res.as_str().to_string()));
+            audiopath.push(format!("{}/{}", deckname, res.as_str()));
             Some(audiopath)
         }
         None => None,
     };
-    *trd = re.replace_all(&trd, "").to_string();
-    return res;
+    *trd = re.replace_all(trd, "").to_string();
+    res
 }
 #[derive(Default)]
 pub struct MediaContents {
@@ -299,9 +289,12 @@ impl Template {
 
         self.fields.items = {
             let model = self.selected_model();
-            model.fields.iter().map(|item| {TextItem::new(item.clone())}).collect()
+            model
+                .fields
+                .iter()
+                .map(|item| TextItem::new(item.clone()))
+                .collect()
         };
-
     }
 
     fn refresh_views(&mut self) {
@@ -357,10 +350,7 @@ impl Template {
         unzipped_db.push(format!("{}/collection.anki2", &deckname));
 
         let _ = transmitter.send(UnzipStatus::Ongoing("Opening zip file".to_string()));
-        let file = fs::File::open(&paths.downloc).expect(&format!(
-            "couldnt open file: {}",
-            &paths.downloc.to_str().unwrap()
-        ));
+        let file = fs::File::open(&paths.downloc).unwrap();
         let _ = transmitter.send(UnzipStatus::Ongoing(
             "Loading zip file to memory".to_string(),
         ));
@@ -457,7 +447,7 @@ impl Template {
     }
 
     fn fill_view(&self, mut template: String, viewpos: usize) -> String {
-        if template.len() == 0 {
+        if template.is_empty() {
             return "".to_string();
         }
         let model = self.model_from_card_index(viewpos);
@@ -470,7 +460,7 @@ impl Template {
             let split_by_field: Vec<&str> = template.split_terminator(&key).collect();
 
             let foo = split_by_field[0];
-            if foo.len() == 0 {
+            if foo.is_empty() {
                 continue;
             }
             let mut tempstring = foo.to_string();
@@ -713,7 +703,7 @@ impl Template {
         }
     }
 
-    fn set_sorted(&mut self, area: Rect){
+    fn set_sorted(&mut self, area: Rect) {
         let leftright = split_leftright_by_percent([66, 33], area);
 
         let (left, right) = (leftright[0], leftright[1]);
@@ -739,13 +729,11 @@ impl Template {
         self.view.areas.insert("back_view", bottomright);
         self.view.areas.insert("import", button);
         self.view.areas.insert("fields", thefields);
-
     }
 
     pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
         self.set_sorted(area);
 
-       
         let media = self.get_media(self.viewpos);
         let mut frontstring = "Front side ".to_string();
         let mut backstring = "Back side ".to_string();
@@ -775,14 +763,46 @@ impl Template {
             self.view.name_selected("preview"),
         );
 
-        self.fields.render(f, self.view.get_area("fields"), self.view.name_selected("fields"), "Fields", Style::default());
-        self.topics
-            .render(f, self.view.get_area("topics"), self.view.name_selected("topics"), "Topics", Style::default());
-        self.front_template.render(f, self.view.get_area("front_template"), self.view.name_selected("front_template"));
-        self.back_template.render(f, self.view.get_area("back_template"), self.view.name_selected("back_template"));
-        self.front_view.render(f, self.view.get_area("front_view"), self.view.name_selected("front_view"));
-        self.back_view.render(f, self.view.get_area("back_view"), self.view.name_selected("back_view"));
-        draw_button(f, self.view.get_area("import"), "Import cards!", self.view.name_selected("import"));
+        self.fields.render(
+            f,
+            self.view.get_area("fields"),
+            self.view.name_selected("fields"),
+            "Fields",
+            Style::default(),
+        );
+        self.topics.render(
+            f,
+            self.view.get_area("topics"),
+            self.view.name_selected("topics"),
+            "Topics",
+            Style::default(),
+        );
+        self.front_template.render(
+            f,
+            self.view.get_area("front_template"),
+            self.view.name_selected("front_template"),
+        );
+        self.back_template.render(
+            f,
+            self.view.get_area("back_template"),
+            self.view.name_selected("back_template"),
+        );
+        self.front_view.render(
+            f,
+            self.view.get_area("front_view"),
+            self.view.name_selected("front_view"),
+        );
+        self.back_view.render(
+            f,
+            self.view.get_area("back_view"),
+            self.view.name_selected("back_view"),
+        );
+        draw_button(
+            f,
+            self.view.get_area("import"),
+            "Import cards!",
+            self.view.name_selected("import"),
+        );
     }
 
     pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &Option<Audio>) {
@@ -803,7 +823,7 @@ impl Template {
                 self.update_template();
                 self.refresh_template_and_view();
             }
-            Char('l') | Right if self.view.name_selected("preview")=> {
+            Char('l') | Right if self.view.name_selected("preview") => {
                 if self.viewpos < self.notes.len() - 1 {
                     self.viewpos += 1;
                     self.refresh_template_and_view();
@@ -811,7 +831,7 @@ impl Template {
                     self.play_back_audio(audio);
                 }
             }
-            Char('h') | Left if self.view.name_selected("preview")=> {
+            Char('h') | Left if self.view.name_selected("preview") => {
                 if self.viewpos > 0 {
                     self.viewpos -= 1;
                     self.refresh_template_and_view();
@@ -819,19 +839,19 @@ impl Template {
                     self.play_back_audio(audio);
                 }
             }
-            Enter if self.view.name_selected("import")=> self.state = LoadState::Importing,
+            Enter if self.view.name_selected("import") => self.state = LoadState::Importing,
             Esc => self.state = LoadState::Finished,
-            key if self.view.name_selected("front_template")=> {
+            key if self.view.name_selected("front_template") => {
                 self.front_template.keyhandler(key);
                 self.update_template();
                 self.refresh_views();
             }
-            key if self.view.name_selected("back_template")=> {
+            key if self.view.name_selected("back_template") => {
                 self.back_template.keyhandler(key);
                 self.update_template();
                 self.refresh_views();
             }
-            key if self.view.name_selected("topics")=> self.topics.keyhandler(key, conn),
+            key if self.view.name_selected("topics") => self.topics.keyhandler(key, conn),
             _ => {}
         }
     }

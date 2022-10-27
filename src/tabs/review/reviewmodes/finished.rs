@@ -1,26 +1,25 @@
 use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
-use tui::{layout::{Constraint, Direction, Layout, Rect}, Frame, style::Style};
+use tui::{layout::{Constraint, Rect}, Frame, style::Style};
 
 use crate::{
-    app::{AppData, Widget},
+    app::AppData,
     tabs::review::logic::Action,
     utils::{
         aliases::CardID,
         card::{Card, RecallGrade, CardView},
         misc::{
-            get_dependencies, get_dependents, split_leftright_by_percent, split_updown,
+            split_leftright_by_percent, split_updown,
             split_updown_by_percent, View,
         },
         sql::{
-            fetch::{fetch_card, fetch_media, is_resolved},
+            fetch::is_resolved,
             update::set_suspended,
         },
-        statelist::StatefulList,
     },
     widgets::{
-        cardlist::CardItem, cardrater::CardRater, load_cards::MediaContents, textinput::Field, button::draw_button,
+        cardrater::CardRater, button::draw_button,
     },
     MyKey, MyType,
 };

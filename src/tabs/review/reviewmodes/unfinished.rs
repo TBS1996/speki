@@ -1,13 +1,16 @@
 use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
-use tui::Frame;
 use tui::layout::Rect;
 use tui::style::Style;
+use tui::Frame;
 
-use crate::MyType;
 use crate::app::AppData;
-use crate::utils::misc::{get_gpt3_response, View, get_dependencies, get_dependents, split_leftright_by_percent, split_updown_by_percent};
+use crate::utils::misc::{
+    get_dependencies, get_dependents, get_gpt3_response, split_leftright_by_percent,
+    split_updown_by_percent, View,
+};
+use crate::MyType;
 
 use crate::utils::sql::fetch::fetch_card;
 use crate::utils::statelist::StatefulList;
@@ -25,7 +28,7 @@ pub struct UnfCard {
     pub answer: Field,
     pub dependencies: StatefulList<CardItem>,
     pub dependents: StatefulList<CardItem>,
-    view: View,
+    pub view: View,
 }
 
 impl UnfCard {
@@ -51,8 +54,16 @@ impl UnfCard {
             Style::default(),
         );
 
-        self.question.render(f, self.view.get_area("question"), self.view.name_selected("question"));
-        self.answer.render(f, self.view.get_area("answer"), self.view.name_selected("answer"));
+        self.question.render(
+            f,
+            self.view.get_area("question"),
+            self.view.name_selected("question"),
+        );
+        self.answer.render(
+            f,
+            self.view.get_area("answer"),
+            self.view.name_selected("answer"),
+        );
     }
 
     fn set_sorted(&mut self, area: Rect) {
@@ -66,8 +77,8 @@ impl UnfCard {
         self.view.areas.insert("question", leftcolumn[0]);
         self.view.areas.insert("answer", leftcolumn[1]);
         self.view.areas.insert("dependents", rightcolumn[0]);
+        self.view.areas.insert("dependencies", rightcolumn[1]);
     }
-
 
     pub fn new(appdata: &AppData, id: CardID) -> Self {
         let mut question = Field::new();
@@ -88,7 +99,6 @@ impl UnfCard {
             view,
         }
     }
-
 
     pub fn keyhandler(&mut self, appdata: &AppData, key: MyKey, action: &mut Action) {
         use MyKey::*;
@@ -131,7 +141,7 @@ impl UnfCard {
                 );
             }
             key if self.view.name_selected("question") => self.question.keyhandler(key),
-            key if self.view.name_selected("answer")=> self.answer.keyhandler(key),
+            key if self.view.name_selected("answer") => self.answer.keyhandler(key),
             _ => {}
         }
     }

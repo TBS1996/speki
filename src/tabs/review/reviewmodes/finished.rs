@@ -28,7 +28,7 @@ pub struct CardReview {
     pub cardview: CardView,
     pub reveal: bool,
     pub cardrater: CardRater,
-    view: View,
+    pub view: View,
 }
 
 impl CardReview {
@@ -133,7 +133,8 @@ impl CardReview {
                     self.cardview.answer.return_text(),
                     self.cardview.card.id,
                     num,
-                )
+                );
+                self.view.move_up();
             }
             Char(' ') | Enter if self.view.name_selected("cardrater") => {
                 *action = Action::SkipRev(
@@ -151,6 +152,7 @@ impl CardReview {
 
     pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         self.set_selection(area);
+        self.view.debug_show_cursor(f);
 
         let resolved = is_resolved(&appdata.conn, self.cardview.card.id);
         if !resolved {

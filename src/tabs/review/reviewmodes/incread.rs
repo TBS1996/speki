@@ -16,7 +16,7 @@ use crate::{
 
 pub struct IncMode {
     pub source: IncRead,
-    view: View,
+    pub view: View,
 }
 
 impl IncMode {

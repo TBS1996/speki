@@ -7,11 +7,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{app::Audio, tabs::review::logic::ReviewMode, widgets::cardlist::CardItem, NavDir};
+use crate::{app::Audio, tabs::review::logic::ReviewMode, widgets::cardlist::CardItem, NavDir, MyType};
 use rusqlite::Connection;
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::Color,
+    style::Color, Frame,
 };
 
 /*
@@ -314,6 +314,12 @@ pub struct View {
 }
 
 impl View {
+
+    pub fn debug_show_cursor(&self, f: &mut Frame<MyType>){
+        f.set_cursor(self.cursor.0, self.cursor.1);
+    }
+
+
     pub fn get_area(&self, name: &'static str) -> Rect {
         *self.areas.get(name).unwrap()
     }
@@ -366,7 +372,7 @@ impl View {
 
     pub fn move_right(&mut self) {
         let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
-            new_pos.0 = currentarea.x + currentarea.width + 1;
+            new_pos.0 = currentarea.x + currentarea.width;
         };
         self.move_cursor(closure);
     }
@@ -384,7 +390,7 @@ impl View {
     }
     pub fn move_down(&mut self) {
         let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
-            new_pos.1 = currentarea.y + currentarea.height + 1;
+            new_pos.1 = currentarea.y + currentarea.height;
         };
         self.move_cursor(closure);
     }

@@ -187,28 +187,46 @@ impl MainReview {
         };
     }
 
+    fn get_current_pos(&self) -> (u16, u16) {
+        match &self.mode {
+            ReviewMode::Review(val) => val.view.cursor,
+            ReviewMode::Unfinished(val) => val.view.cursor,
+            ReviewMode::Pending(val) => val.view.cursor,
+            ReviewMode::IncRead(val) => val.view.cursor,
+            _ => (0, 0),
+        }
+    }
+
     pub fn new_inc_mode(&mut self, appdata: &AppData) {
+        let pos = self.get_current_pos();
         let id = self.for_review.active_increads.remove(0);
-        let inc = IncMode::new(appdata, id);
+        let mut inc = IncMode::new(appdata, id);
+        inc.view.cursor = pos;
         self.mode = ReviewMode::IncRead(inc);
     }
 
     pub fn new_unfinished_mode(&mut self, appdata: &AppData) {
+        let pos = self.get_current_pos();
         let id = self.for_review.unfinished_cards.remove(0);
-        let unfcard = UnfCard::new(appdata, id);
+        let mut unfcard = UnfCard::new(appdata, id);
+        unfcard.view.cursor = pos;
         self.mode = ReviewMode::Unfinished(unfcard);
         Card::play_frontaudio(&appdata.conn, id, &appdata.audio);
     }
 
     pub fn new_pending_mode(&mut self, appdata: &AppData) {
+        let pos = self.get_current_pos();
         let id = self.for_review.pending_cards.remove(0);
-        let cardreview = CardReview::new(id, appdata);
+        let mut cardreview = CardReview::new(id, appdata);
+        cardreview.view.cursor = pos;
         self.mode = ReviewMode::Pending(cardreview);
     }
 
     pub fn new_review_mode(&mut self, appdata: &AppData) {
+        let pos = self.get_current_pos();
         let id = self.for_review.review_cards.remove(0);
-        let cardreview = CardReview::new(id, appdata);
+        let mut cardreview = CardReview::new(id, appdata);
+        cardreview.view.cursor = pos;
         self.mode = ReviewMode::Review(cardreview);
     }
 

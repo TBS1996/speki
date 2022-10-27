@@ -112,6 +112,7 @@ impl TabsState {
     }
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         self.tabs[self.index].render(f, appdata, area);
+
     }
 }
 

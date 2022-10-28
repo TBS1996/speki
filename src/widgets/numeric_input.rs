@@ -38,7 +38,7 @@ impl KeyHandler for NumItem {
 impl PosIntField {
     pub fn new(max_value: Option<u32>) -> Self {
         Self {
-            field: Field::new(),
+            field: Field::default(),
             max_value,
         }
     }

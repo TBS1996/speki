@@ -7,11 +7,14 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{app::Audio, tabs::review::logic::ReviewMode, widgets::cardlist::CardItem, NavDir, MyType};
+use crate::{
+    app::Audio, tabs::review::logic::ReviewMode, widgets::cardlist::CardItem, MyType, NavDir,
+};
 use rusqlite::Connection;
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::Color, Frame,
+    style::Color,
+    Frame,
 };
 
 /*
@@ -299,6 +302,21 @@ pub fn get_current_unix() -> u32 {
         .as_secs() as u32
 }
 
+pub fn get_current_unix_millis() -> u32 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u32
+}
+
+pub fn new_mod(num: i64) -> u32 {
+    let mut val = (num % 510) - 254;
+    if val < 0 {
+        val *= -1;
+    }
+    val as u32
+}
+
 impl Default for View {
     fn default() -> Self {
         let areas = HashMap::new();
@@ -314,11 +332,9 @@ pub struct View {
 }
 
 impl View {
-
-    pub fn debug_show_cursor(&self, f: &mut Frame<MyType>){
+    pub fn debug_show_cursor(&self, f: &mut Frame<MyType>) {
         f.set_cursor(self.cursor.0, self.cursor.1);
     }
-
 
     pub fn get_area(&self, name: &'static str) -> Rect {
         *self.areas.get(name).unwrap()

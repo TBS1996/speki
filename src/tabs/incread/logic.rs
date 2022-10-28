@@ -33,7 +33,7 @@ pub struct WikiSelect {
 impl WikiSelect {
     fn new(id: TopicID) -> Self {
         WikiSelect {
-            searchbar: Field::new(),
+            searchbar: Field::default(),
             prompt: "Search for a wikipedia page".to_string(),
             topic: id,
             should_quit: false,

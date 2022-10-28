@@ -46,7 +46,7 @@ pub enum CardPurpose {
 impl FindCardWidget {
     pub fn new(conn: &Arc<Mutex<Connection>>, purpose: CardPurpose) -> Self {
         let mut list = StatefulList::<CardMatch>::new();
-        let searchterm = Field::new();
+        let searchterm = Field::default();
         list.reset_filter(conn, searchterm.return_text());
         let should_quit = false;
         let prompt = match purpose {

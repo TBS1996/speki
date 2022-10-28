@@ -36,8 +36,8 @@ impl NewCard {
 
         NewCard {
             prompt: NewCard::make_prompt(conn),
-            question: Field::new(),
-            answer: Field::new(),
+            question: Field::default(),
+            answer: Field::default(),
             topics,
             view,
         }

@@ -2419,7 +2419,7 @@ dependencies = [
 
 [[package]]
 name = "speki"
-version = "0.2.20"
+version = "0.2.21"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2441,6 +2441,7 @@ dependencies = [
  "toml",
  "tui",
  "unicode-segmentation",
+ "unicode-width",
  "wikipedia",
  "zip",
 ]

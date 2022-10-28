@@ -80,8 +80,8 @@ impl fmt::Display for Deck {
 impl Ankimporter {
     pub fn new() -> Self {
         let list = StatefulList::<Deck>::new();
-        let searchterm = Field::new();
-        let description = Field::new();
+        let searchterm = Field::default();
+        let description = Field::default();
         let menu = Menu::Main;
 
         Ankimporter {
@@ -231,7 +231,7 @@ impl Ankimporter {
 
         if let Some(idx) = self.list.state.selected() {
             let id = self.list.items[idx].id;
-            let mut newfield = Field::new();
+            let mut newfield = Field::default();
             let text = match self.descmap.get(&id) {
                 Some(desc) => desc.clone(),
                 None => "Enter to load description ".to_string(),

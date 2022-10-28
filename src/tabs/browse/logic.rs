@@ -164,8 +164,8 @@ impl Browse {
         let selected_ids = HashSet::new();
         let filteractions = StatefulList::<ActionItem>::default();
         let popup = None;
-        let question = Field::new();
-        let answer = Field::new();
+        let question = Field::default();
+        let answer = Field::default();
         let dependencies = StatefulList::new();
         let dependents = StatefulList::new();
         let cards = HashMap::new();

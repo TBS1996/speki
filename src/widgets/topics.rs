@@ -28,7 +28,7 @@ pub struct NewTopic {
 impl NewTopic {
     pub fn new(id: u32) -> NewTopic {
         NewTopic {
-            name: Field::new(),
+            name: Field::default(),
             id,
         }
     }

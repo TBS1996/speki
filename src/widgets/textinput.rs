@@ -1,12 +1,12 @@
-use crate::MyKey;
+use crate::{MyKey, MyType, utils::misc::{get_current_unix, get_current_unix_millis, new_mod}};
 use unicode_segmentation::UnicodeSegmentation;
 
 use tui::{
     backend::Backend,
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    text::{Span, Spans, StyledGrapheme},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 
@@ -31,17 +31,9 @@ pub struct Field {
     startselect: Option<CursorPos>,
     scroll: u16,
     mode: Mode,
-    buffer: String,
-    _repeat: u16,
-    keyvec: Vec<MyKey>,
-    text_alignment: Alignment,
     pub title: String,
     preferredcol: Option<usize>,
     pub stickytitle: bool,
-    singlebarmode: bool,
-    visual_rows_start: Vec<Vec<usize>>,
-    should_update_linestartvec: bool,
-    rowlens: Vec<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -51,9 +43,9 @@ pub enum Mode {
     Visual,
 }
 
-impl Field {
-    pub fn new() -> Self {
-        let mut myfield = Field {
+impl Default for Field {
+    fn default() -> Self {
+        let mut myfield = Self {
             text: vec![String::new()],
             cursor: CursorPos::new(),
             rowlen: 2,
@@ -61,33 +53,18 @@ impl Field {
             startselect: None,
             scroll: 0,
             mode: Mode::Insert,
-            buffer: String::new(),
-            _repeat: 1,
-            keyvec: vec![MyKey::Null; 5],
-            text_alignment: Alignment::Left,
             title: "my title".to_string(),
             preferredcol: None,
             stickytitle: false,
-            singlebarmode: false,
-            visual_rows_start: vec![vec![0]],
-            should_update_linestartvec: false,
-            rowlens: vec![0],
         };
         myfield.set_insert_mode();
         myfield
     }
+}
 
-    fn set_visual_rows(&mut self, startingfrom: usize) {
-        let mut rows: Vec<Vec<usize>> = vec![];
-        for i in startingfrom..self.text.len() {
-            rows.push(self.visual_row_start(i));
-        }
-        self.visual_rows_start = rows;
-        self.set_rowlens();
-    }
-
+impl Field {
     pub fn new_with_text(text: String, row: usize, column: usize) -> Self {
-        let mut field = Self::new();
+        let mut field = Self::default();
         field.replace_text(text);
         field.cursor = CursorPos { row, column };
         field
@@ -97,6 +74,9 @@ impl Field {
         self.title = "normal mode".to_string();
         self.startselect = None;
         self.mode = Mode::Normal;
+        if self.cursor.column > 0 {
+            self.prev();
+        }
     }
 
     pub fn set_rowlen(&mut self, win_width: u16) {
@@ -123,52 +103,6 @@ impl Field {
         self.mode = Mode::Visual;
     }
 
-    fn add_key(&mut self, key: MyKey) {
-        self.keyvec.push(key);
-    }
-
-    fn set_rowlens(&mut self) {
-        let mut rowlens: Vec<usize> = vec![];
-        for i in 0..self.text.len() {
-            rowlens.push(self.text[i].graphemes(true).count());
-        }
-        self.rowlens = rowlens;
-    }
-
-    fn visual_row_start(&mut self, row: usize) -> Vec<usize> {
-        if self.text[row].len() < self.rowlen as usize && self.rowlen == 0 {
-            return vec![0];
-        }
-
-        let mut whitesinarow = 0;
-        let mut linestartvec: Vec<usize> = vec![0];
-        let mut linestart = 0;
-        let mut end_point: usize = 0;
-        let mut now_white;
-        let mut prev_white = true;
-        for (idx, c) in UnicodeSegmentation::graphemes(self.text[row].as_str(), true).enumerate() {
-            now_white = c.chars().next().unwrap().is_ascii_whitespace();
-            if now_white && prev_white {
-                whitesinarow += 1;
-            } else if now_white && !prev_white {
-                end_point = idx;
-                whitesinarow = 1;
-            }
-
-            if idx == (linestart + self.rowlen as usize) {
-                if !now_white && prev_white {
-                    linestart = idx;
-                    linestartvec.push(linestart);
-                } else {
-                    linestart = end_point + whitesinarow;
-                    linestartvec.push(linestart);
-                }
-            }
-            prev_white = now_white;
-        }
-        linestartvec
-    }
-
     pub fn debug(&mut self) {}
 
     fn jump_forward(&mut self, jmp: usize) {
@@ -186,198 +120,7 @@ impl Field {
         }
     }
 
-    fn current_visual_col(&mut self) -> usize {
-        let rowstarts = self.visual_row_start(self.cursor.row);
-        for i in (0..rowstarts.len()).rev() {
-            if rowstarts[i] <= self.cursor.column {
-                return self.cursor.column - rowstarts[i];
-            }
-        }
-        panic!("Oops");
-    }
-
-    fn end_of_first_visual_line(&mut self, row: usize) -> usize {
-        let lines = self.visual_row_start(row);
-        if lines.len() == 1 {
-            return self.text[row].graphemes(true).count();
-        } else {
-            return lines[1] - 2;
-        }
-    }
-
-    fn visual_down(&mut self) {
-        let foovec = self.visual_row_start(self.cursor.row);
-
-        let mut next = -1;
-        for i in 0..foovec.len() {
-            if foovec[i] > self.cursor.column {
-                next = i as i32;
-                break;
-            }
-        }
-
-        if next == -1 {
-            // youre on the last visual line
-            if self.cursor.row == self.text.len() - 1 {
-                return;
-            }
-
-            let mut target = self.current_visual_col();
-            if let Some(col) = self.preferredcol {
-                if col > target {
-                    target = col;
-                }
-            }
-            let maxcol = self.end_of_first_visual_line(self.cursor.row + 1);
-
-            if target > maxcol {
-                self.cursor.column = maxcol;
-                self.preferredcol = Some(target);
-            } else {
-                self.cursor.column = target;
-            }
-            self.cursor.row += 1;
-        } else {
-            let offset = self.current_visual_col();
-            let mut target = foovec[next as usize] + offset;
-            let maxcol = self.text[self.cursor.row].graphemes(true).count();
-
-            if let Some(col) = self.preferredcol {
-                if col > target {
-                    target = col;
-                }
-            }
-
-            if target > maxcol {
-                self.cursor.column = maxcol;
-                self.preferredcol = Some(offset);
-            } else {
-                self.cursor.column = target;
-            }
-        }
-
-        if self.current_abs_visual_line() as u16 + 1 > self.window_height + self.scroll {
-            self.scroll_half_down();
-        }
-    }
-
-    fn get_relative_row_and_column(&self) -> (usize, usize) {
-        let mut offset = 0;
-        let mut relative_line = 0;
-
-        let rowstarts = &self.visual_rows_start[self.cursor.row];
-        for i in (0..rowstarts.len()).rev() {
-            if rowstarts[i] <= self.cursor.column {
-                relative_line = i;
-                offset = self.cursor.column - rowstarts[i];
-                break;
-            }
-        }
-        (relative_line, offset)
-    }
-
-    /*
-
-
-    if you're on the highest relative line and the top row, do nothing
-
-    if you're on the highest relative line then {
-         find the last visrowstart of row above,
-         let target = prevvisrowstart + relative column
-         let maxcol = rowlen - prevvisrowstart
-
-         if target > maxcol{
-             let cursor = maxcol;
-             let preferred = target;
-         } else {
-             let cursor = target
-             let preferred = none
-         }
-    } else {
-
-
-         find visrowstart above;
-         let target = visrowstartabove + relative_column;
-         let maxcol = currentvisrowstart - 2;
-
-         if target > maxcol{
-             let cursor = maxcol;
-             let preferred = relative_column;
-
-         }
-    }
-
-    get current relative column;
-    find start of column above;
-
-
-
-    */
-
-    fn length_of_row(&self, row: usize) -> usize {
-        self.text[row].graphemes(true).count()
-    }
-
-    fn visual_up(&mut self) {
-        let (relrow, relcol) = self.get_relative_row_and_column();
-        let topofpage = self.cursor.row == 0 && relrow == 0;
-        let top_relative_row = relrow == 0;
-
-        if topofpage {
-            return;
-        }
-
-        if top_relative_row {
-            let lastlinestartabove = self.visual_rows_start[self.cursor.row - 1].last().unwrap();
-            let maxcol = self.length_of_row(self.cursor.row - 1);
-            let target = lastlinestartabove + relcol;
-
-            if target > maxcol {
-                self.cursor.column = maxcol;
-                self.preferredcol = Some(relcol);
-                self.cursor.row -= 1;
-            } else {
-                self.cursor.column = target;
-                self.preferredcol = None;
-                self.cursor.row -= 1;
-            }
-        } else {
-            let maxcol = self.visual_rows_start[self.cursor.row][relrow] - 2;
-            let target = self.visual_rows_start[self.cursor.row][relrow - 1] + relcol;
-
-            if target > maxcol {
-                self.cursor.column = maxcol;
-                self.preferredcol = Some(relcol);
-            } else {
-                self.cursor.column = target;
-                self.preferredcol = None;
-            }
-        }
-
-        if (self.current_abs_visual_line() as u16) < self.scroll {
-            self.scroll_half_up();
-        }
-    }
-
-    fn current_bytepos(&self) -> usize {
-        self.relative_bytepos(0)
-    }
-
-    fn relative_bytepos(&self, offset: i32) -> usize {
-        let count = self.text[self.cursor.row].graphemes(true).count();
-        let pos = match self.text[self.cursor.row]
-            .char_indices()
-            .nth((self.cursor.column as i32 + offset) as usize)
-        {
-            Some(val) => val.0,
-            _ => count,
-        };
-
-        pos
-    }
-
     pub fn addchar(&mut self, c: char) {
-        self.rowlens[self.cursor.row] += 1;
         if self.cursor.column == self.text[self.cursor.row].graphemes(true).count() {
             self.text[self.cursor.row].push(c);
             self.cursor.column += 1;
@@ -386,131 +129,31 @@ impl Field {
         let bytepos = self.current_bytepos();
         self.text[self.cursor.row].insert(bytepos, c);
         self.cursor.column += 1;
-        self.visual_rows_start[self.cursor.row] = self.visual_row_start(self.cursor.row);
     }
 
     fn merge_with_row_above(&mut self) {
-        if self.cursor.row == 0 {
-            return;
-        } else {
-            self.cursor.column = self.text[self.cursor.row - 1].graphemes(true).count();
+        if self.cursor.row > 0 {
             let current = self.text[self.cursor.row].clone();
             self.text[self.cursor.row - 1].push_str(&current);
             self.text.remove(self.cursor.row);
             self.cursor.row -= 1;
+            self.cursor.column = self.current_rowlen();
         }
     }
-
-    pub fn backspace(&mut self) {
-        if self.rowlens[self.cursor.row] == 0 {
-            self.set_rowlens()
-        } // quickfix
-        if self.cursor.column > 0 {
-            self.cursor.column -= 1;
-            let bytepos = self.current_bytepos();
-            self.text[self.cursor.row].remove(bytepos);
-            self.rowlens[self.cursor.row] -= 1;
-            self.visual_rows_start[self.cursor.row] = self.visual_row_start(self.cursor.row);
-        } else {
-            self.merge_with_row_above();
-            self.set_visual_rows(self.cursor.row);
-        }
+    fn get_rowlen(&self, row: usize) -> usize {
+        self.text[row].graphemes(true).count()
     }
 
-    fn insert_newline_above(&mut self) {
-        self.text.insert(self.cursor.row, String::new());
-        self.cursor.column = 0;
-        self.set_insert_mode();
+    fn current_rowlen(&self) -> usize {
+        self.get_rowlen(self.cursor.row)
     }
 
-    fn insert_newline_below(&mut self) {
-        if self.cursor.row == self.text.len() - 1 {
-            self.text.push(String::new());
-        } else {
-            self.text.insert(self.cursor.row + 1, String::new());
-        }
-        self.cursor.row += 1;
-        self.cursor.column = 0;
-        self.set_insert_mode();
+    fn get_visrow_qty(&self, row: usize) -> u16 {
+        (self.get_rowlen(row) as u16 / self.rowlen as u16) + 1
     }
 
-    pub fn next(&mut self) {
-        if self.cursor.column < self.rowlens[self.cursor.row] {
-            self.cursor.column += 1;
-        } else if self.cursor.row != self.text.len() - 1 {
-            self.cursor.column = 0;
-            self.cursor.row += 1;
-        }
-    }
-
-    pub fn up(&mut self) {
-        if self.cursor.row == 0 {
-            return;
-        }
-        self.cursor.row -= 1;
-        let line_above_max_col = self.text[self.cursor.row].graphemes(true).count();
-        let current_col = self.cursor.column;
-        self.cursor.column = std::cmp::min(current_col, line_above_max_col);
-    }
-
-    pub fn down(&mut self) {
-        if self.cursor.row == self.text.len() - 1 {
-            return;
-        }
-        self.cursor.row += 1;
-        let line_below_max_col = self.text[self.cursor.row].graphemes(true).count();
-        let current_col = self.cursor.column;
-        self.cursor.column = std::cmp::min(current_col, line_below_max_col);
-    }
-
-    pub fn prev(&mut self) {
-        self.preferredcol = None;
-        if self.cursor.column > 0 {
-            self.cursor.column -= 1;
-        } else if self.cursor.row != 0 {
-            self.cursor.row -= 1;
-            self.cursor.column = self.text[self.cursor.row].graphemes(true).count();
-        }
-    }
-
-    pub fn delete(&mut self) {
-        let linelen = self.text[self.cursor.row].graphemes(true).count();
-        let bytepos = self.current_bytepos();
-
-        if linelen > 0 && bytepos != linelen {
-            self.text[self.cursor.row].remove(bytepos);
-        }
-    }
-    // first
-    pub fn delete_previous_word(&mut self) {
-        let mut char_found = false;
-        if self.text[self.cursor.row].graphemes(true).count() == self.cursor.column {
-            self.prev();
-        }
-        if self.cursor.column == 0 {
-            self.merge_with_row_above();
-            return;
-        }
-
-        while self.cursor.column != 0 {
-            let bytecol = self.text[self.cursor.row]
-                .char_indices()
-                .nth(self.cursor.column)
-                .unwrap()
-                .0;
-            let mychar = self.text[self.cursor.row].remove(bytecol);
-
-            self.cursor.column -= 1;
-            if !char_found {
-                if !mychar.is_whitespace() {
-                    char_found = true;
-                }
-            } else {
-                if mychar.is_whitespace() {
-                    break;
-                }
-            }
-        }
+    fn get_current_visrow_qty(&self) -> u16 {
+        self.get_visrow_qty(self.cursor.row)
     }
 
     pub fn newline(&mut self) {
@@ -525,7 +168,6 @@ impl Field {
     pub fn replace_text(&mut self, newtext: String) {
         self.text = newtext.split('\n').map(|s| s.to_string()).collect();
         self.cursor = CursorPos::default();
-        self.should_update_linestartvec = true;
     }
 
     pub fn paste(&mut self, paste: String) {
@@ -562,32 +204,6 @@ impl Field {
         } else {
             self.scroll -= godown;
         }
-    }
-
-    fn goto_start_visual_line(&mut self) {
-        let linevec = self.visual_row_start(self.cursor.row);
-        for i in (0..linevec.len()).rev() {
-            if linevec[i] <= self.cursor.column {
-                if i == 0 {
-                    self.cursor.column = 0;
-                    return;
-                }
-                self.cursor.column = linevec[i];
-                return;
-            }
-        }
-    }
-
-    fn goto_end_visual_line(&mut self) {
-        let linevec = self.visual_row_start(self.cursor.row);
-
-        for i in 0..linevec.len() {
-            if linevec[i] > self.cursor.column {
-                self.cursor.column = linevec[i] - 2;
-                return;
-            }
-        }
-        self.cursor.column = self.text[self.cursor.row].graphemes(true).count();
     }
 
     fn scroll_half_down(&mut self) {
@@ -636,9 +252,6 @@ impl Field {
             }
         }
     }
-    fn paste_buffer(&mut self) {
-        self.text[self.cursor.row].insert_str(self.cursor.column, &self.buffer.clone());
-    }
 
     fn delete_right_of_cursor(&mut self) {
         let leftext = self.get_text_left_of_position(&self.cursor);
@@ -653,10 +266,6 @@ impl Field {
             self.text.remove(self.cursor.row);
             self.cursor.column = 0;
         }
-    }
-
-    fn copy_right(&mut self) {
-        self.buffer = self.get_text_right_of_position(&self.cursor);
     }
 
     pub fn selection_exists(&self) -> bool {
@@ -706,53 +315,6 @@ impl Field {
         }
     }
 
-    fn _right_char_match(&mut self, c: char) {
-        for (col, chr) in self.text[self.cursor.row].chars().enumerate() {
-            if col > self.cursor.column && chr == c {
-                self.cursor.column = col;
-                return;
-            }
-        }
-    }
-    fn _left_char_match(&mut self, c: char) {
-        let cursorpos = self.cursor.column;
-        for (col, chr) in self.text[self.cursor.row].chars().enumerate() {
-            if chr == c && col < cursorpos {
-                self.cursor.column = col;
-            }
-        }
-    }
-
-    fn current_rel_visual_line(&mut self) -> usize {
-        let vislines = self.visual_row_start(self.cursor.row);
-        if vislines.len() == 1 {
-            return 0;
-        }
-        for i in 0..vislines.len() {
-            if vislines[i] > self.cursor.column {
-                return i - 1;
-            }
-        }
-        return vislines.len() - 1;
-    }
-
-    fn current_abs_visual_line(&mut self) -> usize {
-        let mut lines = 0;
-
-        for i in 0..self.text.len() {
-            if i == self.cursor.row {
-                return self.current_rel_visual_line() + lines;
-            }
-            lines += self.visual_row_start(i).len();
-        }
-        panic!();
-    }
-
-    fn _scroll_to_cursor(&mut self) {
-        let visline = self.current_abs_visual_line();
-        self.scroll = std::cmp::max(visline as i32 - 2, 0) as u16;
-    }
-
     fn find_grapheme_bytepos(mystr: &String, column: usize) -> usize {
         let mut boundary = 0;
         let mut cursor = unicode_segmentation::GraphemeCursor::new(0, mystr.len(), false);
@@ -771,117 +333,9 @@ impl Field {
         boundary
     }
 
-    // TODO make this function suck less
-    fn cursorsplit(&self, selected: bool) -> Vec<Spans> {
-        let mut onemore = self.cursor.clone();
-        let mut splitvec: Vec<CursorPos> = vec![];
-        onemore.column += 1;
-        if self.cursor.column != self.text[self.cursor.row].graphemes(true).count() {}
-
-        if self.selection_exists() {
-            splitvec.push(self.startselect.clone().unwrap());
-            if self.cursor.column != self.text[self.cursor.row].graphemes(true).count() {
-                splitvec.push(onemore);
-            } else {
-                onemore.column = self.text[onemore.row].graphemes(true).count();
-                splitvec.push(self.cursor.clone());
-            }
-        } else {
-            splitvec.push(self.cursor.clone());
-            splitvec.push(onemore);
-        }
-
-        splitvec.sort_by_key(|curse| (curse.row, curse.column));
-
-        if !selected {
-            splitvec.clear();
-        }
-
-        let mut coolvec = Vec::<Spans>::new();
-        let mut styled = false;
-
-        let mut splitdex = 0;
-        for (idx, txt) in self.text.iter().enumerate() {
-            let mut foo = txt.clone();
-            let mut emptyline = true;
-            let mut spanvec = Vec::<Span>::new();
-            while foo.graphemes(true).count() != 0
-                && splitdex != splitvec.len()
-                && splitvec[splitdex].row == idx
-            {
-                let mut bar = foo.clone();
-                emptyline = false;
-                let column = splitvec[splitdex].column;
-                let offset = if splitdex == 0 || splitvec[splitdex - 1].row != idx {
-                    0
-                } else {
-                    splitvec[splitdex - 1].column
-                };
-
-                let splitat = column - offset;
-                if splitat == bar.graphemes(true).count() - 1 {
-                    bar.push(' ');
-                } else if splitat == bar.graphemes(true).count() {
-                    bar.push('_');
-                    bar.push(' ');
-                }
-                let splitat = std::cmp::min(splitat, bar.graphemes(true).count() - 1);
-
-                let (left, right) = bar.split_at(Self::find_grapheme_bytepos(&bar, splitat));
-
-                foo = right.to_string().clone();
-                let left = left.to_string();
-                if styled {
-                    spanvec.push(Span::styled(
-                        left,
-                        Style::default().add_modifier(Modifier::REVERSED),
-                    ));
-                } else {
-                    spanvec.push(Span::from(left));
-                }
-                splitdex += 1;
-                styled = !styled;
-                if splitdex == splitvec.len() {
-                    break;
-                }
-            }
-            if selected && idx == self.cursor.row && (foo.graphemes(true).count() == 0 && emptyline)
-            {
-                // self.cursor.column == self.text[self.cursor.row].len() {
-                spanvec.push(Span::styled(
-                    "_".to_string(),
-                    Style::default().add_modifier(Modifier::REVERSED),
-                ));
-                if self.cursor.column != 0 || self.selection_exists() {
-                    styled = !styled;
-                }
-                if self.cursor.column == self.text[self.cursor.row].graphemes(true).count()
-                    && self.cursor.column != 0
-                {
-                    // styled = !styled;
-                }
-            }
-
-            if styled && selected {
-                spanvec.push(Span::styled(
-                    foo.to_string(),
-                    Style::default().add_modifier(Modifier::REVERSED),
-                ));
-            } else {
-                spanvec.push(Span::from(foo.to_string()));
-            }
-            coolvec.push(Spans::from(spanvec));
-        }
-
-        coolvec
-    }
-
     fn cursor_after(&mut self) {
-        self.cursor.column = std::cmp::min(
-            self.cursor.column + 1,
-            self.text[self.cursor.row].graphemes(true).count(),
-        );
         self.set_insert_mode();
+        self.next();
     }
 
     fn _replace_one_char(&mut self, chr: char) {
@@ -914,32 +368,52 @@ impl Field {
         self.scroll = std::cmp::max((self.current_abs_visual_line() as i32) - 2, 0) as u16;
     }
 
-    pub fn render<B>(&mut self, f: &mut Frame<B>, area: Rect, selected: bool)
-    where
-        B: Backend,
-    {
+    fn current_abs_visual_line(&mut self) -> usize {
+        let mut lines = 0;
+
+        for i in 0..self.text.len() {
+            if i == self.cursor.row {
+                let heythere = self.current_rel_visual_line() as usize;
+                return heythere + lines;
+            }
+            lines += self.get_visrow_qty(i) as usize;
+        }
+        panic!();
+    }
+
+    fn current_rel_visual_line(&self) -> u16 {
+        self.cursor.column as u16 / self.rowlen as u16
+    }
+
+    fn cursorsplit(&mut self, f: &mut Frame<MyType>, area: Rect, _selected: bool) -> Vec<Spans> {
+        let mut spanvec = vec![];
+
+        let cursorshape = match self.mode {
+            Mode::Normal => CursorShape::Block,
+            Mode::Visual => CursorShape::Block,
+            Mode::Insert => CursorShape::Line,
+        };
+        let mut stdout = stdout();
+        execute!(stdout, SetCursorShape(cursorshape),).unwrap();
+        let y = self.current_abs_visual_line() as u16 + area.y + 1;
+        let x = self.current_visual_col() as u16 + area.x + 1;
+        f.set_cursor(x, y);
+
+        for text in self.text.iter() {
+            spanvec.push(Spans::from(text.clone()));
+        }
+        spanvec
+    }
+
+    pub fn render(&mut self, f: &mut Frame<MyType>, area: Rect, selected: bool) {
         let bordercolor = if selected { Color::Red } else { Color::White };
         let style = Style::default().fg(bordercolor);
-
-        if area.width - 2 != self.rowlen || area.height - 2 != self.window_height {
-            self.set_rowlen(area.width);
-            self.set_win_height(area.height);
-            self.align_to_cursor();
-            self.set_visual_rows(0);
-        }
-
-        if self.should_update_linestartvec {
-            self.set_visual_rows(0);
-            self.should_update_linestartvec = false;
+        if true {
+            self.set_dimensions(area);
             self.align_to_cursor();
         }
 
-        let title = if !self.singlebarmode && (selected || self.stickytitle) {
-            &self.title
-        } else {
-            ""
-        };
-
+        let title = self.title.clone();
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(style)
@@ -950,24 +424,208 @@ impl Field {
                     .add_modifier(Modifier::BOLD),
             ));
 
-        let formatted_text = self.cursorsplit(selected);
-        let paragraph = Paragraph::new(formatted_text)
-            .block(block)
-            // .style(Style::default().bg(Color::Rgb(153, 76, 0)).fg(Color::White))
-            .alignment(self.text_alignment)
-            .scroll((self.scroll, 0))
-            .wrap(Wrap { trim: true });
+        let formatted_text = self.cursorsplit(f, area, selected);
+        let paragraph = Paraclone::new(formatted_text).block(block);
+
         f.render_widget(paragraph, area);
     }
 
-    pub fn keyhandler(&mut self, key: MyKey) {
-        self.add_key(key.clone());
+    fn goto_end_visual_line(&mut self) {
+        let totrowlen = self.current_rowlen() as u16;
+        let currvisual = self.current_visual_col();
+        let endofline = self.cursor.column + self.rowlen as usize - currvisual - 1;
+        let themin = std::cmp::min(totrowlen as usize, endofline as usize);
+        self.cursor.column = themin;
+    }
 
+    fn goto_start_visual_line(&mut self) {
+        let mut i = 1;
+        while i * self.rowlen < self.cursor.column as u16 {
+            i += 1;
+        }
+        self.cursor.column = ((i as u16 - 1) * self.rowlen as u16) as usize;
+    }
+
+    fn visual_down(&mut self) {
+        let rowlen = self.current_rowlen() + 1;
+        let one_down = self.cursor.column + self.rowlen as usize;
+        if one_down > rowlen {
+            match self.is_cursor_last_vis_row() {
+                true => {
+                    if self.cursor.row != self.text.len() - 1 {
+                        let offset = self.current_visual_col();
+                        self.cursor.row += 1;
+                        let next_rowlen = self.current_rowlen();
+                        self.cursor.column = std::cmp::min(next_rowlen, offset);
+                    }
+                }
+                false => {
+                    self.cursor.column = rowlen - 1;
+                }
+            }
+        } else {
+            self.cursor.column = one_down;
+        }
+    }
+
+    fn visual_up(&mut self) {
+        if self.cursor.column < self.rowlen as usize {
+            if self.cursor.row != 0 {
+                let offset = self.current_visual_col();
+                self.cursor.row -= 1;
+                let prev_rowlen = self.current_rowlen();
+                self.cursor.column = prev_rowlen;
+                let new_offset = self.current_visual_col();
+                if new_offset > offset {
+                    self.cursor.column -= new_offset - offset;
+                }
+            }
+        } else {
+            self.cursor.column -= self.rowlen as usize;
+        }
+    }
+
+    /*
+
+
+    offset: 10
+    rowlen: 100
+    linelen: 40
+
+
+
+    */
+    fn is_cursor_last_vis_row(&self) -> bool {
+        self.current_rel_visual_line() as u16 == self.current_rowlen() as u16 / self.rowlen as u16
+    }
+
+    fn count_visrow_len(&self, row: usize) -> u16 {
+        self.get_rowlen(row) as u16 / self.rowlen
+    }
+
+    fn current_visrow_count(&self) -> u16 {
+        self.count_visrow_len(self.cursor.row)
+    }
+
+    fn current_visual_col(&self) -> usize {
+        self.cursor.column % self.rowlen as usize
+    }
+
+    pub fn keyhandler(&mut self, key: MyKey) {
         match self.mode {
             Mode::Normal => self.normal_keyhandler(key),
             Mode::Insert => self.insert_keyhandler(key),
             Mode::Visual => self.visual_keyhandler(key),
         }
+    }
+    fn prev(&mut self) {
+        self.preferredcol = None;
+        if self.cursor.column == 0 && self.cursor.row == 0 {
+            return;
+        }
+
+        if self.cursor.column != 0 {
+            self.cursor.column -= 1;
+        } else {
+            self.cursor.row -= 1;
+            self.cursor.column = self.current_rowlen();
+        }
+    }
+
+    fn next(&mut self) {
+        let maxcol = self.current_rowlen();
+
+        if self.cursor.column != maxcol + 0 {
+            self.cursor.column += 1;
+        } else if self.cursor.row != self.text.len() - 1 {
+            self.cursor.row += 1;
+            self.cursor.column = 0;
+        }
+    }
+
+    fn delete_previous_word(&mut self) {
+        let mut char_found = false;
+        if self.text[self.cursor.row].graphemes(true).count() == self.cursor.column {
+            self.prev();
+        }
+        if self.cursor.column == 0 {
+            self.merge_with_row_above();
+            return;
+        }
+
+        while self.cursor.column != 0 {
+            let bytecol = self.text[self.cursor.row]
+                .char_indices()
+                .nth(self.cursor.column)
+                .unwrap()
+                .0;
+            let mychar = self.text[self.cursor.row].remove(bytecol);
+
+            self.cursor.column -= 1;
+            if !char_found {
+                if !mychar.is_whitespace() {
+                    char_found = true;
+                }
+            } else if mychar.is_whitespace() {
+                break;
+            }
+        }
+    }
+
+    fn current_bytepos(&self) -> usize {
+        self.relative_bytepos(0)
+    }
+
+    fn relative_bytepos(&self, offset: i32) -> usize {
+        let count = self.text[self.cursor.row].graphemes(true).count();
+        let pos = match self.text[self.cursor.row]
+            .char_indices()
+            .nth((self.cursor.column as i32 + offset) as usize)
+        {
+            Some(val) => val.0,
+            _ => count,
+        };
+        pos
+    }
+
+    fn delete(&mut self) {
+        let linelen = self.text[self.cursor.row].graphemes(true).count();
+        let bytepos = self.current_bytepos();
+
+        if linelen > 0 && bytepos != linelen {
+            self.text[self.cursor.row].remove(bytepos);
+        }
+    }
+
+    pub fn backspace(&mut self) {
+        let linelen = self.current_rowlen();
+        let bytepos = self.current_bytepos();
+
+        if linelen > 0 && bytepos > 0 {
+            self.text[self.cursor.row].remove(bytepos - 1);
+        } else if self.cursor.column == 0 {
+            self.merge_with_row_above();
+            dbg!("WASDfasFASfa");
+        }
+        //dbg!(linelen, bytepos, self.cursor.column);
+        self.prev();
+    }
+
+    fn insert_newline_above(&mut self) {
+        self.text.insert(self.cursor.row, String::new());
+        self.cursor.column = 0;
+        self.set_insert_mode();
+    }
+
+    fn insert_newline_below(&mut self) {
+        if self.cursor.row == self.text.len() - 1 {
+            self.text.push(String::new());
+        } else {
+            self.text.insert(self.cursor.row + 1, String::new());
+        }
+        self.cursor.row += 1;
+        self.cursor.column = 0;
+        self.set_insert_mode();
     }
 
     fn insert_keyhandler(&mut self, key: MyKey) {
@@ -996,7 +654,6 @@ impl Field {
                     Paste(paste) => self.paste(paste),
                     _ => {}
                 }
-                self.set_visual_rows(0);
             }
         }
     }
@@ -1009,7 +666,7 @@ impl Field {
             Home => self.goto_start_visual_line(),
             Char('e') => self.end_of_next_word(),
             Char('b') => self.start_of_previous_word(),
-            Char('Y') => self.copy_right(),
+            //Char('Y') => self.copy_right(),
             Char('k') | Up => self.visual_up(),
             Char('j') | Down => self.visual_down(),
             Char('h') | Left => self.prev(),
@@ -1024,13 +681,12 @@ impl Field {
             key => {
                 match key {
                     Char('D') => self.delete_right_of_cursor(),
-                    Char('p') => self.paste_buffer(),
+                    //Char('p') => self.paste_buffer(),
                     Char('O') => self.insert_newline_above(),
                     Char('o') => self.insert_newline_below(),
                     Char('x') => self.delete(),
                     _ => {}
                 }
-                self.set_visual_rows(0);
             }
         }
     }
@@ -1049,6 +705,225 @@ impl Field {
             Ctrl('u') => self.scroll_half_up(),
             Ctrl('d') => self.scroll_half_down(),
             _ => {}
+        }
+    }
+}
+
+use crossterm::{
+    cursor::{self, CursorShape, MoveToNextLine, SetCursorShape},
+    execute, queue,
+    style::{self, Print, Stylize},
+    terminal::{self, ClearType},
+    Result,
+};
+use std::io::{stdout, Write};
+use tui::widgets::Widget;
+
+#[derive(Debug, Clone)]
+pub struct Paraclone<'a> {
+    block: Option<Block<'a>>,
+    style: Style,
+    text: Text<'a>,
+    scroll: (u16, u16),
+    alignment: Alignment,
+}
+
+impl<'a> Paraclone<'a> {
+    pub fn new<T>(text: T) -> Paraclone<'a>
+    where
+        T: Into<tui::text::Text<'a>>,
+    {
+        Self {
+            block: None,
+            style: Default::default(),
+            text: text.into(),
+            scroll: (0, 0),
+            alignment: Alignment::Left,
+        }
+    }
+
+    pub fn block(mut self, block: Block<'a>) -> Paraclone<'a> {
+        self.block = Some(block);
+        self
+    }
+
+    pub fn style(mut self, style: Style) -> Paraclone<'a> {
+        self.style = style;
+        self
+    }
+
+    pub fn scroll(mut self, offset: (u16, u16)) -> Paraclone<'a> {
+        self.scroll = offset;
+        self
+    }
+
+    pub fn alignment(mut self, alignment: Alignment) -> Paraclone<'a> {
+        self.alignment = alignment;
+        self
+    }
+}
+fn get_line_offset(line_width: u16, text_area_width: u16, alignment: Alignment) -> u16 {
+    match alignment {
+        Alignment::Center => (text_area_width / 2).saturating_sub(line_width / 2),
+        Alignment::Right => text_area_width.saturating_sub(line_width),
+        Alignment::Left => 0,
+    }
+}
+
+impl<'a> Widget for Paraclone<'a> {
+    fn render(mut self, area: Rect, buf: &mut Buffer) {
+        buf.set_style(area, self.style);
+        let text_area = match self.block.take() {
+            Some(b) => {
+                let inner_area = b.inner(area);
+                b.render(area, buf);
+                inner_area
+            }
+            None => area,
+        };
+
+        if text_area.height < 1 {
+            return;
+        }
+
+
+
+        let style = Style::default();
+        let unix = get_current_unix();
+        
+        let mut styled = self.text.lines.iter().flat_map(|spans| {
+            spans
+                .0
+                .iter()
+                .flat_map(|span| span.styled_graphemes(style))
+                // Required given the way composers work but might be refactored out if we change
+                // composers to operate on lines instead of a stream of graphemes.
+                .chain(std::iter::once(StyledGrapheme {
+                    symbol: "\n",
+                    style: self.style,
+                }))
+        });
+
+        let mut line_composer: Box<dyn LineComposer> =
+            { Box::new(WordWrapper::new(&mut styled, text_area.width)) };
+        let mut y = 0;
+        while let Some(current_line) = line_composer.next_line() {
+            if y >= self.scroll.0 {
+                let mut x: u16 = 0;
+                for StyledGrapheme { symbol, style } in current_line {
+                    let red = new_mod((unix + y as u32) as i64) as u8;
+                    let blue = new_mod(y as i64 + unix as i64 * 2) as u8;
+                    let green = new_mod(x as i64 + unix as i64 * 3) as u8;
+                    //let style = style.bg(Color::Rgb(red, blue, green));
+                    buf.get_mut(text_area.left() + x, text_area.top() + y - self.scroll.0)
+                        .set_symbol(symbol)
+                        .set_style(*style);
+                    x += symbol.width() as u16;
+                }
+            }
+            y += 1;
+            if y >= text_area.height + self.scroll.0 {
+                break;
+            }
+        }
+    }
+}
+
+use tui::buffer::Buffer;
+use tui::text::Text;
+//use tui::widgets::reflow::LineComposer;
+
+pub trait LineComposer<'a> {
+    fn next_line(&mut self) -> Option<&[StyledGrapheme<'a>]>;
+}
+
+/// This function will return a str slice which start at specified offset.
+/// As src is a unicode str, start offset has to be calculated with each character.
+fn trim_offset(src: &str, mut offset: usize) -> &str {
+    let mut start = 0;
+    for c in UnicodeSegmentation::graphemes(src, true) {
+        let w = c.width();
+        if w <= offset {
+            offset -= w;
+            start += c.len();
+        } else {
+            break;
+        }
+    }
+    &src[start..]
+}
+
+use unicode_width::UnicodeWidthStr;
+
+/// A state machine that wraps lines on word boundaries.
+pub struct WordWrapper<'a, 'b> {
+    symbols: &'b mut dyn Iterator<Item = StyledGrapheme<'a>>,
+    max_line_width: u16,
+    current_line: Vec<StyledGrapheme<'a>>,
+    next_line: Vec<StyledGrapheme<'a>>,
+}
+
+impl<'a, 'b> WordWrapper<'a, 'b> {
+    pub fn new(
+        symbols: &'b mut dyn Iterator<Item = StyledGrapheme<'a>>,
+        max_line_width: u16,
+    ) -> WordWrapper<'a, 'b> {
+        WordWrapper {
+            symbols,
+            max_line_width,
+            current_line: vec![],
+            next_line: vec![],
+        }
+    }
+}
+const NBSP: &str = "\u{00a0}";
+impl<'a, 'b> LineComposer<'a> for WordWrapper<'a, 'b> {
+    fn next_line(&mut self) -> Option<&[StyledGrapheme<'a>]> {
+        if self.max_line_width == 0 {
+            return None;
+        }
+        std::mem::swap(&mut self.current_line, &mut self.next_line);
+        self.next_line.truncate(0);
+
+        let mut current_line_width: u16 = self
+            .current_line
+            .iter()
+            .map(|StyledGrapheme { symbol, .. }| symbol.width() as u16)
+            .sum();
+
+        let mut symbols_exhausted = true;
+
+        for StyledGrapheme { symbol, style } in &mut self.symbols {
+            symbols_exhausted = false;
+            if symbol.width() as u16 > self.max_line_width {
+                continue;
+            }
+
+            if symbol == "\n" {
+                break;
+            }
+
+            self.current_line.push(StyledGrapheme { symbol, style });
+            current_line_width += symbol.width() as u16;
+
+            if current_line_width > self.max_line_width {
+                let truncate_at = self.current_line.len() - 1;
+
+                {
+                    let remainder = &self.current_line[truncate_at..];
+                    self.next_line.extend_from_slice(remainder);
+                }
+
+                self.current_line.truncate(truncate_at);
+                break;
+            }
+        }
+
+        // Even if the iterator is exhausted, pass the previous remainder.
+        if symbols_exhausted && self.current_line.is_empty() {
+            None
+        } else {
+            Some(&self.current_line[..])
         }
     }
 }

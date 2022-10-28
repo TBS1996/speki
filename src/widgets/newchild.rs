@@ -37,8 +37,8 @@ pub struct AddChildWidget {
 impl AddChildWidget {
     pub fn new(conn: &Arc<Mutex<Connection>>, purpose: Purpose) -> Self {
         let prompt = Self::add_prompt(conn, &purpose);
-        let question = Field::new();
-        let answer = Field::new();
+        let question = Field::default();
+        let answer = Field::default();
         let selection = Selection::Question;
         let should_quit = false;
 
@@ -53,7 +53,7 @@ impl AddChildWidget {
     }
 
     fn add_prompt(_conn: &Arc<Mutex<Connection>>, purpose: &Purpose) -> Field {
-        let mut prompt = Field::new();
+        let mut prompt = Field::default();
         match purpose {
             Purpose::Source(_) => {
                 prompt.push("Add new sourced card".to_string());

@@ -429,7 +429,7 @@ impl Widget for MainReview {
 }
 
 pub fn draw_done(f: &mut Frame<crate::MyType>, area: Rect) {
-    let mut field = Field::new();
+    let mut field = Field::default();
     field.replace_text("Nothing left to review now!\n\nYou could import anki cards from the import page, or add new cards manually.\n\nIf you've imported cards, press Alt+r here to refresh".to_string());
     field.render(f, area, false);
 }

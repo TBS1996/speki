@@ -81,8 +81,8 @@ impl UnfCard {
     }
 
     pub fn new(appdata: &AppData, id: CardID) -> Self {
-        let mut question = Field::new();
-        let mut answer = Field::new();
+        let mut question = Field::default();
+        let mut answer = Field::default();
         let card = fetch_card(&appdata.conn, id);
         question.replace_text(card.question);
         answer.replace_text(card.answer);

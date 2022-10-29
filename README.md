@@ -1,7 +1,7 @@
 # Speki
 
 
-[![Subscribe to /r/speki](https://img.shields.io/reddit/subreddit-subscribers/speki?label=Subscribe%20to%20%2Fr%2Fspeki&style=social
+[![/r/speki](https://img.shields.io/reddit/subreddit-subscribers/speki?label=Subscribe%20to%20%2Fr%2Fspeki&style=social
 )](https://www.reddit.com/r/speki/)
 
 Flashcards for your terminal
@@ -53,7 +53,10 @@ You can get cargo by [installing rust](https://www.rust-lang.org/tools/install)
 
 If you install with Cargo, you will also need to install the following package: `libasound2-dev` 
 
+### Fedora  
 
+If you install with Cargo, you will also need to install the following package: `alsa-lib-devel`   
+-->  `sudo dnf install alsa-lib-devel`
 
 ## Features
 

@@ -389,7 +389,6 @@ impl CardView {
                 .collect();
             StatefulList::with_items(carditems)
         };
-
         Self {
             card,
             question,

@@ -1,4 +1,7 @@
-use crate::{MyKey, MyType, utils::misc::{get_current_unix, get_current_unix_millis, new_mod}};
+use crate::{
+    utils::misc::{get_current_unix, get_current_unix_millis, new_mod},
+    MyKey, MyType,
+};
 use unicode_segmentation::UnicodeSegmentation;
 
 use tui::{
@@ -10,6 +13,22 @@ use tui::{
     Frame,
 };
 
+/*
+
+
+GLOSSARY:
+    row: the text separated by a newline, the Field::text field is a vector of rows. each row may consist of several lines.
+    line: the visual line, separated by the maximum width of the Field
+    column: the column of the row, may wrap around the screen
+    linecol: the column on the current line, from 0 to width of field.
+
+    fn current_... : gets the item that the cursor is positioned at
+    fn get_...: gets the item that is specified in an argument to the function
+
+
+
+
+   */
 #[derive(Clone, Default, Debug)]
 pub struct CursorPos {
     pub row: usize,
@@ -18,7 +37,7 @@ pub struct CursorPos {
 
 impl CursorPos {
     fn new() -> Self {
-        CursorPos { row: 0, column: 0 }
+        Self { row: 0, column: 0 }
     }
 }
 
@@ -33,7 +52,6 @@ pub struct Field {
     mode: Mode,
     pub title: String,
     preferredcol: Option<usize>,
-    pub stickytitle: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -53,9 +71,8 @@ impl Default for Field {
             startselect: None,
             scroll: 0,
             mode: Mode::Insert,
-            title: "my title".to_string(),
+            title: "".to_string(),
             preferredcol: None,
-            stickytitle: false,
         };
         myfield.set_insert_mode();
         myfield
@@ -71,7 +88,6 @@ impl Field {
     }
 
     pub fn set_normal_mode(&mut self) {
-        self.title = "normal mode".to_string();
         self.startselect = None;
         self.mode = Mode::Normal;
         if self.cursor.column > 0 {
@@ -93,12 +109,10 @@ impl Field {
     }
 
     pub fn set_insert_mode(&mut self) {
-        self.title = "insert mode".to_string();
         self.startselect = None;
         self.mode = Mode::Insert;
     }
     pub fn set_visual_mode(&mut self) {
-        self.title = "visual mode".to_string();
         self.startselect = Some(self.cursor.clone());
         self.mode = Mode::Visual;
     }
@@ -446,14 +460,30 @@ impl Field {
         self.cursor.column = ((i as u16 - 1) * self.rowlen as u16) as usize;
     }
 
+    fn validate_prefcol(&mut self, old_offset: usize, new_offset: usize) {
+        let rowlen = self.current_rowlen();
+        if new_offset < old_offset {
+            if let Some(prefcol) = self.preferredcol {
+                self.preferredcol = Some(std::cmp::max(prefcol, old_offset))
+            } else {
+                self.preferredcol = Some(old_offset);
+            }
+        } else {
+            if let Some(prefcol) = self.preferredcol {
+                let target = self.cursor.column + prefcol - (new_offset);
+                self.cursor.column = std::cmp::min(target, rowlen);
+            }
+        }
+    }
+
     fn visual_down(&mut self) {
         let rowlen = self.current_rowlen() + 1;
+        let offset = self.current_visual_col();
         let one_down = self.cursor.column + self.rowlen as usize;
         if one_down > rowlen {
             match self.is_cursor_last_vis_row() {
                 true => {
                     if self.cursor.row != self.text.len() - 1 {
-                        let offset = self.current_visual_col();
                         self.cursor.row += 1;
                         let next_rowlen = self.current_rowlen();
                         self.cursor.column = std::cmp::min(next_rowlen, offset);
@@ -466,12 +496,15 @@ impl Field {
         } else {
             self.cursor.column = one_down;
         }
+        let new_offset = self.current_visual_col();
+        self.validate_prefcol(offset, new_offset);
     }
 
     fn visual_up(&mut self) {
+        let offset = self.current_visual_col();
         if self.cursor.column < self.rowlen as usize {
+            // if youre on first line of a row
             if self.cursor.row != 0 {
-                let offset = self.current_visual_col();
                 self.cursor.row -= 1;
                 let prev_rowlen = self.current_rowlen();
                 self.cursor.column = prev_rowlen;
@@ -483,18 +516,10 @@ impl Field {
         } else {
             self.cursor.column -= self.rowlen as usize;
         }
+        let new_offset = self.current_visual_col();
+        self.validate_prefcol(offset, new_offset);
     }
 
-    /*
-
-
-    offset: 10
-    rowlen: 100
-    linelen: 40
-
-
-
-    */
     fn is_cursor_last_vis_row(&self) -> bool {
         self.current_rel_visual_line() as u16 == self.current_rowlen() as u16 / self.rowlen as u16
     }
@@ -526,16 +551,13 @@ impl Field {
 
         if self.cursor.column != 0 {
             self.cursor.column -= 1;
-        } else {
-            self.cursor.row -= 1;
-            self.cursor.column = self.current_rowlen();
         }
     }
 
     fn next(&mut self) {
         let maxcol = self.current_rowlen();
 
-        if self.cursor.column != maxcol + 0 {
+        if self.cursor.column != maxcol {
             self.cursor.column += 1;
         } else if self.cursor.row != self.text.len() - 1 {
             self.cursor.row += 1;
@@ -603,12 +625,10 @@ impl Field {
 
         if linelen > 0 && bytepos > 0 {
             self.text[self.cursor.row].remove(bytepos - 1);
+            self.prev();
         } else if self.cursor.column == 0 {
             self.merge_with_row_above();
-            dbg!("WASDfasFASfa");
         }
-        //dbg!(linelen, bytepos, self.cursor.column);
-        self.prev();
     }
 
     fn insert_newline_above(&mut self) {
@@ -786,11 +806,9 @@ impl<'a> Widget for Paraclone<'a> {
             return;
         }
 
-
-
         let style = Style::default();
         let unix = get_current_unix();
-        
+
         let mut styled = self.text.lines.iter().flat_map(|spans| {
             spans
                 .0

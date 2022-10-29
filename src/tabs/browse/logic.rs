@@ -292,16 +292,6 @@ impl Browse {
         self.view.navigate(dir);
     }
 
-    /*
-    fn reload_card(&mut self, id: CardID, conn: &Arc<Mutex<Connection>>) {
-        if !self.cards.contains_key(&id) {
-            let card = fetch_card(conn, id);
-            self.cards.insert(id, card);
-        }
-        let card = self.cards.get(&id).unwrap();
-    }
-    */
-
     fn apply_suspended(&self, appdata: &AppData, suspend: bool) {
         set_suspended(
             &appdata.conn,

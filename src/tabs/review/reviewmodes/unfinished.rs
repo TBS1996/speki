@@ -85,7 +85,9 @@ impl UnfCard {
         let mut answer = Field::default();
         let card = fetch_card(&appdata.conn, id);
         question.replace_text(card.question);
+        question.title = "Question".to_string();
         answer.replace_text(card.answer);
+        answer.title = "Answer".to_string();
         let dependencies = get_dependencies(&appdata.conn, id);
         let dependents = get_dependents(&appdata.conn, id);
         let view = View::default();

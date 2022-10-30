@@ -1,15 +1,15 @@
-use crate::{
-    utils::misc::{get_current_unix, get_current_unix_millis, new_mod},
-    MyKey, MyType,
+use crate::{MyKey, MyType};
+use crossterm::{
+    cursor::{CursorShape, SetCursorShape},
+    execute,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
 use tui::{
-    backend::Backend,
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans, StyledGrapheme},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders},
     Frame,
 };
 
@@ -29,7 +29,7 @@ GLOSSARY:
 
 
    */
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Copy, PartialEq)]
 pub struct CursorPos {
     pub row: usize,
     pub column: usize,
@@ -43,7 +43,7 @@ impl CursorPos {
 
 #[derive(Debug, Clone)]
 pub struct Field {
-    text: Vec<String>,
+    pub text: Vec<String>,
     pub cursor: CursorPos,
     rowlen: u16,
     window_height: u16,
@@ -84,6 +84,12 @@ impl Field {
         let mut field = Self::default();
         field.replace_text(text);
         field.cursor = CursorPos { row, column };
+        field
+    }
+
+    pub fn new(title: String) -> Self {
+        let mut field = Self::default();
+        field.title = title;
         field
     }
 
@@ -212,16 +218,20 @@ impl Field {
     }
 
     fn scroll_half_up(&mut self) {
-        let godown = self.window_height / 2;
-        if godown > self.scroll {
-            self.scroll = 0;
-        } else {
-            self.scroll -= godown;
+        let halfup = self.window_height / 2;
+        let var = std::cmp::min(self.scroll, halfup);
+        self.scroll -= var;
+        for _ in 0..var {
+            self.visual_up();
         }
     }
 
     fn scroll_half_down(&mut self) {
-        self.scroll += self.window_height / 2;
+        let halfdown = self.window_height / 2;
+        self.scroll += halfdown;
+        for _ in 0..halfdown {
+            self.visual_down();
+        }
     }
 
     fn start_of_next_word(&mut self) {
@@ -382,12 +392,15 @@ impl Field {
         self.scroll = std::cmp::max((self.current_abs_visual_line() as i32) - 2, 0) as u16;
     }
 
-    fn current_abs_visual_line(&mut self) -> usize {
-        let mut lines = 0;
+    fn current_abs_visual_line(&self) -> usize {
+        self.get_line_number(&self.cursor)
+    }
 
+    fn get_line_number(&self, cursor: &CursorPos) -> usize {
+        let mut lines = 0;
         for i in 0..self.text.len() {
-            if i == self.cursor.row {
-                let heythere = self.current_rel_visual_line() as usize;
+            if i == cursor.row {
+                let heythere = self.get_rowcol(cursor) as usize;
                 return heythere + lines;
             }
             lines += self.get_visrow_qty(i) as usize;
@@ -395,23 +408,36 @@ impl Field {
         panic!();
     }
 
-    fn current_rel_visual_line(&self) -> u16 {
-        self.cursor.column as u16 / self.rowlen as u16
+    fn get_rowcol(&self, cursor: &CursorPos) -> u16 {
+        cursor.column as u16 / self.rowlen as u16
     }
 
-    fn cursorsplit(&mut self, f: &mut Frame<MyType>, area: Rect, _selected: bool) -> Vec<Spans> {
+    fn current_rel_visual_line(&self) -> u16 {
+        self.get_rowcol(&self.cursor)
+    }
+
+    fn get_xy(&self, cursor: &CursorPos) -> (usize, usize) {
+        let y = self.get_line_number(cursor);
+        let x = self.get_linecol(cursor);
+        (x, y)
+    }
+
+    fn cursorsplit(&mut self, f: &mut Frame<MyType>, area: Rect, selected: bool) -> Vec<Spans> {
         let mut spanvec = vec![];
 
-        let cursorshape = match self.mode {
-            Mode::Normal => CursorShape::Block,
-            Mode::Visual => CursorShape::Block,
-            Mode::Insert => CursorShape::Line,
-        };
-        let mut stdout = stdout();
-        execute!(stdout, SetCursorShape(cursorshape),).unwrap();
-        let y = self.current_abs_visual_line() as u16 + area.y + 1;
-        let x = self.current_visual_col() as u16 + area.x + 1;
-        f.set_cursor(x, y);
+        if selected {
+            let cursorshape = match self.mode {
+                Mode::Normal => CursorShape::Block,
+                Mode::Visual => CursorShape::Block,
+                Mode::Insert => CursorShape::Line,
+            };
+            let mut stdout = stdout();
+            execute!(stdout, SetCursorShape(cursorshape),).unwrap();
+            let x = self.current_visual_col() as u16 + area.x + 1;
+            let y = self.current_abs_visual_line() as u16 + area.y + 1 - self.scroll;
+            f.set_cursor(x, y);
+            dbg!("@@@@@@@@@@@@@@@", x, y, &self.cursor);
+        }
 
         for text in self.text.iter() {
             spanvec.push(Spans::from(text.clone()));
@@ -420,8 +446,10 @@ impl Field {
     }
 
     pub fn render(&mut self, f: &mut Frame<MyType>, area: Rect, selected: bool) {
+        let scroll = self.scroll;
         let bordercolor = if selected { Color::Red } else { Color::White };
         let style = Style::default().fg(bordercolor);
+        self.align_to_cursor();
         if true {
             self.set_dimensions(area);
             self.align_to_cursor();
@@ -438,8 +466,24 @@ impl Field {
                     .add_modifier(Modifier::BOLD),
             ));
 
+        let selection = {
+            if let Some(sel) = &self.startselect {
+                let first = self.get_xy(sel);
+                let second = self.get_xy(&self.cursor);
+                if first == second {
+                    None
+                } else {
+                    let mut myvec = vec![first, second];
+                    myvec.sort_by_key(|curse| (curse.1, curse.0));
+                    Some(myvec)
+                }
+            } else {
+                None
+            }
+        };
+
         let formatted_text = self.cursorsplit(f, area, selected);
-        let paragraph = Paraclone::new(formatted_text).block(block);
+        let paragraph = Paraclone::new(formatted_text, selection, (scroll, 0)).block(block);
 
         f.render_widget(paragraph, area);
     }
@@ -498,6 +542,10 @@ impl Field {
         }
         let new_offset = self.current_visual_col();
         self.validate_prefcol(offset, new_offset);
+        let line = self.current_abs_visual_line() as u16;
+        if (self.scroll + self.window_height) - line < 10 {
+            self.scroll += 1;
+        }
     }
 
     fn visual_up(&mut self) {
@@ -518,6 +566,10 @@ impl Field {
         }
         let new_offset = self.current_visual_col();
         self.validate_prefcol(offset, new_offset);
+        let line = self.current_abs_visual_line() as u16;
+        if line - self.scroll < 10 && self.scroll > 0 {
+            self.scroll -= 1;
+        }
     }
 
     fn is_cursor_last_vis_row(&self) -> bool {
@@ -533,7 +585,11 @@ impl Field {
     }
 
     fn current_visual_col(&self) -> usize {
-        self.cursor.column % self.rowlen as usize
+        self.get_linecol(&self.cursor)
+    }
+
+    fn get_linecol(&self, cursor: &CursorPos) -> usize {
+        cursor.column % self.rowlen as usize
     }
 
     pub fn keyhandler(&mut self, key: MyKey) {
@@ -727,16 +783,30 @@ impl Field {
             _ => {}
         }
     }
+
+    /*
+        pub fn yxtocursor(&self, y: u16, x: u16) -> CursorPos{
+            let mut row = 0;
+            let linecount = 0;
+            let mut visrows = 0;
+            while linecount < y{
+                visrows = self.get_visrow_qty(y as usize);
+                linecount += visrows;
+                row += 1;
+            }
+            let diff = linecount - y;
+            let col = (diff - 1) * self.rowlen + x;
+
+            CursorPos{
+                row,
+                column: col as usize,
+            }
+        }
+
+    */
 }
 
-use crossterm::{
-    cursor::{self, CursorShape, MoveToNextLine, SetCursorShape},
-    execute, queue,
-    style::{self, Print, Stylize},
-    terminal::{self, ClearType},
-    Result,
-};
-use std::io::{stdout, Write};
+use std::io::stdout;
 use tui::widgets::Widget;
 
 #[derive(Debug, Clone)]
@@ -746,10 +816,15 @@ pub struct Paraclone<'a> {
     text: Text<'a>,
     scroll: (u16, u16),
     alignment: Alignment,
+    selection: Option<Vec<(usize, usize)>>,
 }
 
 impl<'a> Paraclone<'a> {
-    pub fn new<T>(text: T) -> Paraclone<'a>
+    pub fn new<T>(
+        text: T,
+        selection: Option<Vec<(usize, usize)>>,
+        scroll: (u16, u16),
+    ) -> Paraclone<'a>
     where
         T: Into<tui::text::Text<'a>>,
     {
@@ -757,8 +832,9 @@ impl<'a> Paraclone<'a> {
             block: None,
             style: Default::default(),
             text: text.into(),
-            scroll: (0, 0),
+            scroll,
             alignment: Alignment::Left,
+            selection,
         }
     }
 
@@ -782,11 +858,18 @@ impl<'a> Paraclone<'a> {
         self
     }
 }
-fn get_line_offset(line_width: u16, text_area_width: u16, alignment: Alignment) -> u16 {
-    match alignment {
-        Alignment::Center => (text_area_width / 2).saturating_sub(line_width / 2),
-        Alignment::Right => text_area_width.saturating_sub(line_width),
-        Alignment::Left => 0,
+
+fn stylegetter(y: usize, x: usize, selvec: &Vec<(usize, usize)>) -> Style {
+    let mut styled = false;
+    for sel in selvec {
+        if sel.1 > y || (sel.1 == y && sel.0 > x) {
+            break;
+        }
+        styled = !styled;
+    }
+    match styled {
+        false => Style::default(),
+        true => Style::default().bg(Color::DarkGray),
     }
 }
 
@@ -806,14 +889,13 @@ impl<'a> Widget for Paraclone<'a> {
             return;
         }
 
-        let style = Style::default();
-        let unix = get_current_unix();
+        let thestyle = Style::default();
 
         let mut styled = self.text.lines.iter().flat_map(|spans| {
             spans
                 .0
                 .iter()
-                .flat_map(|span| span.styled_graphemes(style))
+                .flat_map(|span| span.styled_graphemes(thestyle))
                 // Required given the way composers work but might be refactored out if we change
                 // composers to operate on lines instead of a stream of graphemes.
                 .chain(std::iter::once(StyledGrapheme {
@@ -825,17 +907,18 @@ impl<'a> Widget for Paraclone<'a> {
         let mut line_composer: Box<dyn LineComposer> =
             { Box::new(WordWrapper::new(&mut styled, text_area.width)) };
         let mut y = 0;
-        while let Some(current_line) = line_composer.next_line() {
+        let mut thestyle = Style::default();
+        while let Some((current_line, _)) = line_composer.next_line() {
+            let mut x: u16 = 0;
             if y >= self.scroll.0 {
-                let mut x: u16 = 0;
-                for StyledGrapheme { symbol, style } in current_line {
-                    let red = new_mod((unix + y as u32) as i64) as u8;
-                    let blue = new_mod(y as i64 + unix as i64 * 2) as u8;
-                    let green = new_mod(x as i64 + unix as i64 * 3) as u8;
-                    //let style = style.bg(Color::Rgb(red, blue, green));
+                for StyledGrapheme { symbol, .. } in current_line {
+                    if let Some(selvec) = &self.selection {
+                        thestyle = stylegetter(y as usize, x as usize, selvec)
+                    }
+
                     buf.get_mut(text_area.left() + x, text_area.top() + y - self.scroll.0)
                         .set_symbol(symbol)
-                        .set_style(*style);
+                        .set_style(thestyle);
                     x += symbol.width() as u16;
                 }
             }
@@ -852,7 +935,7 @@ use tui::text::Text;
 //use tui::widgets::reflow::LineComposer;
 
 pub trait LineComposer<'a> {
-    fn next_line(&mut self) -> Option<&[StyledGrapheme<'a>]>;
+    fn next_line(&mut self) -> Option<(&[StyledGrapheme<'a>], bool)>;
 }
 
 /// This function will return a str slice which start at specified offset.
@@ -896,7 +979,7 @@ impl<'a, 'b> WordWrapper<'a, 'b> {
 }
 const NBSP: &str = "\u{00a0}";
 impl<'a, 'b> LineComposer<'a> for WordWrapper<'a, 'b> {
-    fn next_line(&mut self) -> Option<&[StyledGrapheme<'a>]> {
+    fn next_line(&mut self) -> Option<(&[StyledGrapheme<'a>], bool)> {
         if self.max_line_width == 0 {
             return None;
         }
@@ -910,6 +993,7 @@ impl<'a, 'b> LineComposer<'a> for WordWrapper<'a, 'b> {
             .sum();
 
         let mut symbols_exhausted = true;
+        let mut newline = false;
 
         for StyledGrapheme { symbol, style } in &mut self.symbols {
             symbols_exhausted = false;
@@ -918,6 +1002,7 @@ impl<'a, 'b> LineComposer<'a> for WordWrapper<'a, 'b> {
             }
 
             if symbol == "\n" {
+                newline = true;
                 break;
             }
 
@@ -941,7 +1026,7 @@ impl<'a, 'b> LineComposer<'a> for WordWrapper<'a, 'b> {
         if symbols_exhausted && self.current_line.is_empty() {
             None
         } else {
-            Some(&self.current_line[..])
+            Some((&self.current_line[..], newline))
         }
     }
 }

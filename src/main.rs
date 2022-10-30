@@ -16,7 +16,7 @@ use crossterm::{
         MouseEventKind,
     },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen, self, ClearType},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io;
 use tui::{backend::CrosstermBackend, Terminal};
@@ -65,7 +65,6 @@ fn main() -> Result<()> {
 use crossterm::{event::poll, Result};
 use std::time::Duration;
 fn run_app(terminal: &mut Terminal<MyType>, mut app: App) -> io::Result<()> {
-    let mut stdout = io::stdout();
     loop {
         terminal.draw(|f| app.render(f))?;
 

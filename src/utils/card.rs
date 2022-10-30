@@ -369,8 +369,10 @@ pub struct CardView {
 impl CardView {
     pub fn new_from_id(conn: &Arc<Mutex<Connection>>, id: CardID) -> Self {
         let card = fetch_card(conn, id);
-        let question = Field::new_with_text(card.question.clone(), 0, 0);
-        let answer = Field::new_with_text(card.answer.clone(), 0, 0);
+        let mut question = Field::new_with_text(card.question.clone(), 0, 0);
+        question.title = "Question".to_string();
+        let mut answer = Field::new_with_text(card.answer.clone(), 0, 0);
+        answer.title = "Answer".to_string();
         let dependencies = {
             let carditems = card
                 .dependencies

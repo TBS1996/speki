@@ -197,16 +197,14 @@ impl Template {
             viewpos: 0,
             front_view: Field::default(),
             back_view: Field::default(),
-            front_template: Field::default(),
-            back_template: Field::default(),
+            front_template: Field::new("Front template".to_string()),
+            back_template: Field::new("Back template".to_string()),
             topics: TopicList::new(conn),
             state: LoadState::OnGoing,
             view,
             fields,
         };
         temp.init(&deckname, paths);
-        temp.front_view.stickytitle = true;
-        temp.back_view.stickytitle = true;
         temp
     }
 

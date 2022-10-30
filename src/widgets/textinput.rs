@@ -436,7 +436,6 @@ impl Field {
             let x = self.current_visual_col() as u16 + area.x + 1;
             let y = self.current_abs_visual_line() as u16 + area.y + 1 - self.scroll;
             f.set_cursor(x, y);
-            dbg!("@@@@@@@@@@@@@@@", x, y, &self.cursor);
         }
 
         for text in self.text.iter() {

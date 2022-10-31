@@ -97,3 +97,7 @@ jobs:
           commit_username: "tbs1996"
           commit_email: torberge@outlook.com
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+      - run: |
+          sudo apt-get update
+          sudo apt-get install libasound2-dev
+

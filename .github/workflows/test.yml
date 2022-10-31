@@ -87,17 +87,6 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CARGO_API_KEY }} --allow-dirty
-  aur-publish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - run: |
-          sudo apt-get update
-          sudo apt-get install libasound2-dev
       - name: Publish AUR package
         uses: ATiltedTree/create-aur-release@v1
         with:
@@ -105,5 +94,4 @@ jobs:
           commit_username: "tbs1996"
           commit_email: torberge@outlook.com
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-
 

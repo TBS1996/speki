@@ -163,10 +163,13 @@ impl MyKey {
                 }
             }
             if modifiers == event::KeyModifiers::CONTROL {
-                if let KeyCode::Char(c) = key.code {
-                    return Some(MyKey::Ctrl(c));
-                } else if let KeyCode::Delete = key.code {
-                    return Some(MyKey::DeleteCard);
+                match key.code {
+                    KeyCode::Char('h') | KeyCode::Left => return Some(MyKey::Nav(NavDir::Left)),
+                    KeyCode::Char('j') | KeyCode::Down => return Some(MyKey::Nav(NavDir::Down)),
+                    KeyCode::Char('k') | KeyCode::Up => return Some(MyKey::Nav(NavDir::Up)),
+                    KeyCode::Char('l') | KeyCode::Right => return Some(MyKey::Nav(NavDir::Right)),
+                    KeyCode::Char(c) => return Some(MyKey::Ctrl(c)),
+                    _ => {}
                 }
             }
             let key = match key.code {

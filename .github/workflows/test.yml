@@ -94,6 +94,6 @@ jobs:
         uses: ATiltedTree/create-aur-release@v1
         with:
           package_name: speki
-          commit_username: "Github Action Bot"
-          commit_email: github-action-bot@example.com
+          commit_username: "tbs1996"
+          commit_email: torberge@outlook.com
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}

@@ -87,15 +87,14 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CARGO_API_KEY }} --allow-dirty
-  aur-sync:
+  aur-publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Sync AUR package with Github release
-        uses: maniaciachao/aur-sync-action@v1.2
+      - name: Publish AUR package
+        uses: aksh1618/update-aur-package@v1.0.5
         with:
+          tag_version_prefix: v
           package_name: speki
-          github_repo: 'tbs1996/speki'
-          commit_username: 'tbs196'
+          commit_username: "tbs1996"
           commit_email: torberge@outlook.com
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          extra_dependencies: 'libasound2-dev'

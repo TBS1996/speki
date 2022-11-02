@@ -404,14 +404,18 @@ impl Tab for MainReview {
             ReviewMode::Unfinished(unfinished) => unfinished.render(f, appdata, cursor),
             ReviewMode::IncRead(inc) => inc.render(f, appdata, cursor),
         }
+    }
 
+    fn exit_popup(&mut self, appdata: &AppData) {
+        self.popup = None;
+        self.update_dependencies(&appdata.conn);
+    }
+
+    fn get_popup(&mut self) -> Option<&mut Box<dyn PopUp>> {
         if let Some(popup) = &mut self.popup {
-            if popup.should_quit() {
-                self.popup = None;
-                self.update_dependencies(&appdata.conn);
-                return;
-            }
-            popup.render_popup(f, appdata, area);
+            Some(popup)
+        } else {
+            None
         }
     }
 

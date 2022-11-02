@@ -118,7 +118,7 @@ impl TabsState {
         }
     }
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
-        self.tabs[self.index].render(f, appdata, area);
+        self.tabs[self.index].main_render(f, appdata, area);
     }
 }
 
@@ -286,4 +286,23 @@ pub trait Tab {
     fn set_selection(&mut self, area: Rect);
     fn get_cursor(&self) -> (u16, u16);
     fn navigate(&mut self, dir: NavDir);
+
+    fn main_render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+        self.render(f, appdata, area);
+        if let Some(popup) = self.get_popup() {
+            if popup.should_quit() {
+                self.exit_popup(appdata);
+                return;
+            }
+            popup.render_popup(f, appdata, area);
+        }
+    }
+    fn get_popup(&mut self) -> Option<&mut Box<dyn PopUp>> {
+        None
+    }
+    fn exit_popup(&mut self, appdata: &AppData) {
+        let _ = appdata;
+        // if there's a way to statically enforce this requirement, make an issue or PR about it <3
+        panic!("Overriding the get_popup() method requires you to also override the exit_popup() method")
+    }
 }

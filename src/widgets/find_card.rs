@@ -70,9 +70,12 @@ impl FindCardWidget {
         if self.list.state.selected().is_none() {
             return;
         }
+        if self.list.items.is_empty() {
+            return;
+        }
 
         let idx = self.list.state.selected().unwrap();
-        if idx - 1 > self.list.items.len() {
+        if idx >= self.list.items.len() {
             return;
         }
         let chosen_id = self.list.items[idx].id;

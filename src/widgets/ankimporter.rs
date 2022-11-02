@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
+use crate::utils::libextensions::MyListState;
+use crate::utils::misc::View;
 use crate::utils::statelist::{KeyHandler, StatefulList};
 use crate::widgets::textinput::Field;
 use crate::MyType;
 use reqwest;
-use tui::{
-    layout::{Constraint, Direction::Vertical, Layout},
-    widgets::ListState,
-};
+use tui::layout::{Constraint, Direction::Vertical, Layout};
 
 use super::button::Button;
 use crate::MyKey;
@@ -53,6 +52,7 @@ pub struct Ankimporter {
     descmap: HashMap<u32, String>,
     menu: Menu,
     pub should_quit: ShouldQuit,
+    view: View,
 }
 
 #[derive(Clone, PartialEq)]
@@ -86,6 +86,7 @@ impl Ankimporter {
             descmap: HashMap::new(),
             menu,
             should_quit: ShouldQuit::No,
+            view: View::default(),
         }
     }
 
@@ -179,7 +180,7 @@ impl Ankimporter {
         }
 
         self.list.items = myvec;
-        self.list.state = ListState::default();
+        self.list.state = MyListState::default();
     }
 }
 
@@ -188,10 +189,15 @@ impl Tab for Ankimporter {
         "ankimporter".to_string()
     }
     fn navigate(&mut self, _dir: crate::NavDir) {}
-    fn get_cursor(&self) -> (u16, u16) {
+    fn get_cursor(&mut self) -> (u16, u16) {
         let area = self.searchterm.get_area();
         (area.x, area.y)
     }
+
+    fn get_view(&mut self) -> &mut crate::utils::misc::View {
+        &mut self.view
+    }
+
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         match self.menu {
             Menu::Main => {
@@ -221,6 +227,8 @@ impl Tab for Ankimporter {
                     MyKey::Up => {
                         self.list.previous();
                     }
+                    MyKey::KeyPress(pos) => self.list.keypress(appdata, pos),
+
                     key => {
                         self.searchterm.keyhandler(appdata, key);
                         self.list.state.select(None);

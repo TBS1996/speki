@@ -362,12 +362,9 @@ impl Tab for Browse {
     fn get_title(&self) -> String {
         "Browse".to_string()
     }
-    fn get_cursor(&self) -> (u16, u16) {
-        self.view.cursor
-    }
 
-    fn navigate(&mut self, dir: NavDir) {
-        self.view.navigate(dir);
+    fn get_view(&mut self) -> &mut View {
+        &mut self.view
     }
 
     fn set_selection(&mut self, area: Rect) {
@@ -410,9 +407,8 @@ impl Tab for Browse {
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
         appdata: &crate::app::AppData,
-        area: Rect,
+        _area: Rect,
     ) {
-        self.set_selection(area);
         let cursor = &self.view.cursor;
         self.filters.render(f, appdata, cursor);
 
@@ -444,17 +440,7 @@ impl Tab for Browse {
         use MyKey::*;
         let cursor = &self.get_cursor();
 
-        if let Some(popup) = &mut self.popup {
-            popup.keyhandler(appdata, key);
-            return;
-        }
-
-        if let Nav(dir) = key {
-            self.navigate(dir);
-            return;
-        }
         match key {
-            KeyPress(pos) => self.view.cursor = pos,
             Enter | Char(' ') if self.filtered.is_selected(cursor) => {
                 if let Some(item) = self.filtered.take_selected_item() {
                     if !self.selected_ids.contains(&item.id) {

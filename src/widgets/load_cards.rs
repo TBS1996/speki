@@ -715,12 +715,8 @@ impl Tab for Template {
         "load cards".to_string()
     }
 
-    fn navigate(&mut self, dir: crate::NavDir) {
-        self.view.navigate(dir);
-    }
-
-    fn get_cursor(&self) -> (u16, u16) {
-        self.view.cursor
+    fn get_view(&mut self) -> &mut View {
+        &mut self.view
     }
 
     fn set_selection(&mut self, area: Rect) {

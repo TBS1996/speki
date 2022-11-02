@@ -6,7 +6,7 @@ use tui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::Spans,
-    widgets::{Block, Borders, List, ListItem, ListState},
+    widgets::{Block, Borders},
     Frame,
 };
 
@@ -18,11 +18,11 @@ pub trait KeyHandler {
     }
 }
 
+use super::libextensions::{MyList, MyListState};
 use std::fmt::Display;
-
 #[derive(Clone)]
 pub struct StatefulList<T: Display + KeyHandler> {
-    pub state: ListState,
+    pub state: MyListState,
     pub items: Vec<T>,
     fixed_fields: bool,
     area: Rect,
@@ -33,7 +33,7 @@ pub struct StatefulList<T: Display + KeyHandler> {
 impl<T: Display + KeyHandler> StatefulList<T> {
     pub fn with_items(title: String, items: Vec<T>) -> StatefulList<T> {
         let mut thelist = Self {
-            state: ListState::default(),
+            state: MyListState::default(),
             items,
             fixed_fields: true,
             area: Rect::default(),
@@ -55,7 +55,7 @@ impl<T: Display + KeyHandler> StatefulList<T> {
     pub fn new(title: String) -> StatefulList<T> {
         let items = Vec::<T>::new();
         StatefulList {
-            state: ListState::default(),
+            state: MyListState::default(),
             items,
             fixed_fields: true,
             area: Rect::default(),
@@ -155,6 +155,20 @@ impl<T: Display + KeyHandler> StatefulList<T> {
             self.state.select(Some(qty - 1));
         }
     }
+    pub fn keypress(&mut self, appdata: &AppData, pos: (u16, u16)) {
+        if pos.1 == self.area.y
+            || pos.0 == self.area.x
+            || pos.0 == self.area.x + self.area.width - 1
+            || pos.1 == self.area.y + self.area.height - 1
+        {
+            return;
+        }
+        let selected_index = pos.1 - self.area.y - 1 + self.state.get_offset() as u16;
+        if selected_index < (self.items.len()) as u16 {
+            self.state.select(Some(selected_index as usize));
+            self.keyhandler(appdata, MyKey::Enter);
+        }
+    }
 }
 
 impl<T: Display + KeyHandler> Widget for StatefulList<T> {
@@ -173,6 +187,7 @@ impl<T: Display + KeyHandler> Widget for StatefulList<T> {
         }
 
         match key {
+            MyKey::KeyPress(pos) => self.keypress(appdata, pos),
             MyKey::Char('k') | MyKey::Up => self.previous(),
             MyKey::Char('j') | MyKey::Down => self.next(),
             MyKey::Char('J') if !self.fixed_fields => self.move_item_down(),
@@ -190,18 +205,18 @@ impl<T: Display + KeyHandler> Widget for StatefulList<T> {
         let area = self.get_area();
         let selected = View::isitselected(area, cursor);
         let title = &self.title;
-        let items: Vec<ListItem> = self
+        let items: Vec<MyListItem> = self
             .items
             .iter()
             .map(|item| {
                 let lines = vec![Spans::from(format!("{}", item))];
-                ListItem::new(lines).style(style)
+                MyListItem::new(lines).style(style)
             })
             .collect();
 
         let bordercolor = if selected { Color::Red } else { Color::White };
         let borderstyle = Style::default().fg(bordercolor);
-        let items = List::new(items).block(
+        let items = MyList::new(items).block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(borderstyle)
@@ -240,9 +255,9 @@ impl<T: Copy + Display + KeyHandler> StatefulList<T> {
     }
 }
 
-use crate::MyType;
-
+use super::libextensions::MyListItem;
 use super::misc::View;
+use crate::MyType;
 
 #[derive(Clone)]
 pub struct TextItem {

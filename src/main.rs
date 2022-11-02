@@ -112,6 +112,8 @@ pub enum MyKey {
     KeyPress((u16, u16)),
     ScrollUp,
     ScrollDown,
+    ScrollLeft,
+    ScrollRight,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -134,6 +136,12 @@ impl MyKey {
         if let Mouse(mouse) = event {
             match mouse.kind {
                 MouseEventKind::Down(_) => return Some(MyKey::KeyPress((mouse.column, mouse.row))),
+                MouseEventKind::ScrollUp if mouse.modifiers == event::KeyModifiers::SHIFT => {
+                    return Some(MyKey::ScrollLeft)
+                }
+                MouseEventKind::ScrollDown if mouse.modifiers == event::KeyModifiers::SHIFT => {
+                    return Some(MyKey::ScrollRight)
+                }
                 MouseEventKind::ScrollUp => return Some(MyKey::ScrollUp),
                 MouseEventKind::ScrollDown => return Some(MyKey::ScrollDown),
                 _ => {}

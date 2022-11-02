@@ -14,7 +14,6 @@ use crate::utils::statelist::StatefulList;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::topics::TopicList;
 use tui::layout::Rect;
-use tui::widgets::Clear;
 use tui::Frame;
 
 use crate::utils::incread::IncListItem;
@@ -53,9 +52,13 @@ impl Tab for WikiSelect {
         "Wikipedia selection".to_string()
     }
 
+    fn get_view(&mut self) -> &mut View {
+        todo!()
+    }
+
     fn navigate(&mut self, _dir: crate::NavDir) {}
 
-    fn get_cursor(&self) -> (u16, u16) {
+    fn get_cursor(&mut self) -> (u16, u16) {
         (0, 0)
     }
 
@@ -79,16 +82,9 @@ impl Tab for WikiSelect {
 
     fn set_selection(&mut self, _area: Rect) {}
 
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, mut area: Rect) {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         let cursor = &self.get_cursor();
-        if area.height > 10 && area.width > 10 {
-            area = crate::utils::misc::centered_rect(80, 70, area);
-            f.render_widget(Clear, area); //this clears out the background
-            area.x += 2;
-            area.y += 2;
-            area.height -= 4;
-            area.width -= 4;
-        }
+
         let chunks = split_updown_by_percent([50, 50], area);
         let (mut msg, mut search) = (chunks[0], chunks[1]);
         msg.y = search.y - 5;
@@ -107,7 +103,6 @@ pub struct MainInc {
     pub topics: TopicList,
     pub popup: Option<Box<dyn PopUp>>,
     view: View,
-    area: Rect,
 }
 
 use crate::utils::sql::fetch::load_extracts;
@@ -132,7 +127,6 @@ impl MainInc {
             topics,
             popup,
             view,
-            area: Rect::default(),
         }
     }
 
@@ -178,12 +172,16 @@ impl MainInc {
 }
 
 impl Tab for MainInc {
-    fn get_cursor(&self) -> (u16, u16) {
-        self.view.cursor
+    fn get_view(&mut self) -> &mut View {
+        &mut self.view
     }
 
-    fn navigate(&mut self, dir: crate::NavDir) {
-        self.view.navigate(dir);
+    fn get_popup(&mut self) -> Option<&mut Box<dyn PopUp>> {
+        if let Some(popup) = &mut self.popup {
+            Some(popup)
+        } else {
+            None
+        }
     }
 
     fn set_selection(&mut self, area: Rect) {
@@ -233,26 +231,14 @@ make cloze (visual mode): Alt+z
         .to_string()
     }
 
+    fn exit_popup(&mut self, appdata: &AppData) {
+        self.popup = None;
+        self.reload_inc_list(&appdata.conn);
+    }
+
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use crate::MyKey::*;
         let cursor = &self.get_cursor();
-
-        if let Some(popup) = &mut self.popup {
-            popup.keyhandler(appdata, key);
-            if popup.should_quit() {
-                self.popup = None;
-                self.reload_inc_list(&appdata.conn);
-            }
-            return;
-        }
-
-        if let MyKey::Nav(dir) = key {
-            self.view.navigate(dir);
-            return;
-        } else if let MyKey::Alt('a') = &key {
-            self.create_source(&appdata.conn, "".to_string());
-            return;
-        }
 
         let incfocus = {
             if let Some(inc) = &mut self.focused {
@@ -263,7 +249,7 @@ make cloze (visual mode): Alt+z
         };
 
         match key {
-            KeyPress(pos) if self.popup.is_none() => self.view.cursor = pos,
+            MyKey::Alt('a') => self.create_source(&appdata.conn, "".to_string()),
             Enter if self.extracts.is_selected(cursor) => self.focus_extracts(&appdata.conn),
             Enter if self.inclist.is_selected(cursor) => self.focus_list(&appdata.conn),
             Alt('w') => {
@@ -290,20 +276,14 @@ make cloze (visual mode): Alt+z
         }
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
-        self.set_selection(area);
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, _area: Rect) {
         let cursor = &self.get_cursor();
 
         if let Some(inc) = &mut self.focused {
             inc.source.render(f, appdata, cursor);
         }
-
         self.topics.render(f, appdata, cursor);
         self.inclist.render(f, appdata, cursor);
         self.extracts.render(f, appdata, cursor);
-
-        if let Some(popup) = &mut self.popup {
-            popup.render(f, appdata, area);
-        }
     }
 }

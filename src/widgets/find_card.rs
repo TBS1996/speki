@@ -1,4 +1,5 @@
 use crate::app::{AppData, PopUp, Tab, Widget};
+use crate::utils::misc::View;
 use crate::utils::sql::fetch::CardQuery;
 use crate::utils::statelist::{KeyHandler, StatefulList};
 use crate::utils::{aliases::*, card::Card, sql::insert::update_both};
@@ -20,6 +21,7 @@ pub struct FindCardWidget {
     pub purpose: CardPurpose,
     pub should_quit: bool,
     area: Rect,
+    view: View,
 }
 
 #[derive(Clone, PartialEq)]
@@ -63,6 +65,7 @@ impl FindCardWidget {
             purpose,
             should_quit,
             area: Rect::default(),
+            view: View::default(),
         }
     }
 
@@ -112,6 +115,10 @@ impl Tab for FindCardWidget {
         "Find card".to_string()
     }
 
+    fn get_view(&mut self) -> &mut crate::utils::misc::View {
+        &mut self.view
+    }
+
     fn navigate(&mut self, _dir: crate::NavDir) {}
 
     fn set_selection(&mut self, area: Rect) {
@@ -133,7 +140,7 @@ impl Tab for FindCardWidget {
         self.list.set_area(matchlist);
     }
 
-    fn get_cursor(&self) -> (u16, u16) {
+    fn get_cursor(&mut self) -> (u16, u16) {
         let area = self.searchterm.get_area();
         (area.x, area.y)
     }

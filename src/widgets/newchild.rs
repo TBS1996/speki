@@ -11,7 +11,7 @@ use tui::{
 
 use crate::utils::sql::fetch::get_topic_of_inc;
 use crate::MyKey;
-use crate::{MyType, NavDir};
+use crate::MyType;
 
 use std::sync::{Arc, Mutex};
 
@@ -111,7 +111,7 @@ impl Tab for AddChildWidget {
             .direction(Vertical)
             .constraints(
                 [
-                    Constraint::Ratio(2, 10),
+                    Constraint::Length(3),
                     Constraint::Ratio(4, 10),
                     Constraint::Ratio(4, 10),
                 ]
@@ -140,12 +140,9 @@ impl Tab for AddChildWidget {
         self.cardview.question.render(f, appdata, &cursor);
         self.cardview.answer.render(f, appdata, &cursor);
     }
-    fn get_cursor(&self) -> (u16, u16) {
-        self.view.cursor
-    }
 
-    fn navigate(&mut self, dir: NavDir) {
-        self.view.navigate(dir);
+    fn get_view(&mut self) -> &mut View {
+        &mut self.view
     }
 
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {

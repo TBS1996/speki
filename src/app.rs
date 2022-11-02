@@ -114,7 +114,7 @@ impl TabsState {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         match key {
             MyKey::Nav(dir) => self.tabs[self.index].navigate(dir),
-            key => self.tabs[self.index].keyhandler(appdata, key),
+            key => self.tabs[self.index].main_keyhandler(appdata, key),
         }
     }
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
@@ -261,7 +261,7 @@ pub trait PopUp: Tab {
             area.height -= 4;
             area.width -= 4;
         }
-        self.render(f, appdata, area);
+        self.main_render(f, appdata, area);
     }
 }
 
@@ -278,16 +278,41 @@ pub trait Widget {
 
 pub trait Tab {
     fn get_title(&self) -> String;
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect);
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey);
     fn get_manual(&self) -> String {
         String::new()
     }
     fn set_selection(&mut self, area: Rect);
-    fn get_cursor(&self) -> (u16, u16);
-    fn navigate(&mut self, dir: NavDir);
+
+    fn get_cursor(&mut self) -> (u16, u16) {
+        self.get_view().clone().cursor
+    }
+    fn navigate(&mut self, dir: NavDir) {
+        if let Some(popup) = self.get_popup() {
+            popup.navigate(dir);
+        } else {
+            self.get_view().navigate(dir);
+        }
+    }
+
+    fn get_view(&mut self) -> &mut View;
+
+    fn main_keyhandler(&mut self, appdata: &AppData, key: MyKey) {
+        if let Some(popup) = self.get_popup() {
+            popup.main_keyhandler(appdata, key);
+            return;
+        }
+        if let MyKey::KeyPress(pos) = key.clone() {
+            self.get_view().cursor = pos;
+        }
+        match key {
+            MyKey::Nav(dir) => self.navigate(dir),
+            key => self.keyhandler(appdata, key),
+        }
+    }
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey);
 
     fn main_render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+        self.set_selection(area);
         self.render(f, appdata, area);
         if let Some(popup) = self.get_popup() {
             if popup.should_quit() {
@@ -297,6 +322,9 @@ pub trait Tab {
             popup.render_popup(f, appdata, area);
         }
     }
+
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect);
+
     fn get_popup(&mut self) -> Option<&mut Box<dyn PopUp>> {
         None
     }

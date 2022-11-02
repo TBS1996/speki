@@ -365,16 +365,11 @@ impl Tab for MainReview {
             ReviewMode::Done => {}
         }
     }
-    fn get_cursor(&self) -> (u16, u16) {
-        self.view.cursor
+
+    fn get_view(&mut self) -> &mut View {
+        &mut self.view
     }
-    fn navigate(&mut self, dir: crate::NavDir) {
-        if let Some(popup) = &mut self.popup {
-            popup.navigate(dir);
-        } else {
-            self.view.navigate(dir);
-        }
-    }
+
     fn get_title(&self) -> String {
         "Review".to_string()
     }
@@ -390,7 +385,6 @@ impl Tab for MainReview {
     }
 
     fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, area: Rect) {
-        self.set_selection(area);
         let cursor = &self.get_cursor();
 
         self.status
@@ -422,10 +416,6 @@ impl Tab for MainReview {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         let cursor = &self.get_cursor();
         use MyKey::*;
-        if let Some(popup) = &mut self.popup {
-            popup.keyhandler(appdata, key);
-            return;
-        }
 
         match &mut self.mode {
             ReviewMode::Done => self.mode_done(appdata, key),
@@ -486,7 +476,6 @@ impl Tab for MainReview {
                 _ => {}
             },
             ReviewMode::Pending(rev) | ReviewMode::Review(rev) => match key {
-                KeyPress(pos) => self.view.cursor = pos,
                 Alt('s') => {
                     rev.cardview.save_state(&appdata.conn);
                     self.random_mode(appdata);
@@ -564,7 +553,6 @@ impl Tab for MainReview {
                 _ => {}
             },
             ReviewMode::IncRead(inc) => match key {
-                KeyPress(pos) => self.view.cursor = pos,
                 Alt('d') => {
                     inc.source.update_text(&appdata.conn);
                     let id = inc.source.id;

@@ -95,6 +95,10 @@ Add card as unfinished: Alt+u
         .to_string()
     }
 
+    fn get_view(&mut self) -> &mut View {
+        &mut self.view
+    }
+
     fn set_selection(&mut self, area: Rect) {
         self.view.areas.clear();
         let chunks = split_leftright_by_percent([75, 15], area);
@@ -118,12 +122,7 @@ Add card as unfinished: Alt+u
         use MyKey::*;
         let cursor = &self.get_cursor();
 
-        if let KeyPress(pos) = key {
-            self.view.cursor = pos;
-        }
-
         match key {
-            Nav(dir) => self.navigate(dir),
             Alt('f') => self.submit_card(&appdata.conn, true),
             Alt('u') => self.submit_card(&appdata.conn, false),
             Alt('g') => {
@@ -138,20 +137,12 @@ Add card as unfinished: Alt+u
             _ => {}
         }
     }
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
-        self.set_selection(area);
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, _area: Rect) {
         let cursor = &self.get_cursor();
 
         self.topics.render(f, appdata, cursor);
         self.prompt.render(f, appdata, cursor);
         self.question.render(f, appdata, cursor);
         self.answer.render(f, appdata, cursor);
-    }
-
-    fn navigate(&mut self, dir: crate::NavDir) {
-        self.view.navigate(dir);
-    }
-    fn get_cursor(&self) -> (u16, u16) {
-        self.view.cursor
     }
 }

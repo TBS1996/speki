@@ -1,14 +1,6 @@
 use crate::utils::statelist::KeyHandler;
 use crate::utils::statelist::StatefulList;
 use std::path::PathBuf;
-use tui::widgets::List;
-use tui::widgets::ListItem;
-
-use tui::{
-    style::{Color, Modifier, Style},
-    text::Span,
-    widgets::{Block, Borders},
-};
 
 enum ChosenFile {
     TextFile(PathBuf),
@@ -170,7 +162,9 @@ impl FilePicker {
         }
     }
 
-    pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
+    pub fn render(&mut self, _f: &mut tui::Frame<MyType>, _area: tui::layout::Rect) {
+        //self.contents.render(f, appdata, cursor);
+        /*
         let mylist = {
             let items: Vec<ListItem> = self
                 .contents
@@ -192,6 +186,7 @@ impl FilePicker {
             items
         };
         f.render_stateful_widget(mylist, area, &mut self.contents.state);
+        */
     }
 }
 use crate::MyType;

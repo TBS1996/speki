@@ -28,7 +28,7 @@ GLOSSARY:
     fn current_... : gets the item that the cursor is positioned at
     fn get_...: gets the item that is specified in an argument to the function
 
-
+TODO: update names like this ^
 
 
    */
@@ -278,6 +278,40 @@ impl Field {
             if chr.is_ascii_whitespace() && col > self.cursor.column && found_nonwhite {
                 self.cursor.column = col - 1;
                 return;
+            }
+        }
+    }
+
+    fn keypress(&mut self, pos: (u16, u16)) {
+        if pos.1 <= self.area.y || pos.0 == self.area.x || pos.1 > self.area.y + self.area.height {
+            return;
+        }
+        let line = self.current_abs_visual_line() - self.scroll as usize;
+        let yclicked = (pos.1 - self.area.y - 1) as usize;
+        if line > yclicked {
+            for _ in 0..(line - yclicked) {
+                self.visual_up();
+            }
+        } else {
+            for _ in 0..(yclicked - line) {
+                self.visual_down();
+            }
+        }
+        let col = self.current_visual_col();
+        let xclicked = (pos.0 - self.area.x - 1) as usize;
+
+        let rightlen = self.current_rowlen() - self.cursor.column;
+
+        if xclicked > col {
+            let diff = xclicked - col;
+            let iters = std::cmp::min(diff, rightlen);
+            for _ in 0..iters {
+                self.next();
+            }
+        } else {
+            let diff = col - xclicked;
+            for _ in 0..diff {
+                self.prev();
             }
         }
     }
@@ -793,6 +827,15 @@ impl Widget for Field {
     }
 
     fn keyhandler(&mut self, _appdata: &AppData, key: MyKey) {
+        match key.clone() {
+            MyKey::ScrollUp => self.visual_up(),
+            MyKey::ScrollDown => self.visual_down(),
+            MyKey::ScrollLeft => self.prev(),
+            MyKey::ScrollRight => self.next(),
+            MyKey::KeyPress(pos) => self.keypress(pos),
+            _ => {}
+        }
+
         match self.mode {
             Mode::Normal => self.normal_keyhandler(key),
             Mode::Insert => self.insert_keyhandler(key),

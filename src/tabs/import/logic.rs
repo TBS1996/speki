@@ -1,4 +1,5 @@
 use crate::app::{AppData, Tab, Widget};
+use crate::utils::misc::View;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::topics::TopicList;
 use crate::MyKey;
@@ -161,6 +162,7 @@ pub struct Importer {
     selection: Selection,
     menu: Menu,
     area: Rect,
+    view: View,
 }
 
 impl Importer {
@@ -175,6 +177,7 @@ impl Importer {
             selection,
             menu,
             area: Rect::default(),
+            view: View::default(),
         }
     }
 
@@ -203,7 +206,10 @@ impl Importer {
 
 impl Tab for Importer {
     fn set_selection(&mut self, _area: Rect) {}
-    fn get_cursor(&self) -> (u16, u16) {
+    fn get_view(&mut self) -> &mut crate::utils::misc::View {
+        &mut self.view
+    }
+    fn get_cursor(&mut self) -> (u16, u16) {
         (0, 0)
     }
     fn navigate(&mut self, dir: NavDir) {

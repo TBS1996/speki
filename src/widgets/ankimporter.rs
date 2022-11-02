@@ -72,7 +72,8 @@ impl fmt::Display for Deck {
 use crate::app::{AppData, Tab, Widget};
 impl Ankimporter {
     pub fn new() -> Self {
-        let list = StatefulList::<Deck>::new("".to_string());
+        let mut list = StatefulList::<Deck>::new("".to_string());
+        list.persistent_highlight = true;
         let searchterm = Field::default();
         let description = Field::default();
         let menu = Menu::Main;
@@ -188,7 +189,8 @@ impl Tab for Ankimporter {
     }
     fn navigate(&mut self, _dir: crate::NavDir) {}
     fn get_cursor(&self) -> (u16, u16) {
-        (0, 0)
+        let area = self.searchterm.get_area();
+        (area.x, area.y)
     }
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         match self.menu {
@@ -297,13 +299,11 @@ impl Tab for Ankimporter {
 
         if let Some(idx) = self.list.state.selected() {
             let id = self.list.items[idx].id;
-            let mut newfield = Field::default();
-            let text = match self.descmap.get(&id) {
+            self.description.replace_text(match self.descmap.get(&id) {
                 Some(desc) => desc.clone(),
                 None => "Enter to load description ".to_string(),
-            };
-            newfield.replace_text(text);
-            newfield.render(f, appdata, cursor);
+            });
+            self.description.render(f, appdata, cursor);
         }
     }
 }

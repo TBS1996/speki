@@ -206,7 +206,11 @@ impl Tab for Importer {
     fn get_cursor(&self) -> (u16, u16) {
         (0, 0)
     }
-    fn navigate(&mut self, _dir: NavDir) {}
+    fn navigate(&mut self, dir: NavDir) {
+        if let Menu::LoadCards(tmp) = &mut self.menu {
+            tmp.navigate(dir);
+        }
+    }
     fn get_title(&self) -> String {
         "Import cards".to_string()
     }

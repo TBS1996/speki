@@ -64,6 +64,11 @@ impl<T: Display + KeyHandler> StatefulList<T> {
         }
     }
 
+    pub fn replace_items(&mut self, items: Vec<T>) {
+        self.items = items;
+        self.state.select(None);
+    }
+
     pub fn move_item_up(&mut self) {
         if let Some(idx) = self.state.selected() {
             if idx != 0 {

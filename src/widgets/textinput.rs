@@ -754,7 +754,7 @@ impl Widget for Field {
         let bordercolor = if selected { Color::Red } else { Color::White };
         let style = Style::default().fg(bordercolor);
         self.align_to_cursor();
-        if true {
+        if area.width > 2 && area.height > 2 {
             self.set_dimensions(area);
             self.align_to_cursor();
         }

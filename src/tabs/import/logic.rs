@@ -1,5 +1,4 @@
 use crate::app::{AppData, Tab, Widget};
-use crate::widgets::button::draw_button;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::topics::TopicList;
 use crate::MyKey;
@@ -12,6 +11,7 @@ use crate::MyType;
 use reqwest;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
+use tui::layout::Rect;
 use tui::{
     layout::{Constraint, Direction::Vertical, Layout},
     style::Color,
@@ -25,17 +25,6 @@ use std::io::prelude::*;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::thread;
-
-/*
-#[tokio::main]
-pub async fn foobar(
-    url: String,
-    transmitter: std::sync::mpsc::SyncSender<(u64, u64)>,
-    paths: SpekiPaths,
-) {
-    download_deck(url, transmitter, paths).await;
-}
-*/
 
 use futures_util::StreamExt;
 #[tokio::main]
@@ -171,6 +160,7 @@ pub struct Importer {
     topics: TopicList,
     selection: Selection,
     menu: Menu,
+    area: Rect,
 }
 
 impl Importer {
@@ -184,23 +174,12 @@ impl Importer {
             topics,
             selection,
             menu,
+            area: Rect::default(),
         }
     }
 
-    fn render_main(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
-        let buttons = split_updown_by_percent([50, 50], area);
-        draw_button(
-            f,
-            buttons[0],
-            "Local file",
-            self.selection == Selection::Local,
-        );
-        draw_button(
-            f,
-            buttons[1],
-            "Anki decks",
-            self.selection == Selection::Anki,
-        );
+    fn render_main(&mut self, _f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
+        let _buttons = split_updown_by_percent([50, 50], area);
     }
 
     fn main_keyhandler(&mut self, _conn: &Arc<Mutex<Connection>>, key: MyKey) {
@@ -223,6 +202,11 @@ impl Importer {
 }
 
 impl Tab for Importer {
+    fn set_selection(&mut self, _area: Rect) {}
+    fn get_cursor(&self) -> (u16, u16) {
+        (0, 0)
+    }
+    fn navigate(&mut self, _dir: NavDir) {}
     fn get_title(&self) -> String {
         "Import cards".to_string()
     }
@@ -239,14 +223,12 @@ If you don't want to import the selected deck, press escape!
 
         "#.to_string()
     }
-}
 
-impl Widget for Importer {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         match &mut self.menu {
             Menu::Main => self.main_keyhandler(&appdata.conn, key),
             Menu::Anki(ankimporter) => match &ankimporter.should_quit {
-                ShouldQuit::No => ankimporter.keyhandler(key, &appdata.conn, &appdata.paths),
+                ShouldQuit::No => ankimporter.keyhandler(appdata, key),
                 ShouldQuit::Yeah => {
                     self.menu = Menu::Anki(Ankimporter::new());
                 }
@@ -273,7 +255,7 @@ impl Widget for Importer {
             }
             Menu::LoadCards(tmpl) => match tmpl.state {
                 LoadState::OnGoing => {
-                    tmpl.keyhandler(&appdata.conn, key, &appdata.audio);
+                    tmpl.keyhandler(appdata, key);
                     if let LoadState::Importing = tmpl.state {
                         let mut tmpclone = tmpl.clone();
                         let (tx, rx): (mpsc::SyncSender<ImportProgress>, Receiver<ImportProgress>) =
@@ -301,7 +283,7 @@ impl Widget for Importer {
             }
             Menu::Anki(ankimporter) => {
                 match &ankimporter.should_quit {
-                    ShouldQuit::No => ankimporter.render(&appdata.conn, f, area),
+                    ShouldQuit::No => ankimporter.render(f, appdata, area),
                     ShouldQuit::Yeah => self.render_main(f, area),
                     ShouldQuit::Takethis(deckname) => {
                         let (tx, rx): (mpsc::Sender<UnzipStatus>, Receiver<UnzipStatus>) =
@@ -336,7 +318,7 @@ impl Widget for Importer {
             }
 
             Menu::LoadCards(tmpl) => {
-                tmpl.render(f, area);
+                tmpl.render(f, appdata, area);
                 if let LoadState::Finished = tmpl.state {
                     let aim = Ankimporter::new();
                     self.menu = Menu::Anki(aim);
@@ -358,14 +340,14 @@ impl Widget for Importer {
                     let mut progbar = rightcol[0];
 
                     progbar.height = std::cmp::min(progbar.height, 5);
-                    crate::widgets::progress_bar::progress_bar(
-                        f,
+                    let mut progbar = crate::widgets::progress_bar::ProgressBar::new_full(
                         prog.curr_index as u32,
                         prog.total as u32,
                         Color::LightMagenta,
                         progbar,
-                        "Importing cards..",
+                        "Importing cards..".to_string(),
                     );
+                    progbar.render(f, appdata, &(0, 0));
 
                     if prog.curr_index == prog.total - 1 {
                         self.menu = Menu::Anki(Ankimporter::new());

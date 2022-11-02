@@ -14,7 +14,6 @@ use crate::utils::statelist::StatefulList;
 use crate::widgets::message_box::draw_message;
 use crate::widgets::topics::TopicList;
 use tui::layout::Rect;
-use tui::style::Style;
 use tui::widgets::Clear;
 use tui::Frame;
 
@@ -28,6 +27,7 @@ pub struct WikiSelect {
     prompt: String,
     topic: TopicID,
     should_quit: bool,
+    area: Rect,
 }
 
 impl WikiSelect {
@@ -37,6 +37,7 @@ impl WikiSelect {
             prompt: "Search for a wikipedia page".to_string(),
             topic: id,
             should_quit: false,
+            area: Rect::default(),
         }
     }
 }
@@ -47,7 +48,17 @@ impl PopUp for WikiSelect {
     }
 }
 
-impl Widget for WikiSelect {
+impl Tab for WikiSelect {
+    fn get_title(&self) -> String {
+        "Wikipedia selection".to_string()
+    }
+
+    fn navigate(&mut self, _dir: crate::NavDir) {}
+
+    fn get_cursor(&self) -> (u16, u16) {
+        (0, 0)
+    }
+
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         match key {
             MyKey::Esc => self.should_quit = true,
@@ -62,11 +73,14 @@ impl Widget for WikiSelect {
                     self.prompt = "Invalid search result".to_string();
                 }
             }
-            key => self.searchbar.keyhandler(key),
+            key => self.searchbar.keyhandler(appdata, key),
         }
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, mut area: Rect) {
+    fn set_selection(&mut self, _area: Rect) {}
+
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, mut area: Rect) {
+        let cursor = &self.get_cursor();
         if area.height > 10 && area.width > 10 {
             area = crate::utils::misc::centered_rect(80, 70, area);
             f.render_widget(Clear, area); //this clears out the background
@@ -80,8 +94,9 @@ impl Widget for WikiSelect {
         msg.y = search.y - 5;
         msg.height = 5;
         search.height = 3;
+        self.searchbar.set_area(chunks[1]);
         draw_message(f, msg, &self.prompt);
-        self.searchbar.render(f, search, false);
+        self.searchbar.render(f, appdata, cursor);
     }
 }
 
@@ -92,6 +107,7 @@ pub struct MainInc {
     pub topics: TopicList,
     pub popup: Option<Box<dyn PopUp>>,
     view: View,
+    area: Rect,
 }
 
 use crate::utils::sql::fetch::load_extracts;
@@ -102,8 +118,8 @@ use rusqlite::Connection;
 impl MainInc {
     pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
         let items = load_inc_items(conn, 1).unwrap();
-        let inclist = StatefulList::with_items(items);
-        let extracts = StatefulList::<IncListItem>::new();
+        let inclist = StatefulList::with_items("Sources".to_string(), items);
+        let extracts = StatefulList::<IncListItem>::new("Extracts".to_string());
         let topics = TopicList::new(conn);
         let focused: Option<IncRead> = None;
         let popup = None;
@@ -116,6 +132,7 @@ impl MainInc {
             topics,
             popup,
             view,
+            area: Rect::default(),
         }
     }
 
@@ -147,7 +164,7 @@ impl MainInc {
 
     pub fn reload_inc_list(&mut self, conn: &Arc<Mutex<Connection>>) {
         let items = load_inc_items(conn, self.topics.get_selected_id().unwrap()).unwrap();
-        self.inclist = StatefulList::with_items(items);
+        self.inclist = StatefulList::with_items("Sources".to_string(), items);
     }
 
     pub fn reload_extracts(&mut self, conn: &Arc<Mutex<Connection>>, id: IncID) {
@@ -157,6 +174,16 @@ impl MainInc {
         let topic: TopicID = self.topics.get_selected_id().unwrap();
         new_incread(conn, 0, topic, text, true).unwrap();
         self.reload_inc_list(conn);
+    }
+}
+
+impl Tab for MainInc {
+    fn get_cursor(&self) -> (u16, u16) {
+        self.view.cursor
+    }
+
+    fn navigate(&mut self, dir: crate::NavDir) {
+        self.view.navigate(dir);
     }
 
     fn set_selection(&mut self, area: Rect) {
@@ -169,14 +196,19 @@ impl MainInc {
             inc.source.set_dimensions(left);
         }
 
-        self.view.areas.insert("focused", left);
-        self.view.areas.insert("topics", topright);
-        self.view.areas.insert("inclist", middleright);
-        self.view.areas.insert("extracts", bottomright);
-    }
-}
+        self.view.areas.clear();
+        self.view.areas.push(left);
+        self.view.areas.push(topright);
+        self.view.areas.push(middleright);
+        self.view.areas.push(bottomright);
 
-impl Tab for MainInc {
+        if let Some(inc) = &mut self.focused {
+            inc.source.set_area(left);
+        }
+        self.topics.set_area(topright);
+        self.extracts.set_area(bottomright);
+        self.inclist.set_area(middleright);
+    }
     fn get_title(&self) -> String {
         "Incremental reading".to_string()
     }
@@ -200,11 +232,10 @@ make cloze (visual mode): Alt+z
         "#
         .to_string()
     }
-}
 
-impl Widget for MainInc {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use crate::MyKey::*;
+        let cursor = &self.get_cursor();
 
         if let Some(popup) = &mut self.popup {
             popup.keyhandler(appdata, key);
@@ -223,25 +254,33 @@ impl Widget for MainInc {
             return;
         }
 
+        let incfocus = {
+            if let Some(inc) = &mut self.focused {
+                inc.source.is_selected(cursor)
+            } else {
+                false
+            }
+        };
+
         match key {
             KeyPress(pos) if self.popup.is_none() => self.view.cursor = pos,
-            Enter if self.view.name_selected("extracts") => self.focus_extracts(&appdata.conn),
-            Enter if self.view.name_selected("inclist") => self.focus_list(&appdata.conn),
+            Enter if self.extracts.is_selected(cursor) => self.focus_extracts(&appdata.conn),
+            Enter if self.inclist.is_selected(cursor) => self.focus_list(&appdata.conn),
             Alt('w') => {
                 let topic: TopicID = self.topics.get_selected_id().unwrap();
                 let wiki = WikiSelect::new(topic);
                 self.popup = Some(Box::new(wiki));
             }
-            key if self.view.name_selected("extracts") => self.extracts.keyhandler(key),
-            key if self.view.name_selected("inclist") => self.inclist.keyhandler(key),
-            key if self.view.name_selected("topics") => {
-                self.topics.keyhandler(key, &appdata.conn);
+            key if self.extracts.is_selected(cursor) => self.extracts.keyhandler(appdata, key),
+            key if self.inclist.is_selected(cursor) => self.inclist.keyhandler(appdata, key),
+            key if self.topics.is_selected(cursor) => {
+                self.topics.keyhandler(appdata, key);
                 self.reload_inc_list(&appdata.conn);
             }
-            key if self.view.name_selected("focused") => {
+            key if incfocus => {
                 if let Some(focused) = &mut self.focused {
                     let incid = focused.id;
-                    focused.keyhandler(&appdata.conn, key.clone());
+                    focused.keyhandler(appdata, key.clone());
                     if let MyKey::Alt('x') = &key {
                         self.reload_extracts(&appdata.conn, incid)
                     }
@@ -253,39 +292,15 @@ impl Widget for MainInc {
 
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         self.set_selection(area);
+        let cursor = &self.get_cursor();
 
-        match &mut self.focused {
-            Some(incread) => incread.source.render(
-                f,
-                self.view.get_area("focused"),
-                self.view.name_selected("focused"),
-            ),
-            None => draw_message(f, self.view.get_area("focused"), "No text selected"),
-        };
+        if let Some(inc) = &mut self.focused {
+            inc.source.render(f, appdata, cursor);
+        }
 
-        self.topics.render(
-            f,
-            self.view.get_area("topics"),
-            self.view.name_selected("topics"),
-            "Topics",
-            Style::default(),
-        );
-
-        self.inclist.render(
-            f,
-            self.view.get_area("inclist"),
-            self.view.name_selected("inclist"),
-            "Sources",
-            Style::default(),
-        );
-
-        self.extracts.render(
-            f,
-            self.view.get_area("extracts"),
-            self.view.name_selected("extracts"),
-            "Extracts",
-            Style::default(),
-        );
+        self.topics.render(f, appdata, cursor);
+        self.inclist.render(f, appdata, cursor);
+        self.extracts.render(f, appdata, cursor);
 
         if let Some(popup) = &mut self.popup {
             popup.render(f, appdata, area);

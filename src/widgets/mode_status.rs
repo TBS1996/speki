@@ -1,3 +1,4 @@
+use crate::app::Widget;
 use crate::tabs::review::logic::{ForReview, StartQty};
 use tui::layout::Alignment;
 use tui::style::Modifier;
@@ -17,79 +18,104 @@ use tui::{
 use crate::tabs::review::logic::ReviewMode;
 use tui::text::Spans;
 
-pub fn mode_status<B>(
-    f: &mut Frame<B>,
+#[derive(Default)]
+pub struct ModeStatus {
     area: Rect,
-    mode: &ReviewMode,
-    current: &ForReview,
-    target: &StartQty,
-) where
-    B: Backend,
-{
-    let mut text = Vec::<Spans>::new();
+}
 
-    let finished = format!(
-        "Finished: {}/{}",
-        target.fin_qty - current.review_cards.len() as u16,
-        target.fin_qty,
-    );
-    let unfinished = format!(
-        "Unfinished: {}/{}",
-        target.unf_qty - current.unfinished_cards.len() as u16,
-        target.unf_qty,
-    );
-    let pending = format!(
-        "Pending: {}/{}",
-        target.pending_qty - current.pending_cards.len() as u16,
-        target.pending_qty,
-    );
-    let incread = format!(
-        "Inc read: {}/{}",
-        target.inc_qty - current.active_increads.len() as u16,
-        target.inc_qty,
-    );
+impl ModeStatus {
+    pub fn render_it<B>(
+        &self,
+        f: &mut Frame<B>,
+        mode: &ReviewMode,
+        current: &ForReview,
+        target: &StartQty,
+    ) where
+        B: Backend,
+    {
+        let mut text = Vec::<Spans>::new();
+        let area = self.get_area();
 
-    let bordercolor = Color::White;
-    let style = Style::default().fg(bordercolor);
+        let finished = format!(
+            "Finished: {}/{}",
+            target.fin_qty - current.review_cards.len() as u16,
+            target.fin_qty,
+        );
+        let unfinished = format!(
+            "Unfinished: {}/{}",
+            target.unf_qty - current.unfinished_cards.len() as u16,
+            target.unf_qty,
+        );
+        let pending = format!(
+            "Pending: {}/{}",
+            target.pending_qty - current.pending_cards.len() as u16,
+            target.pending_qty,
+        );
+        let incread = format!(
+            "Inc read: {}/{}",
+            target.inc_qty - current.active_increads.len() as u16,
+            target.inc_qty,
+        );
 
-    let mut modifiers = [Modifier::empty(); 4];
-    match mode {
-        ReviewMode::Review(_) => modifiers[0] = Modifier::REVERSED,
-        ReviewMode::Unfinished(_) => modifiers[1] = Modifier::REVERSED,
-        ReviewMode::Pending(_) => modifiers[2] = Modifier::REVERSED,
-        ReviewMode::IncRead(_) => modifiers[3] = Modifier::REVERSED,
-        ReviewMode::Done => {}
-    };
+        let bordercolor = Color::White;
+        let style = Style::default().fg(bordercolor);
 
-    text.push(Spans::from(vec![
-        Span::styled(
-            finished,
-            Style::default().fg(Color::Red).add_modifier(modifiers[0]),
-        ),
-        Span::from("  "),
-        Span::styled(
-            unfinished,
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(modifiers[1]),
-        ),
-        Span::from("  "),
-        Span::styled(
-            pending,
-            Style::default().fg(Color::Cyan).add_modifier(modifiers[2]),
-        ),
-        Span::from("  "),
-        Span::styled(
-            incread,
-            Style::default().fg(Color::Green).add_modifier(modifiers[3]),
-        ),
-    ]));
+        let mut modifiers = [Modifier::empty(); 4];
+        match mode {
+            ReviewMode::Review(_) => modifiers[0] = Modifier::REVERSED,
+            ReviewMode::Unfinished(_) => modifiers[1] = Modifier::REVERSED,
+            ReviewMode::Pending(_) => modifiers[2] = Modifier::REVERSED,
+            ReviewMode::IncRead(_) => modifiers[3] = Modifier::REVERSED,
+            ReviewMode::Done => {}
+        };
 
-    let block = Block::default().borders(Borders::NONE).border_style(style);
-    let paragraph = Paragraph::new(text)
-        .block(block)
-        .alignment(Alignment::Left)
-        .wrap(Wrap { trim: true });
+        text.push(Spans::from(vec![
+            Span::styled(
+                finished,
+                Style::default().fg(Color::Red).add_modifier(modifiers[0]),
+            ),
+            Span::from("  "),
+            Span::styled(
+                unfinished,
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(modifiers[1]),
+            ),
+            Span::from("  "),
+            Span::styled(
+                pending,
+                Style::default().fg(Color::Cyan).add_modifier(modifiers[2]),
+            ),
+            Span::from("  "),
+            Span::styled(
+                incread,
+                Style::default().fg(Color::Green).add_modifier(modifiers[3]),
+            ),
+        ]));
 
-    f.render_widget(paragraph, area);
+        let block = Block::default().borders(Borders::NONE).border_style(style);
+        let paragraph = Paragraph::new(text)
+            .block(block)
+            .alignment(Alignment::Left)
+            .wrap(Wrap { trim: true });
+
+        f.render_widget(paragraph, area);
+    }
+}
+
+impl Widget for ModeStatus {
+    fn render(
+        &mut self,
+        _f: &mut Frame<crate::MyType>,
+        _appdata: &crate::app::AppData,
+        _cursor: &(u16, u16),
+    ) {
+    }
+    fn keyhandler(&mut self, _appdata: &crate::app::AppData, _key: crate::MyKey) {}
+    fn set_area(&mut self, area: Rect) {
+        self.area = area;
+    }
+    fn get_area(&self) -> Rect {
+        self.area
+    }
 }

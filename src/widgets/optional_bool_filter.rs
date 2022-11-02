@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
+    app::AppData,
     utils::statelist::{KeyHandler, StatefulList},
     MyKey,
 };
@@ -28,7 +29,7 @@ pub struct OptItem {
 }
 
 impl KeyHandler for OptItem {
-    fn keyhandler(&mut self, key: MyKey) -> bool{
+    fn keyhandler(&mut self, _appdata: &AppData, key: MyKey) -> bool {
         match key {
             MyKey::Right | MyKey::Char('l') => self.right(),
             MyKey::Left | MyKey::Char('h') => self.left(),
@@ -62,7 +63,6 @@ impl OptItem {
 }
 
 pub struct OptCheckBox {
-    pub title: String,
     pub items: StatefulList<OptItem>,
 }
 
@@ -73,7 +73,7 @@ impl OptCheckBox {
         for x in strvec {
             itemvec.push(OptItem::new(x.to_string()));
         }
-        let items = StatefulList::with_items(itemvec);
-        Self { title, items }
+        let items = StatefulList::with_items(title, itemvec);
+        Self { items }
     }
 }

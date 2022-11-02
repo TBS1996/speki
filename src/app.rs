@@ -3,11 +3,15 @@ use tui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Style},
     text::{Span, Spans},
-    widgets::{Block, Borders, Tabs},
+    widgets::{Block, Borders, Clear, Tabs},
     Frame,
 };
 
-use crate::tabs::add_card::logic::NewCard;
+use crate::{
+    tabs::add_card::logic::NewCard,
+    utils::misc::{centered_rect, View},
+    NavDir,
+};
 
 use crate::{
     tabs::{browse::logic::Browse, incread::logic::MainInc, review::logic::MainReview},
@@ -108,17 +112,18 @@ impl TabsState {
     }
 
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
-        self.tabs[self.index].keyhandler(appdata, key);
+        match key {
+            MyKey::Nav(dir) => self.tabs[self.index].navigate(dir),
+            key => self.tabs[self.index].keyhandler(appdata, key),
+        }
     }
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         self.tabs[self.index].render(f, appdata, area);
-
     }
 }
 
 use crate::tabs::import::logic::Importer;
 use std::sync::{Arc, Mutex};
-
 
 pub struct App {
     pub tabs: TabsState,
@@ -152,13 +157,13 @@ impl App {
 
     pub fn keyhandler(&mut self, key: MyKey) {
         match key {
-            MyKey::KeyPress(pos) if pos.1 < 4 => self.press_tab(pos),
+            MyKey::KeyPress(pos) if pos.1 < 2 => self.press_tab(pos),
             MyKey::Tab => self.tabs.next(),
             MyKey::BackTab => self.tabs.previous(),
             MyKey::SwapTab => self.tabs.swap_right(),
             MyKey::BackSwapTab => self.tabs.swap_left(),
             MyKey::F(1) => self.display_help = !self.display_help,
-            MyKey::Alt('q')  | MyKey::Alt('Q')=> self.should_quit = true,
+            MyKey::Alt('q') | MyKey::Alt('Q') => self.should_quit = true,
             MyKey::Alt('m') => {
                 if self.appdata.audio.is_some() {
                     self.appdata.audio = None;
@@ -177,11 +182,10 @@ impl App {
         self.tabs.render(f, &self.appdata, area);
     }
 
-
-    fn press_tab(&mut self, pos: (u16, u16)){
+    fn press_tab(&mut self, pos: (u16, u16)) {
         let mut xpos = 1;
         let padlen = 3;
-        for (index, tab) in self.tabs.tabs.iter().enumerate(){
+        for (index, tab) in self.tabs.tabs.iter().enumerate() {
             let title = tab.get_title();
             xpos += title.len() + padlen;
             if xpos > pos.0 as usize {
@@ -189,7 +193,6 @@ impl App {
                 return;
             }
         }
-
     }
 
     fn render_tab_menu(&self, f: &mut Frame<MyType>, area: Rect) -> Rect {
@@ -239,25 +242,48 @@ quit: Alt+q
         msg.push_str(&help_msg);
         let mut field = Field::new_with_text(msg, 0, 0);
         let chunks = split_leftright_by_percent([66, 33], area);
-        field.render(f, chunks[1], false);
+        field.set_area(chunks[1]);
+        field.render(f, &self.appdata, &(0, 0));
         chunks[0]
     }
 }
 
 use crate::MyKey;
 
-pub trait PopUp: Widget {
+pub trait PopUp: Tab {
     fn should_quit(&self) -> bool;
+    fn render_popup(&mut self, f: &mut Frame<MyType>, appdata: &AppData, mut area: Rect) {
+        if area.height > 10 && area.width > 10 {
+            area = centered_rect(80, 70, area);
+            f.render_widget(Clear, area); //this clears out the background
+            area.x += 2;
+            area.y += 2;
+            area.height -= 4;
+            area.width -= 4;
+        }
+        self.render(f, appdata, area);
+    }
 }
 
 pub trait Widget {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey);
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect);
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16));
+    fn get_area(&self) -> Rect;
+    fn set_area(&mut self, area: Rect);
+
+    fn is_selected(&self, cursor: &(u16, u16)) -> bool {
+        View::isitselected(self.get_area(), cursor)
+    }
 }
 
-pub trait Tab: Widget {
+pub trait Tab {
     fn get_title(&self) -> String;
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect);
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey);
     fn get_manual(&self) -> String {
         String::new()
     }
+    fn set_selection(&mut self, area: Rect);
+    fn get_cursor(&self) -> (u16, u16);
+    fn navigate(&mut self, dir: NavDir);
 }

@@ -1,8 +1,8 @@
-use crate::app::{AppData, PopUp, Widget};
-use crate::utils::card::{CardTypeData, FinishedInfo, UnfinishedInfo};
+use crate::app::{AppData, PopUp, Tab, Widget};
+use crate::utils::card::{CardTypeData, CardView, FinishedInfo, UnfinishedInfo};
+use crate::utils::misc::View;
 use crate::utils::sql::fetch::get_topic_of_card;
 use crate::utils::{aliases::*, card::Card};
-use crate::widgets::textinput::Field;
 use rusqlite::Connection;
 use tui::{
     layout::{Constraint, Direction::Vertical, Layout, Rect},
@@ -14,10 +14,8 @@ use crate::MyKey;
 use crate::{MyType, NavDir};
 
 use std::sync::{Arc, Mutex};
-pub enum Selection {
-    Question,
-    Answer,
-}
+
+use super::button::Button;
 
 pub enum Purpose {
     Source(TopicID),
@@ -26,46 +24,36 @@ pub enum Purpose {
 }
 
 pub struct AddChildWidget {
-    pub prompt: Field,
-    pub question: Field,
-    pub answer: Field,
-    pub selection: Selection,
+    pub prompt: Button,
+    pub cardview: CardView,
     pub purpose: Purpose,
     pub should_quit: bool,
+    view: View,
 }
 
 impl AddChildWidget {
     pub fn new(conn: &Arc<Mutex<Connection>>, purpose: Purpose) -> Self {
         let prompt = Self::add_prompt(conn, &purpose);
-        let question = Field::default();
-        let answer = Field::default();
-        let selection = Selection::Question;
+        let cardview = CardView::default();
         let should_quit = false;
+        let view = View::default();
 
         AddChildWidget {
             prompt,
-            question,
-            answer,
-            selection,
+            cardview,
             purpose,
             should_quit,
+            view,
         }
     }
 
-    fn add_prompt(_conn: &Arc<Mutex<Connection>>, purpose: &Purpose) -> Field {
-        let mut prompt = Field::default();
-        match purpose {
-            Purpose::Source(_) => {
-                prompt.push("Add new sourced card".to_string());
-            }
-            Purpose::Dependency(_) => {
-                prompt.push("Add new dependent".to_string());
-            }
-            Purpose::Dependent(_) => {
-                prompt.push("Add new dependency".to_string());
-            }
-        }
-        prompt
+    fn add_prompt(_conn: &Arc<Mutex<Connection>>, purpose: &Purpose) -> Button {
+        let text = match purpose {
+            Purpose::Source(_) => Button::new("Add new sourced card".to_string()),
+            Purpose::Dependency(_) => Button::new("Add new dependent".to_string()),
+            Purpose::Dependent(_) => Button::new("Add new dependency".to_string()),
+        };
+        text
     }
 
     fn submit_card(&mut self, conn: &Arc<Mutex<Connection>>, isfinished: bool) {
@@ -75,8 +63,8 @@ impl AddChildWidget {
             Purpose::Dependency(id) => get_topic_of_card(conn, id[0]),
         };
 
-        let question = self.question.return_text();
-        let answer = self.answer.return_text();
+        let question = self.cardview.question.return_text();
+        let answer = self.cardview.answer.return_text();
         let source = if let Purpose::Source(id) = self.purpose {
             id
         } else {
@@ -114,8 +102,11 @@ impl PopUp for AddChildWidget {
     }
 }
 
-impl Widget for AddChildWidget {
-    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, area: Rect) {
+impl Tab for AddChildWidget {
+    fn get_title(&self) -> String {
+        "Add card".to_string()
+    }
+    fn set_selection(&mut self, area: Rect) {
         let chunks = Layout::default()
             .direction(Vertical)
             .constraints(
@@ -129,31 +120,43 @@ impl Widget for AddChildWidget {
             .split(area);
 
         let (prompt, question, answer) = (chunks[0], chunks[1], chunks[2]);
+        self.view.areas.clear();
+        self.view.areas.push(prompt);
+        self.view.areas.push(question);
+        self.view.areas.push(answer);
 
-        let (mut qsel, mut asel) = (false, false);
-
-        match self.selection {
-            Selection::Question => qsel = true,
-            Selection::Answer => asel = true,
+        if self.cardview.question.get_area().width == 0 {
+            self.view.move_to_area(question);
         }
 
-        self.prompt.render(f, prompt, false);
-        self.question.render(f, question, qsel);
-        self.answer.render(f, answer, asel);
+        self.prompt.set_area(prompt);
+        self.cardview.question.set_area(question);
+        self.cardview.answer.set_area(answer);
+    }
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+        self.set_selection(area);
+        let cursor = self.get_cursor().clone();
+        self.prompt.render(f, appdata, &cursor);
+        self.cardview.question.render(f, appdata, &cursor);
+        self.cardview.answer.render(f, appdata, &cursor);
+    }
+    fn get_cursor(&self) -> (u16, u16) {
+        self.view.cursor
+    }
+
+    fn navigate(&mut self, dir: NavDir) {
+        self.view.navigate(dir);
     }
 
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use MyKey::*;
+        let cursor = &self.get_cursor();
         match key {
             Esc => self.should_quit = true,
+            KeyPress(pos) => self.view.cursor = pos,
             Alt('f') => self.submit_card(&appdata.conn, true),
             Alt('u') => self.submit_card(&appdata.conn, false),
-            Nav(NavDir::Up) => self.selection = Selection::Question,
-            Nav(NavDir::Down) => self.selection = Selection::Answer,
-            key => match self.selection {
-                Selection::Question => self.question.keyhandler(key),
-                Selection::Answer => self.answer.keyhandler(key),
-            },
+            key => self.cardview.keyhandler(appdata, cursor, key),
         }
     }
 }

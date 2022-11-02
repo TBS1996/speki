@@ -313,21 +313,22 @@ pub fn is_table_empty(conn: &Arc<Mutex<Connection>>, table_name: String) -> bool
     let query = format!("SELECT EXISTS (SELECT 1 FROM {})", table_name);
     conn.lock()
         .unwrap()
-        .query_row(&query, [], |row| {
-            Ok(row.get::<usize, usize>(0).unwrap())
-        })
-        .unwrap() == 0
+        .query_row(&query, [], |row| Ok(row.get::<usize, usize>(0).unwrap()))
+        .unwrap()
+        == 0
 }
 
-
 pub fn get_highest_pos(conn: &Arc<Mutex<Connection>>) -> Option<u32> {
-    if is_table_empty(conn, "pending_cards".to_string()) {return None}
-    let highest = conn.lock()
-            .unwrap()
-            .query_row("SELECT MAX(position) FROM pending_cards", [], |row| {
-                Ok(row.get(0).unwrap())
-            })
-            .unwrap();
+    if is_table_empty(conn, "pending_cards".to_string()) {
+        return None;
+    }
+    let highest = conn
+        .lock()
+        .unwrap()
+        .query_row("SELECT MAX(position) FROM pending_cards", [], |row| {
+            Ok(row.get(0).unwrap())
+        })
+        .unwrap();
     Some(highest)
 }
 
@@ -515,8 +516,8 @@ pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<IncRead> {
                     row.get(7).unwrap(),
                     row.get(8).unwrap(),
                 ),
-                extracts: StatefulList::with_items(extracts),
-                clozes: StatefulList::with_items(cloze_cards),
+                extracts: StatefulList::with_items("Extracts".to_string(), extracts),
+                clozes: StatefulList::with_items("Clozes".to_string(), cloze_cards),
                 isactive: row.get(4)?,
             })
         })
@@ -578,7 +579,7 @@ pub fn load_active_inc(conn: &Arc<Mutex<Connection>>) -> Result<Vec<IncID>> {
     Ok(incvec)
 }
 
-use crate::widgets::cardlist::CardItem;
+use crate::utils::card::CardItem;
 pub fn load_inc_text(conn: &Arc<Mutex<Connection>>, id: IncID) -> Result<String> {
     conn.lock()
         .unwrap()

@@ -1,4 +1,6 @@
+use crate::app::{AppData, Widget};
 use crate::utils::aliases::*;
+use crate::utils::misc::View;
 use crate::utils::sql::delete::delete_topic;
 use crate::utils::sql::fetch::get_topics;
 use crate::utils::sql::update::{update_card_topic, update_topic_parent, update_topic_relpos};
@@ -49,6 +51,7 @@ pub struct TopicList {
     pub state: ListState,
     pub items: Vec<Topic>,
     pub writing: Option<NewTopic>,
+    area: Rect,
 }
 
 impl TopicList {
@@ -57,6 +60,7 @@ impl TopicList {
             state: ListState::default(),
             items: get_topics(&conn).unwrap(),
             writing: None,
+            area: Rect::default(),
         };
         foo.add_kids();
         foo.next();
@@ -364,8 +368,17 @@ impl TopicList {
         };
         self.state.select(Some(i));
     }
+}
 
-    pub fn keyhandler(&mut self, key: MyKey, conn: &Arc<Mutex<Connection>>) {
+impl Widget for TopicList {
+    fn set_area(&mut self, area: Rect) {
+        self.area = area;
+    }
+    fn get_area(&self) -> Rect {
+        self.area
+    }
+
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use MyKey::*;
         match &mut self.writing {
             Some(inner) => match key {
@@ -373,15 +386,15 @@ impl TopicList {
                     inner.name.addchar(c);
                     let id = inner.id;
                     let name = inner.name.return_text();
-                    update_topic_name(conn, id, name);
-                    self.reload_topics(conn);
+                    update_topic_name(&appdata.conn, id, name);
+                    self.reload_topics(&appdata.conn);
                 }
                 Backspace => {
                     inner.name.backspace();
                     let id = inner.id;
                     let name = inner.name.return_text();
-                    update_topic_name(conn, id, name);
-                    self.reload_topics(conn);
+                    update_topic_name(&appdata.conn, id, name);
+                    self.reload_topics(&appdata.conn);
                 }
                 Enter => {
                     let id = inner.id;
@@ -400,11 +413,11 @@ impl TopicList {
                     if index == 0 {
                         return;
                     }
-                    self.delete_topic(conn, index);
+                    self.delete_topic(&appdata.conn, index);
                     if index == self.items.len() as u32 - 1 {
                         index -= 1
                     }
-                    self.reload_topics(conn);
+                    self.reload_topics(&appdata.conn);
                     self.state.select(Some((index) as usize));
                 }
                 Char('h') => {
@@ -417,8 +430,8 @@ impl TopicList {
                         return;
                     }
                     let parent_index = self.index_from_id(topic.parent);
-                    self.shift_left(conn, index);
-                    self.reload_topics(conn);
+                    self.shift_left(&appdata.conn, index);
+                    self.reload_topics(&appdata.conn);
                     self.state.select(Some((parent_index) as usize));
                 }
                 Char('l') => {
@@ -436,23 +449,23 @@ impl TopicList {
                     if self.items[index as usize].children.is_empty() {
                         return;
                     }
-                    self.shift_right(conn, index as u32);
-                    self.reload_topics(conn);
+                    self.shift_right(&appdata.conn, index as u32);
+                    self.reload_topics(&appdata.conn);
                     self.state.select(Some((index + 1) as usize));
                 }
                 Char('J') => {
                     let index = self.state.selected().unwrap() as u32;
                     let topic = self.items[index as usize].clone();
-                    self.shift_down(conn, index as u32);
-                    self.reload_topics(conn);
+                    self.shift_down(&appdata.conn, index as u32);
+                    self.reload_topics(&appdata.conn);
                     let new_index = self.index_from_id(topic.id);
                     self.state.select(Some((new_index) as usize));
                 }
                 Char('K') => {
                     let index = self.state.selected().unwrap();
                     let topic = self.items[index as usize].clone();
-                    self.shift_up(conn, index as u32);
-                    self.reload_topics(conn);
+                    self.shift_up(&appdata.conn, index as u32);
+                    self.reload_topics(&appdata.conn);
                     let new_index = self.index_from_id(topic.id);
                     self.state.select(Some(new_index as usize));
                 }
@@ -471,24 +484,20 @@ impl TopicList {
                     let name = String::new();
                     let children = self.items[parent_index].children.clone();
                     let sibling_qty = children.len();
-                    new_topic(conn, name, parent, sibling_qty as u32).unwrap();
-                    let id = (conn.lock().unwrap().last_insert_rowid()) as u32;
+                    new_topic(&appdata.conn, name, parent, sibling_qty as u32).unwrap();
+                    let id = *(&appdata.conn.lock().unwrap().last_insert_rowid()) as u32;
                     self.writing = Some(NewTopic::new(id));
-                    self.reload_topics(conn);
+                    self.reload_topics(&appdata.conn);
                 }
                 _ => {}
             },
         }
     }
 
-    pub fn render(
-        &mut self,
-        f: &mut Frame<MyType>,
-        area: Rect,
-        selected: bool,
-        title: &str,
-        _style: Style,
-    ) {
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, cursor: &(u16, u16)) {
+        let title = "Topics".to_string();
+        let area = self.get_area();
+        let selected = View::isitselected(area, cursor);
         let style = Style::default().fg(Color::Red).bg(Color::Black);
         let bordercolor = if selected { Color::Red } else { Color::White };
         let borderstyle = Style::default().fg(bordercolor);

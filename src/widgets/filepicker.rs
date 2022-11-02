@@ -61,7 +61,7 @@ impl FilePicker {
         E: Into<Vec<String>>,
     {
         let path = std::env::current_dir().unwrap();
-        let contents = StatefulList::new();
+        let contents = StatefulList::new("".to_string());
 
         let mut me = Self {
             contents,
@@ -91,7 +91,7 @@ impl FilePicker {
                 myvec.push(ExtPath::new(path));
             }
         }
-        self.contents = StatefulList::with_items(myvec);
+        self.contents = StatefulList::with_items("".to_string(), myvec);
     }
     fn newdir(&mut self, newpath: PathBuf) {
         let mut myvec = Vec::<ExtPath>::new();
@@ -116,7 +116,7 @@ impl FilePicker {
                         }
                     }
                 }
-                self.contents = StatefulList::with_items(myvec);
+                self.contents = StatefulList::with_items("".to_string(), myvec);
                 self.contents.next();
                 self.path = newpath;
             }
@@ -191,14 +191,7 @@ impl FilePicker {
             );
             items
         };
-
         f.render_stateful_widget(mylist, area, &mut self.contents.state);
     }
 }
 use crate::MyType;
-
-fn main() {
-    for file in fs::read_dir("./change_this_path").unwrap() {
-        println!("{}", file.unwrap().path().display());
-    }
-}

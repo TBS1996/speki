@@ -1,7 +1,6 @@
-use crate::app::Audio;
+use crate::app::{AppData, Audio, Tab};
 use crate::utils::misc::{split_leftright_by_percent, split_updown_by_percent, View};
 use crate::utils::statelist::{StatefulList, TextItem};
-use crate::widgets::button::draw_button;
 use crate::widgets::textinput::Field;
 use crate::widgets::topics::TopicList;
 use crate::MyKey;
@@ -16,7 +15,6 @@ use anyhow::Result;
 use rusqlite::Connection;
 use std::fs;
 use tui::layout::Rect;
-use tui::style::Style;
 
 use std::sync::{Arc, Mutex};
 
@@ -177,6 +175,8 @@ pub struct Template {
     front_view: Field,
     back_view: Field,
     topics: TopicList,
+    importbutton: Button,
+    previewbutton: Button,
     pub state: LoadState,
     view: View,
     fields: StatefulList<TextItem>,
@@ -188,7 +188,9 @@ impl Template {
         let notes: HashMap<NoteID, Note> = HashMap::new();
         let models: HashMap<ModelID, Model> = HashMap::new();
         let view = View::default();
-        let fields = StatefulList::new();
+        let fields = StatefulList::new("Fields".to_string());
+        let importbutton = Button::new("import cards".to_string());
+        let previewbutton = Button::new("previewing card".to_string());
 
         let mut temp = Template {
             cards,
@@ -200,6 +202,8 @@ impl Template {
             front_template: Field::new("Front template".to_string()),
             back_template: Field::new("Back template".to_string()),
             topics: TopicList::new(conn),
+            importbutton,
+            previewbutton,
             state: LoadState::OnGoing,
             view,
             fields,
@@ -700,8 +704,26 @@ impl Template {
                 .save_card(&conn);
         }
     }
+}
 
-    fn set_sorted(&mut self, area: Rect) {
+use crate::app::Widget;
+
+use super::button::Button;
+
+impl Tab for Template {
+    fn get_title(&self) -> String {
+        "load cards".to_string()
+    }
+
+    fn navigate(&mut self, dir: crate::NavDir) {
+        self.view.navigate(dir);
+    }
+
+    fn get_cursor(&self) -> (u16, u16) {
+        self.view.cursor
+    }
+
+    fn set_selection(&mut self, area: Rect) {
         let leftright = split_leftright_by_percent([66, 33], area);
 
         let (left, right) = (leftright[0], leftright[1]);
@@ -719,18 +741,28 @@ impl Template {
         self.front_template.set_dimensions(topleft);
         self.back_template.set_dimensions(bottomleft);
 
-        self.view.areas.insert("topics", thetopics);
-        self.view.areas.insert("preview", preview);
-        self.view.areas.insert("front_template", topleft);
-        self.view.areas.insert("front_view", topright);
-        self.view.areas.insert("back_template", bottomleft);
-        self.view.areas.insert("back_view", bottomright);
-        self.view.areas.insert("import", button);
-        self.view.areas.insert("fields", thefields);
+        self.view.areas.push(thetopics);
+        self.view.areas.push(preview);
+        self.view.areas.push(topleft);
+        self.view.areas.push(topright);
+        self.view.areas.push(bottomleft);
+        self.view.areas.push(bottomright);
+        self.view.areas.push(button);
+        self.view.areas.push(thefields);
+
+        self.front_template.set_area(topleft);
+        self.back_template.set_area(bottomleft);
+        self.front_view.set_area(topright);
+        self.back_view.set_area(bottomright);
+        self.previewbutton.set_area(preview);
+        self.importbutton.set_area(button);
+        self.topics.set_area(thetopics);
+        self.fields.set_area(thefields);
     }
 
-    pub fn render(&mut self, f: &mut tui::Frame<MyType>, area: tui::layout::Rect) {
-        self.set_sorted(area);
+    fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &AppData, area: tui::layout::Rect) {
+        self.set_selection(area);
+        let cursor = &self.get_cursor().clone();
 
         let media = self.get_media(self.viewpos);
         let mut frontstring = "Front side ".to_string();
@@ -750,66 +782,25 @@ impl Template {
         self.front_view.title = frontstring;
         self.back_view.title = backstring;
 
-        draw_button(
-            f,
-            self.view.get_area("preview"),
-            &format!(
-                "Previewing card {} out of {}",
-                self.viewpos + 1,
-                self.cards.len()
-            ),
-            self.view.name_selected("preview"),
+        let buttontext = format!(
+            "Previewing card {} out of {}",
+            self.viewpos + 1,
+            self.cards.len()
         );
-
-        self.fields.render(
-            f,
-            self.view.get_area("fields"),
-            self.view.name_selected("fields"),
-            "Fields",
-            Style::default(),
-        );
-        self.topics.render(
-            f,
-            self.view.get_area("topics"),
-            self.view.name_selected("topics"),
-            "Topics",
-            Style::default(),
-        );
-        self.front_template.render(
-            f,
-            self.view.get_area("front_template"),
-            self.view.name_selected("front_template"),
-        );
-        self.back_template.render(
-            f,
-            self.view.get_area("back_template"),
-            self.view.name_selected("back_template"),
-        );
-        self.front_view.render(
-            f,
-            self.view.get_area("front_view"),
-            self.view.name_selected("front_view"),
-        );
-        self.back_view.render(
-            f,
-            self.view.get_area("back_view"),
-            self.view.name_selected("back_view"),
-        );
-        draw_button(
-            f,
-            self.view.get_area("import"),
-            "Import cards!",
-            self.view.name_selected("import"),
-        );
+        self.previewbutton.text = buttontext;
+        self.previewbutton.render(f, appdata, cursor);
+        self.fields.render(f, appdata, cursor);
+        self.topics.render(f, appdata, cursor);
+        self.front_template.render(f, appdata, cursor);
+        self.back_template.render(f, appdata, cursor);
+        self.front_view.render(f, appdata, cursor);
+        self.back_view.render(f, appdata, cursor);
+        self.importbutton.render(f, appdata, cursor);
     }
 
-    pub fn keyhandler(&mut self, conn: &Arc<Mutex<Connection>>, key: MyKey, audio: &Option<Audio>) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use MyKey::*;
-
-        if let MyKey::Nav(dir) = key {
-            self.view.navigate(dir);
-            return;
-        }
+        let cursor = &self.get_cursor();
 
         match key {
             KeyPress(pos) => self.view.cursor = pos,
@@ -821,35 +812,35 @@ impl Template {
                 self.update_template();
                 self.refresh_template_and_view();
             }
-            Char('l') | Right if self.view.name_selected("preview") => {
+            Char('l') | Right if self.previewbutton.is_selected(cursor) => {
                 if self.viewpos < self.notes.len() - 1 {
                     self.viewpos += 1;
                     self.refresh_template_and_view();
-                    self.play_front_audio(audio);
-                    self.play_back_audio(audio);
+                    self.play_front_audio(&appdata.audio);
+                    self.play_back_audio(&appdata.audio);
                 }
             }
-            Char('h') | Left if self.view.name_selected("preview") => {
+            Char('h') | Left if self.previewbutton.is_selected(cursor) => {
                 if self.viewpos > 0 {
                     self.viewpos -= 1;
                     self.refresh_template_and_view();
-                    self.play_front_audio(audio);
-                    self.play_back_audio(audio);
+                    self.play_front_audio(&appdata.audio);
+                    self.play_back_audio(&appdata.audio);
                 }
             }
-            Enter if self.view.name_selected("import") => self.state = LoadState::Importing,
+            Enter if self.importbutton.is_selected(cursor) => self.state = LoadState::Importing,
             Esc => self.state = LoadState::Finished,
-            key if self.view.name_selected("front_template") => {
-                self.front_template.keyhandler(key);
+            key if self.front_template.is_selected(cursor) => {
+                self.front_template.keyhandler(appdata, key);
                 self.update_template();
                 self.refresh_views();
             }
-            key if self.view.name_selected("back_template") => {
-                self.back_template.keyhandler(key);
+            key if self.back_template.is_selected(cursor) => {
+                self.back_template.keyhandler(appdata, key);
                 self.update_template();
                 self.refresh_views();
             }
-            key if self.view.name_selected("topics") => self.topics.keyhandler(key, conn),
+            key if self.topics.is_selected(cursor) => self.topics.keyhandler(appdata, key),
             _ => {}
         }
     }

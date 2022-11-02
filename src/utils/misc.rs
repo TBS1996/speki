@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs::File,
     io::{BufReader, Write},
     path::PathBuf,
@@ -7,9 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{
-    app::Audio, tabs::review::logic::ReviewMode, widgets::cardlist::CardItem, MyType, NavDir,
-};
+use crate::{app::Audio, tabs::review::logic::ReviewMode, utils::card::CardItem, MyType, NavDir};
 use rusqlite::Connection;
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -209,7 +206,7 @@ pub fn get_dependencies(conn: &Arc<Mutex<Connection>>, id: CardID) -> StatefulLi
             id: *dep,
         });
     }
-    StatefulList::with_items(depvec)
+    StatefulList::with_items("Dependencies".to_string(), depvec)
 }
 
 pub fn get_dependents(conn: &Arc<Mutex<Connection>>, id: CardID) -> StatefulList<CardItem> {
@@ -224,7 +221,7 @@ pub fn get_dependents(conn: &Arc<Mutex<Connection>>, id: CardID) -> StatefulList
             id: *dep,
         });
     }
-    StatefulList::with_items(depvec)
+    StatefulList::with_items("Dependents".to_string(), depvec)
 }
 
 #[derive(Clone)]
@@ -319,7 +316,7 @@ pub fn new_mod(num: i64) -> u32 {
 
 impl Default for View {
     fn default() -> Self {
-        let areas = HashMap::new();
+        let areas = vec![];
         let cursor = (0, 4);
         Self { areas, cursor }
     }
@@ -327,7 +324,7 @@ impl Default for View {
 
 #[derive(Clone)]
 pub struct View {
-    pub areas: HashMap<&'static str, Rect>,
+    pub areas: Vec<Rect>,
     pub cursor: (u16, u16),
 }
 
@@ -336,25 +333,23 @@ impl View {
         f.set_cursor(self.cursor.0, self.cursor.1);
     }
 
-    pub fn get_area(&self, name: &'static str) -> Rect {
-        *self.areas.get(name).unwrap()
-    }
-    pub fn is_selected(&self, area: Rect) -> bool {
-        Self::isitselected(area, &self.cursor)
-    }
-
-    pub fn name_selected(&self, name: &'static str) -> bool {
-        self.is_selected(*self.areas.get(name).unwrap())
-    }
-
     pub fn validate_pos(&mut self) {
-        for (_, area) in self.areas.iter() {
+        for area in self.areas.iter() {
             if self.is_selected(*area) {
                 return;
             }
         }
-        let area = self.areas.values().next().unwrap();
-        self.cursor = (area.x, area.y);
+        panic!();
+    }
+
+    pub fn move_to_area(&mut self, area: Rect) {
+        let x = area.x + area.width / 2;
+        let y = area.y + area.height / 2;
+        self.cursor = (x, y);
+    }
+
+    pub fn is_selected(&self, area: Rect) -> bool {
+        Self::isitselected(area, &self.cursor)
     }
 
     pub fn isitselected(area: Rect, cursor: &(u16, u16)) -> bool {
@@ -368,16 +363,15 @@ impl View {
     where
         F: FnMut(&mut (u16, u16), &Rect),
     {
-        let areas: Vec<Rect> = self.areas.values().cloned().collect();
-        let mut currentarea = areas[0];
+        let mut currentarea = self.areas[0];
         let mut new_pos = self.cursor;
-        for area in &areas {
+        for area in &self.areas {
             if Self::isitselected(*area, &self.cursor) {
                 currentarea = *area;
             }
         }
         func(&mut new_pos, &currentarea);
-        for area in &areas {
+        for area in &self.areas {
             // validating that new pos is in an area
             if Self::isitselected(*area, &new_pos) {
                 self.cursor = new_pos;
@@ -419,64 +413,4 @@ impl View {
             NavDir::Right => self.move_right(),
         }
     }
-
-    /*
-        pub fn move_up(&mut self) {
-            let mut new_ypos = self.cursor.1.;
-            let mut areamatch = false;
-            for area in &self.areas {
-                if area.x <= self.cursor.0
-                    && area.x + area.width >= self.cursor.0
-                    && area.y < self.cursor.1
-                    && !self.is_selected(*area)
-                {
-                    if areamatch {
-                        new_ypos = std::cmp::max(new_ypos, area.y + area.height - 1);
-                    } else {
-                        new_ypos = area.y + area.height / 2;
-                    }
-                    areamatch = true;
-                }
-            }
-            self.cursor.1 = new_ypos;
-        }
-        pub fn move_down(&mut self) {
-            let mut new_ypos = self.cursor.1;
-            let mut areamatch = false;
-            for area in &self.areas {
-                if area.x < self.cursor.0
-                    && area.x + area.width > self.cursor.0
-                    && area.y > self.cursor.1
-                    && !self.is_selected(*area)
-                {
-                    if areamatch {
-                        new_ypos = std::cmp::min(new_ypos, area.y);
-                    } else {
-                        new_ypos = area.y;
-                    }
-                    areamatch = true;
-                }
-            }
-            self.cursor.1 = new_ypos;
-        }
-    pub fn move_right(&mut self) {
-            let mut new_xpos = self.cursor.0;
-            let mut areamatch = false;
-            for area in &self.areas {
-                if area.y < self.cursor.1
-                    && area.y + area.height > self.cursor.1
-                    && area.x > self.cursor.0
-                    && !self.is_selected(*area)
-                {
-                    if areamatch {
-                        new_xpos = std::cmp::min(new_xpos, area.x);
-                    } else {
-                        new_xpos = area.x
-                    }
-                    areamatch = true;
-                }
-            }
-            self.cursor.0 = new_xpos;
-        }
-    */
 }

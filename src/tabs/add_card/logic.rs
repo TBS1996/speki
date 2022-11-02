@@ -8,23 +8,23 @@ use crate::utils::card::UnfinishedInfo;
 use crate::utils::misc::get_gpt3_response;
 use crate::utils::misc::View;
 use crate::utils::misc::{split_leftright_by_percent, split_updown_by_percent};
-use crate::widgets::message_box::draw_message;
+use crate::widgets::button::Button;
 use crate::widgets::textinput::Field;
 use crate::{MyKey, MyType};
 use rusqlite::Connection;
 use tui::layout::Rect;
-use tui::style::Style;
 use tui::Frame;
 
 use crate::widgets::topics::TopicList;
 
 //#[derive(Clone)]
 pub struct NewCard {
-    pub prompt: String,
+    pub prompt: Button,
     pub question: Field,
     pub answer: Field,
     pub topics: TopicList,
     view: View,
+    area: Rect,
 }
 
 use std::sync::{Arc, Mutex};
@@ -35,22 +35,12 @@ impl NewCard {
         let view = View::default();
 
         NewCard {
-            prompt: NewCard::make_prompt(conn),
+            prompt: Button::new("Add new card".to_string()),
             question: Field::new("Question".to_string()),
             answer: Field::new("Answer".to_string()),
             topics,
             view,
-        }
-    }
-
-    pub fn navigate(&mut self, dir: crate::NavDir) {
-        use crate::NavDir::*;
-
-        match dir {
-            Right => self.view.move_right(),
-            Left => self.view.move_left(),
-            Up => self.view.move_up(),
-            Down => self.view.move_down(),
+            area: Rect::default(),
         }
     }
 
@@ -85,18 +75,6 @@ impl NewCard {
     pub fn downrow(&mut self) {}
     pub fn home(&mut self) {}
     pub fn end(&mut self) {}
-
-    fn set_selection(&mut self, area: Rect) {
-        self.view.areas.clear();
-        let chunks = split_leftright_by_percent([75, 15], area);
-        let left = chunks[0];
-        let right = chunks[1];
-        self.view.areas.insert("topics", right);
-        let chunks = split_updown_by_percent([10, 37, 37], left);
-        self.view.areas.insert("prompt", chunks[0]);
-        self.view.areas.insert("question", chunks[1]);
-        self.view.areas.insert("answer", chunks[2]);
-    }
 }
 
 impl Tab for NewCard {
@@ -116,14 +94,36 @@ Add card as unfinished: Alt+u
         "#
         .to_string()
     }
-}
 
-impl Widget for NewCard {
+    fn set_selection(&mut self, area: Rect) {
+        self.view.areas.clear();
+        let chunks = split_leftright_by_percent([75, 15], area);
+        let left = chunks[0];
+        let right = chunks[1];
+        let chunks = split_updown_by_percent([10, 37, 37], left);
+
+        self.view.areas.clear();
+        self.view.areas.push(chunks[0]);
+        self.view.areas.push(right);
+        self.view.areas.push(chunks[1]);
+        self.view.areas.push(chunks[2]);
+
+        self.prompt.set_area(chunks[0]);
+        self.question.set_area(chunks[1]);
+        self.answer.set_area(chunks[2]);
+        self.topics.set_area(right);
+    }
+
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         use MyKey::*;
+        let cursor = &self.get_cursor();
+
+        if let KeyPress(pos) = key {
+            self.view.cursor = pos;
+        }
+
         match key {
             Nav(dir) => self.navigate(dir),
-            KeyPress(pos) => self.view.cursor = pos,
             Alt('f') => self.submit_card(&appdata.conn, true),
             Alt('u') => self.submit_card(&appdata.conn, false),
             Alt('g') => {
@@ -132,36 +132,26 @@ impl Widget for NewCard {
                     self.answer.replace_text(answer);
                 }
             }
-            key if self.view.name_selected("question") => self.question.keyhandler(key),
-            key if self.view.name_selected("answer") => self.answer.keyhandler(key),
-            key if self.view.name_selected("topics") => self.topics.keyhandler(key, &appdata.conn),
+            key if self.question.is_selected(cursor) => self.question.keyhandler(appdata, key),
+            key if self.answer.is_selected(cursor) => self.answer.keyhandler(appdata, key),
+            key if self.topics.is_selected(cursor) => self.topics.keyhandler(appdata, key),
             _ => {}
         }
     }
-    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, area: Rect) {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         self.set_selection(area);
+        let cursor = &self.get_cursor();
 
-        self.topics.render(
-            f,
-            *self.view.areas.get("topics").unwrap(),
-            self.view.name_selected("topics"),
-            "Topics",
-            Style::default(),
-        );
-        draw_message(
-            f,
-            *self.view.areas.get("prompt").unwrap(),
-            self.prompt.as_str(),
-        );
-        self.question.render(
-            f,
-            *self.view.areas.get("question").unwrap(),
-            self.view.name_selected("question"),
-        );
-        self.answer.render(
-            f,
-            *self.view.areas.get("answer").unwrap(),
-            self.view.name_selected("answer"),
-        );
+        self.topics.render(f, appdata, cursor);
+        self.prompt.render(f, appdata, cursor);
+        self.question.render(f, appdata, cursor);
+        self.answer.render(f, appdata, cursor);
+    }
+
+    fn navigate(&mut self, dir: crate::NavDir) {
+        self.view.navigate(dir);
+    }
+    fn get_cursor(&self) -> (u16, u16) {
+        self.view.cursor
     }
 }

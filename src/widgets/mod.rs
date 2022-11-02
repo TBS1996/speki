@@ -1,7 +1,5 @@
 pub mod ankimporter;
 pub mod button;
-pub mod card_status;
-pub mod cardlist;
 pub mod cardrater;
 pub mod checkbox;
 pub mod filepicker;

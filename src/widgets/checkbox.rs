@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
+    app::AppData,
     utils::statelist::{KeyHandler, StatefulList},
     MyKey,
 };
@@ -21,7 +22,7 @@ pub struct CheckBoxItem {
 }
 
 impl KeyHandler for CheckBoxItem {
-    fn keyhandler(&mut self, key: MyKey) -> bool {
+    fn keyhandler(&mut self, _appdata: &AppData, key: MyKey) -> bool {
         if let MyKey::Enter | MyKey::Char(' ') = key {
             self.filter ^= true;
             return true;
@@ -37,7 +38,6 @@ impl CheckBoxItem {
 }
 
 pub struct CheckBox {
-    pub title: String,
     pub items: StatefulList<CheckBoxItem>,
 }
 
@@ -48,7 +48,7 @@ impl CheckBox {
         for x in strvec {
             itemvec.push(CheckBoxItem::new(x.to_string(), filter));
         }
-        let items = StatefulList::with_items(itemvec);
-        Self { title, items }
+        let items = StatefulList::with_items(title, itemvec);
+        Self { items }
     }
 }

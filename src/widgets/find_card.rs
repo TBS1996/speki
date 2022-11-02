@@ -1,25 +1,25 @@
-use crate::app::{AppData, PopUp, Widget};
+use crate::app::{AppData, PopUp, Tab, Widget};
 use crate::utils::sql::fetch::CardQuery;
 use crate::utils::statelist::{KeyHandler, StatefulList};
 use crate::utils::{aliases::*, card::Card, sql::insert::update_both};
 use crate::widgets::textinput::Field;
 use rusqlite::Connection;
-use tui::style::Style;
 use tui::{
     layout::{Constraint, Direction::Vertical, Layout, Rect},
     Frame,
 };
 
-use super::message_box::draw_message;
+use super::button::Button;
 use crate::{MyKey, MyType};
 use std::sync::{Arc, Mutex};
 
 pub struct FindCardWidget {
-    pub prompt: String,
+    pub prompt: Button,
     pub searchterm: Field,
     pub list: StatefulList<CardMatch>,
     pub purpose: CardPurpose,
     pub should_quit: bool,
+    area: Rect,
 }
 
 #[derive(Clone, PartialEq)]
@@ -45,7 +45,8 @@ pub enum CardPurpose {
 
 impl FindCardWidget {
     pub fn new(conn: &Arc<Mutex<Connection>>, purpose: CardPurpose) -> Self {
-        let mut list = StatefulList::<CardMatch>::new();
+        let mut list = StatefulList::<CardMatch>::new("".to_string());
+        list.persistent_highlight = true;
         let searchterm = Field::default();
         list.reset_filter(conn, searchterm.return_text());
         let should_quit = false;
@@ -56,11 +57,12 @@ impl FindCardWidget {
         };
 
         FindCardWidget {
-            prompt,
+            prompt: Button::new(prompt),
             searchterm,
             list,
             purpose,
             should_quit,
+            area: Rect::default(),
         }
     }
 
@@ -102,27 +104,19 @@ impl PopUp for FindCardWidget {
     }
 }
 
-impl Widget for FindCardWidget {
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
-        match key {
-            MyKey::Enter => self.complete(&appdata.conn),
-            MyKey::Esc => self.should_quit = true,
-            MyKey::Down => self.list.next(),
-            MyKey::Up => self.list.previous(),
-            key => {
-                self.searchterm.keyhandler(key);
-                self.list
-                    .reset_filter(&appdata.conn, self.searchterm.return_text());
-            }
-        }
+impl Tab for FindCardWidget {
+    fn get_title(&self) -> String {
+        "Find card".to_string()
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, area: Rect) {
+    fn navigate(&mut self, _dir: crate::NavDir) {}
+
+    fn set_selection(&mut self, area: Rect) {
         let chunks = Layout::default()
             .direction(Vertical)
             .constraints(
                 [
-                    Constraint::Length(1),
+                    Constraint::Length(3),
                     Constraint::Length(3),
                     Constraint::Min(1),
                 ]
@@ -131,9 +125,35 @@ impl Widget for FindCardWidget {
             .split(area);
 
         let (prompt, searchbar, matchlist) = (chunks[0], chunks[1], chunks[2]);
-        draw_message(f, prompt, &self.prompt);
-        self.searchterm.render(f, searchbar, false);
-        self.list.render(f, matchlist, true, "", Style::default());
+        self.prompt.set_area(prompt);
+        self.searchterm.set_area(searchbar);
+        self.list.set_area(matchlist);
+    }
+
+    fn get_cursor(&self) -> (u16, u16) {
+        let area = self.searchterm.get_area();
+        (area.x, area.y)
+    }
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
+        match key {
+            MyKey::Enter => self.complete(&appdata.conn),
+            MyKey::Esc => self.should_quit = true,
+            MyKey::Down => self.list.next(),
+            MyKey::Up => self.list.previous(),
+            key => {
+                self.searchterm.keyhandler(appdata, key);
+                self.list
+                    .reset_filter(&appdata.conn, self.searchterm.return_text());
+            }
+        }
+    }
+
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+        self.set_selection(area);
+        let cursor = &self.get_cursor().clone();
+        self.prompt.render(f, appdata, cursor);
+        self.searchterm.render(f, appdata, cursor);
+        self.list.render(f, appdata, cursor);
     }
 }
 

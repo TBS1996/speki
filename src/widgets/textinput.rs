@@ -1,4 +1,7 @@
-use crate::{MyKey, MyType};
+use crate::{
+    app::{AppData, Widget},
+    MyKey, MyType,
+};
 use crossterm::{
     cursor::{CursorShape, SetCursorShape},
     execute,
@@ -52,6 +55,7 @@ pub struct Field {
     mode: Mode,
     pub title: String,
     preferredcol: Option<usize>,
+    area: Rect,
 }
 
 #[derive(Debug, Clone)]
@@ -73,6 +77,7 @@ impl Default for Field {
             mode: Mode::Insert,
             title: "".to_string(),
             preferredcol: None,
+            area: Rect::default(),
         };
         myfield.set_insert_mode();
         myfield
@@ -444,49 +449,6 @@ impl Field {
         spanvec
     }
 
-    pub fn render(&mut self, f: &mut Frame<MyType>, area: Rect, selected: bool) {
-        let scroll = self.scroll;
-        let bordercolor = if selected { Color::Red } else { Color::White };
-        let style = Style::default().fg(bordercolor);
-        self.align_to_cursor();
-        if true {
-            self.set_dimensions(area);
-            self.align_to_cursor();
-        }
-
-        let title = self.title.clone();
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(style)
-            .title(Span::styled(
-                title,
-                Style::default()
-                    .fg(Color::Magenta)
-                    .add_modifier(Modifier::BOLD),
-            ));
-
-        let selection = {
-            if let Some(sel) = &self.startselect {
-                let first = self.get_xy(sel);
-                let second = self.get_xy(&self.cursor);
-                if first == second {
-                    None
-                } else {
-                    let mut myvec = vec![first, second];
-                    myvec.sort_by_key(|curse| (curse.1, curse.0));
-                    Some(myvec)
-                }
-            } else {
-                None
-            }
-        };
-
-        let formatted_text = self.cursorsplit(f, area, selected);
-        let paragraph = Paraclone::new(formatted_text, selection, (scroll, 0)).block(block);
-
-        f.render_widget(paragraph, area);
-    }
-
     fn goto_end_visual_line(&mut self) {
         let totrowlen = self.current_rowlen() as u16;
         let currvisual = self.current_visual_col();
@@ -591,13 +553,6 @@ impl Field {
         cursor.column % self.rowlen as usize
     }
 
-    pub fn keyhandler(&mut self, key: MyKey) {
-        match self.mode {
-            Mode::Normal => self.normal_keyhandler(key),
-            Mode::Insert => self.insert_keyhandler(key),
-            Mode::Visual => self.visual_keyhandler(key),
-        }
-    }
     fn prev(&mut self) {
         self.preferredcol = None;
         if self.cursor.column == 0 && self.cursor.row == 0 {
@@ -782,31 +737,72 @@ impl Field {
             _ => {}
         }
     }
+}
 
-    /*
-        pub fn yxtocursor(&self, y: u16, x: u16) -> CursorPos{
-            let mut row = 0;
-            let linecount = 0;
-            let mut visrows = 0;
-            while linecount < y{
-                visrows = self.get_visrow_qty(y as usize);
-                linecount += visrows;
-                row += 1;
-            }
-            let diff = linecount - y;
-            let col = (diff - 1) * self.rowlen + x;
-
-            CursorPos{
-                row,
-                column: col as usize,
-            }
+impl Widget for Field {
+    fn set_area(&mut self, area: Rect) {
+        self.area = area;
+        self.set_dimensions(area);
+    }
+    fn get_area(&self) -> Rect {
+        self.area
+    }
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, cursor: &(u16, u16)) {
+        let area = self.get_area();
+        let selected = self.is_selected(cursor);
+        let scroll = self.scroll;
+        let bordercolor = if selected { Color::Red } else { Color::White };
+        let style = Style::default().fg(bordercolor);
+        self.align_to_cursor();
+        if true {
+            self.set_dimensions(area);
+            self.align_to_cursor();
         }
 
-    */
+        let title = self.title.clone();
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(style)
+            .title(Span::styled(
+                title,
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
+            ));
+
+        let selection = {
+            if let Some(sel) = &self.startselect {
+                let first = self.get_xy(sel);
+                let second = self.get_xy(&self.cursor);
+                if first == second {
+                    None
+                } else {
+                    let mut myvec = vec![first, second];
+                    myvec.sort_by_key(|curse| (curse.1, curse.0));
+                    Some(myvec)
+                }
+            } else {
+                None
+            }
+        };
+
+        let formatted_text = self.cursorsplit(f, area, selected);
+        let paragraph = Paraclone::new(formatted_text, selection, (scroll, 0)).block(block);
+
+        f.render_widget(paragraph, area);
+    }
+
+    fn keyhandler(&mut self, _appdata: &AppData, key: MyKey) {
+        match self.mode {
+            Mode::Normal => self.normal_keyhandler(key),
+            Mode::Insert => self.insert_keyhandler(key),
+            Mode::Visual => self.visual_keyhandler(key),
+        }
+    }
 }
 
 use std::io::stdout;
-use tui::widgets::Widget;
+use tui::widgets::Widget as TuiWidget;
 
 #[derive(Debug, Clone)]
 pub struct Paraclone<'a> {
@@ -872,7 +868,7 @@ fn stylegetter(y: usize, x: usize, selvec: &Vec<(usize, usize)>) -> Style {
     }
 }
 
-impl<'a> Widget for Paraclone<'a> {
+impl<'a> TuiWidget for Paraclone<'a> {
     fn render(mut self, area: Rect, buf: &mut Buffer) {
         buf.set_style(area, self.style);
         let text_area = match self.block.take() {

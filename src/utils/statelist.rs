@@ -1,4 +1,7 @@
-use crate::MyKey;
+use crate::{
+    app::{AppData, Widget},
+    MyKey,
+};
 use tui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -10,7 +13,7 @@ use tui::{
 pub trait KeyHandler {
     // bool represents if the keyhandler used the key. If it didn't use the key, then StaefulList
     // will check if its gonna perform an action with that key instead.
-    fn keyhandler(&mut self, _key: MyKey) -> bool {
+    fn keyhandler(&mut self, _appdata: &AppData, _key: MyKey) -> bool {
         false
     }
 }
@@ -22,33 +25,42 @@ pub struct StatefulList<T: Display + KeyHandler> {
     pub state: ListState,
     pub items: Vec<T>,
     fixed_fields: bool,
+    area: Rect,
+    pub title: String,
+    pub persistent_highlight: bool,
 }
 
 impl<T: Display + KeyHandler> StatefulList<T> {
-    pub fn with_items(items: Vec<T>) -> StatefulList<T> {
+    pub fn with_items(title: String, items: Vec<T>) -> StatefulList<T> {
         let mut thelist = Self {
             state: ListState::default(),
             items,
             fixed_fields: true,
+            area: Rect::default(),
+            title,
+            persistent_highlight: false,
         };
         thelist.next();
         thelist
     }
 
-    pub fn with_generic<W, U>(input: Vec<W>, transformer: U) -> StatefulList<T>
+    pub fn with_generic<W, U>(title: String, input: Vec<W>, transformer: U) -> StatefulList<T>
     where
         U: FnMut(W) -> T,
     {
         let generic_vec = input.into_iter().map(transformer).collect();
-        Self::with_items(generic_vec)
+        Self::with_items(title, generic_vec)
     }
 
-    pub fn new() -> StatefulList<T> {
+    pub fn new(title: String) -> StatefulList<T> {
         let items = Vec::<T>::new();
         StatefulList {
             state: ListState::default(),
             items,
             fixed_fields: true,
+            area: Rect::default(),
+            title,
+            persistent_highlight: false,
         }
     }
 
@@ -138,10 +150,19 @@ impl<T: Display + KeyHandler> StatefulList<T> {
             self.state.select(Some(qty - 1));
         }
     }
+}
 
-    pub fn keyhandler(&mut self, key: MyKey) {
+impl<T: Display + KeyHandler> Widget for StatefulList<T> {
+    fn set_area(&mut self, area: Rect) {
+        self.area = area;
+    }
+    fn get_area(&self) -> Rect {
+        self.area
+    }
+
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         if let Some(idx) = self.state.selected() {
-            if self.items[idx].keyhandler(key.clone()) {
+            if self.items[idx].keyhandler(appdata, key.clone()) {
                 return;
             }
         }
@@ -159,14 +180,11 @@ impl<T: Display + KeyHandler> StatefulList<T> {
         }
     }
 
-    pub fn render(
-        &mut self,
-        f: &mut Frame<MyType>,
-        area: Rect,
-        selected: bool,
-        title: &str,
-        style: Style,
-    ) {
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, cursor: &(u16, u16)) {
+        let style = Style::default();
+        let area = self.get_area();
+        let selected = View::isitselected(area, cursor);
+        let title = &self.title;
         let items: Vec<ListItem> = self
             .items
             .iter()
@@ -182,10 +200,10 @@ impl<T: Display + KeyHandler> StatefulList<T> {
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(borderstyle)
-                .title(title),
+                .title(title.to_owned()),
         );
 
-        let items = if selected {
+        let items = if selected || self.persistent_highlight {
             items.highlight_style(
                 Style::default()
                     .bg(Color::DarkGray)
@@ -218,6 +236,8 @@ impl<T: Copy + Display + KeyHandler> StatefulList<T> {
 }
 
 use crate::MyType;
+
+use super::misc::View;
 
 #[derive(Clone)]
 pub struct TextItem {

@@ -1,13 +1,13 @@
 use std::fmt::Display;
 
-use tui::{layout::Rect, style::Style, Frame};
-
 use crate::{
+    app::AppData,
     utils::statelist::{KeyHandler, StatefulList},
-    MyKey, MyType,
+    MyKey,
 };
 
 use super::textinput::Field;
+use crate::app::Widget;
 
 pub struct PosIntField {
     field: Field,
@@ -15,20 +15,20 @@ pub struct PosIntField {
 }
 
 impl KeyHandler for NumItem {
-    fn keyhandler(&mut self, key: MyKey) -> bool {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) -> bool {
         match key {
             MyKey::Char(c) if c.is_ascii_digit() => {
                 if self.input.field.return_text().len() < 9 {
-                    self.input.field.keyhandler(key);
+                    self.input.field.keyhandler(appdata, key);
                 }
                 if self.input.max_value.is_some()
                     && self.input.get_value().is_some()
                     && self.input.get_value().unwrap() > self.input.max_value.unwrap()
                 {
-                    self.input.field.keyhandler(MyKey::Backspace);
+                    self.input.field.keyhandler(appdata, MyKey::Backspace);
                 }
             }
-            MyKey::Backspace => self.input.field.keyhandler(key),
+            MyKey::Backspace => self.input.field.keyhandler(appdata, key),
             _ => return false,
         }
         true
@@ -81,26 +81,15 @@ impl Display for NumItem {
     }
 }
 
-pub struct NumPut {
-    pub title: String,
-    pub items: StatefulList<NumItem>,
-}
-
-impl NumPut {
-    pub fn new<V: Into<Vec<(String, Option<u32>)>>>(title: String, v: V) -> Self {
+impl StatefulList<NumItem> {
+    pub fn neum<V: Into<Vec<(String, Option<u32>)>>>(title: String, v: V) -> Self {
         let names = v
             .into()
             .into_iter()
             .map(|name| NumItem::new(name.0, name.1))
             .collect::<Vec<NumItem>>();
 
-        Self {
-            title,
-            items: StatefulList::with_items(names),
-        }
-    }
-    pub fn render(&mut self, f: &mut Frame<MyType>, area: Rect, selected: bool) {
-        self.items
-            .render(f, area, selected, &self.title, Style::default());
+        let myself = StatefulList::with_items(title, names);
+        myself
     }
 }

@@ -1,26 +1,26 @@
 use crate::app::{AppData, PopUp, Widget};
 use crate::utils::aliases::*;
-use crate::utils::misc::{get_dependencies, get_dependents};
-use crate::utils::sql::update::update_inc_active;
+use crate::utils::misc::{
+    get_dependencies, get_dependents, get_gpt3_response, split_leftright_by_percent, split_updown,
+    split_updown_by_percent, View,
+};
+use crate::utils::sql::update::{set_suspended, update_inc_active};
+use crate::widgets::button::Button;
+use crate::widgets::mode_status::ModeStatus;
+use crate::widgets::progress_bar::ProgressBar;
 use crate::widgets::textinput::Field;
 use crate::widgets::{
     find_card::{CardPurpose, FindCardWidget},
-    mode_status::mode_status,
     newchild::{AddChildWidget, Purpose},
-    progress_bar::progress_bar,
-    textinput::CursorPos,
 };
 use crate::{
     app::Tab,
     utils::{
         card::{Card, CardType, RecallGrade},
-        misc::{centered_rect, modecolor},
+        misc::modecolor,
         sql::{
             fetch::get_cardtype,
-            update::{
-                double_inc_skip_duration, double_skip_duration, update_card_answer,
-                update_card_question, update_inc_text,
-            },
+            update::{double_inc_skip_duration, double_skip_duration},
         },
     },
     MyType,
@@ -30,7 +30,6 @@ use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
-    widgets::Clear,
     Frame,
 };
 
@@ -110,12 +109,14 @@ impl StartQty {
 }
 
 pub struct MainReview {
-    pub title: String,
+    progress_bar: ProgressBar,
     pub mode: ReviewMode,
+    pub status: ModeStatus,
     pub for_review: ForReview,
     pub start_qty: StartQty,
     pub automode: bool,
     pub popup: Option<Box<dyn PopUp>>,
+    view: View,
 }
 
 use crate::utils::sql::fetch::{load_active_inc, CardQuery};
@@ -125,14 +126,18 @@ impl MainReview {
         let mode = ReviewMode::Done;
         let for_review = ForReview::new(&appdata.conn);
         let start_qty = StartQty::new(&for_review);
+        let progress_bar = ProgressBar::new("Progress".to_string());
+        let status = ModeStatus::default();
 
         let mut myself = Self {
-            title: String::from("review!"),
+            progress_bar,
             mode,
+            status,
             for_review,
             start_qty,
             automode: true,
             popup: None,
+            view: View::default(),
         };
         myself.random_mode(appdata);
         myself
@@ -141,21 +146,36 @@ impl MainReview {
     fn update_dependencies(&mut self, conn: &Arc<Mutex<Connection>>) {
         match &mut self.mode {
             ReviewMode::Review(rev) => {
-                rev.cardview.dependencies = get_dependencies(conn, rev.cardview.card.id);
-                rev.cardview.dependents = get_dependents(conn, rev.cardview.card.id);
+                rev.cardview.dependencies = get_dependencies(conn, rev.cardview.get_id());
+                rev.cardview.dependents = get_dependents(conn, rev.cardview.get_id());
             }
             ReviewMode::Unfinished(rev) => {
-                rev.dependencies = get_dependencies(conn, rev.id);
-                rev.dependents = get_dependents(conn, rev.id);
+                rev.cardview.dependencies = get_dependencies(conn, rev.cardview.get_id());
+                rev.cardview.dependents = get_dependents(conn, rev.cardview.get_id());
             }
             ReviewMode::Pending(rev) => {
-                rev.cardview.dependencies = get_dependencies(conn, rev.cardview.card.id);
-                rev.cardview.dependents = get_dependents(conn, rev.cardview.card.id);
+                rev.cardview.dependencies = get_dependencies(conn, rev.cardview.get_id());
+                rev.cardview.dependents = get_dependents(conn, rev.cardview.get_id());
             }
             _ => {}
         }
     }
 
+    pub fn draw_done(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, area: Rect) {
+        let mut field = Field::default();
+        let mut button = Button::new("Nothing left to review now!\n\nYou could import anki cards from the import page, or add new cards manually.\n\nIf you've imported cards, press Alt+r here to refresh".to_string());
+        field.set_area(area);
+        let cursor = &self.get_cursor();
+        button.render(f, appdata, cursor)
+    }
+
+    #[allow(clippy::single_match)]
+    pub fn mode_done(&mut self, appdata: &AppData, key: MyKey) {
+        match key {
+            MyKey::Alt('r') => *self = crate::tabs::review::logic::MainReview::new(appdata),
+            _ => {}
+        }
+    }
     // randomly choose a mode between active, unfinished and inc read, if theyre all done,
     // start with pending cards, if theyre all done, declare nothing left to review
     pub fn random_mode(&mut self, appdata: &AppData) {
@@ -187,46 +207,28 @@ impl MainReview {
         };
     }
 
-    fn get_current_pos(&self) -> (u16, u16) {
-        match &self.mode {
-            ReviewMode::Review(val) => val.view.cursor,
-            ReviewMode::Unfinished(val) => val.view.cursor,
-            ReviewMode::Pending(val) => val.view.cursor,
-            ReviewMode::IncRead(val) => val.view.cursor,
-            _ => (0, 0),
-        }
-    }
-
     pub fn new_inc_mode(&mut self, appdata: &AppData) {
-        let pos = self.get_current_pos();
         let id = self.for_review.active_increads.remove(0);
-        let mut inc = IncMode::new(appdata, id);
-        inc.view.cursor = pos;
+        let inc = IncMode::new(appdata, id);
         self.mode = ReviewMode::IncRead(inc);
     }
 
     pub fn new_unfinished_mode(&mut self, appdata: &AppData) {
-        let pos = self.get_current_pos();
         let id = self.for_review.unfinished_cards.remove(0);
-        let mut unfcard = UnfCard::new(appdata, id);
-        unfcard.view.cursor = pos;
+        let unfcard = UnfCard::new(appdata, id);
         self.mode = ReviewMode::Unfinished(unfcard);
-        Card::play_frontaudio(&appdata.conn, id, &appdata.audio);
+        Card::play_frontaudio(appdata, id);
     }
 
     pub fn new_pending_mode(&mut self, appdata: &AppData) {
-        let pos = self.get_current_pos();
         let id = self.for_review.pending_cards.remove(0);
-        let mut cardreview = CardReview::new(id, appdata);
-        cardreview.view.cursor = pos;
+        let cardreview = CardReview::new(id, appdata);
         self.mode = ReviewMode::Pending(cardreview);
     }
 
     pub fn new_review_mode(&mut self, appdata: &AppData) {
-        let pos = self.get_current_pos();
         let id = self.for_review.review_cards.remove(0);
-        let mut cardreview = CardReview::new(id, appdata);
-        cardreview.view.cursor = pos;
+        let cardreview = CardReview::new(id, appdata);
         self.mode = ReviewMode::Review(cardreview);
     }
 
@@ -245,7 +247,7 @@ impl MainReview {
         self.random_mode(appdata);
     }
 
-    pub fn draw_progress_bar(&mut self, f: &mut Frame<MyType>, area: Rect) {
+    pub fn draw_progress_bar(&mut self, f: &mut Frame<MyType>, appdata: &AppData, _area: Rect) {
         let target = match self.mode {
             ReviewMode::Done => return,
             ReviewMode::Review(_) => self.start_qty.fin_qty,
@@ -271,11 +273,108 @@ impl MainReview {
         };
 
         let color = modecolor(&self.mode);
-        progress_bar(f, current, target, color, area, "progress");
+        let cursor = self.get_cursor();
+        self.progress_bar.current = current;
+        self.progress_bar.max = target;
+        self.progress_bar.color = color;
+        self.progress_bar.render(f, appdata, &cursor);
     }
 }
 
 impl Tab for MainReview {
+    fn set_selection(&mut self, area: Rect) {
+        self.view.areas.clear();
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Max(4), Constraint::Ratio(7, 10)].as_ref())
+            .split(area);
+
+        let (progbar, area) = (chunks[0], chunks[1]);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(1), Constraint::Ratio(7, 10)].as_ref())
+            .split(progbar);
+
+        let (status, progbar) = (chunks[0], chunks[1]);
+        self.status.set_area(status);
+        self.progress_bar.set_area(progbar);
+        self.view.areas.push(status);
+        self.view.areas.push(progbar);
+
+        match &mut self.mode {
+            ReviewMode::Review(rev) | ReviewMode::Pending(rev) => {
+                let updown = split_updown([Constraint::Ratio(9, 10), Constraint::Min(5)], area);
+                let (up, down) = (updown[0], updown[1]);
+                let leftright = split_leftright_by_percent([66, 33], up);
+                let bottomleftright = split_leftright_by_percent([66, 33], down);
+                let left = leftright[0];
+                let right = leftright[1];
+                let rightcolumn = split_updown_by_percent([50, 50], right);
+                let leftcolumn = split_updown_by_percent([50, 50], left);
+
+                self.view.areas.push(leftcolumn[0]);
+                self.view.areas.push(leftcolumn[1]);
+                self.view.areas.push(rightcolumn[0]);
+                self.view.areas.push(rightcolumn[1]);
+                self.view.areas.push(bottomleftright[0]);
+                self.view.areas.push(bottomleftright[1]);
+
+                if rev.cardview.question.get_area().width == 0 {
+                    self.view.move_to_area(leftcolumn[0]);
+                }
+
+                rev.cardview.question.set_area(leftcolumn[0]);
+                rev.cardview.answer.set_area(leftcolumn[1]);
+                rev.cardview.dependents.set_area(rightcolumn[0]);
+                rev.cardview.dependencies.set_area(rightcolumn[1]);
+                rev.cardview.cardrater.set_area(bottomleftright[0]);
+            }
+            ReviewMode::Unfinished(unf) => {
+                let leftright = split_leftright_by_percent([66, 33], area);
+                let left = leftright[0];
+                let right = leftright[1];
+
+                let rightcolumn = split_updown_by_percent([50, 50], right);
+                let leftcolumn = split_updown_by_percent([50, 50], left);
+
+                self.view.areas.push(leftcolumn[0]);
+                self.view.areas.push(leftcolumn[1]);
+                self.view.areas.push(rightcolumn[0]);
+                self.view.areas.push(rightcolumn[1]);
+
+                unf.cardview.question.set_area(leftcolumn[0]);
+                unf.cardview.answer.set_area(leftcolumn[1]);
+                unf.cardview.dependents.set_area(rightcolumn[0]);
+                unf.cardview.dependencies.set_area(rightcolumn[1]);
+            }
+            ReviewMode::IncRead(rev) => {
+                let mainvec = split_leftright_by_percent([75, 15], area);
+                let (editing, rightside) = (mainvec[0], mainvec[1]);
+                let rightvec = split_updown_by_percent([10, 40, 40], rightside);
+
+                self.view.areas.push(editing);
+                self.view.areas.push(rightvec[0]);
+                self.view.areas.push(rightvec[1]);
+                self.view.areas.push(rightvec[2]);
+
+                rev.source.source.set_area(editing);
+                rev.source.extracts.set_area(rightvec[1]);
+                rev.source.clozes.set_area(rightvec[2]);
+            }
+            ReviewMode::Done => {}
+        }
+    }
+    fn get_cursor(&self) -> (u16, u16) {
+        self.view.cursor
+    }
+    fn navigate(&mut self, dir: crate::NavDir) {
+        if let Some(popup) = &mut self.popup {
+            popup.navigate(dir);
+        } else {
+            self.view.navigate(dir);
+        }
+    }
     fn get_title(&self) -> String {
         "Review".to_string()
     }
@@ -289,33 +388,21 @@ impl Tab for MainReview {
             ReviewMode::Unfinished(unf) => unf.get_manual(),
         }
     }
-}
 
-impl Widget for MainReview {
     fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, area: Rect) {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Max(4), Constraint::Ratio(7, 10)].as_ref())
-            .split(area);
+        self.set_selection(area);
+        let cursor = &self.get_cursor();
 
-        let (progbar, mut area) = (chunks[0], chunks[1]);
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Min(1), Constraint::Ratio(7, 10)].as_ref())
-            .split(progbar);
-
-        let (status, progbar) = (chunks[0], chunks[1]);
-
-        mode_status(f, status, &self.mode, &self.for_review, &self.start_qty);
-        self.draw_progress_bar(f, progbar);
+        self.status
+            .render_it(f, &self.mode, &self.for_review, &self.start_qty);
+        self.draw_progress_bar(f, appdata, area);
 
         match &mut self.mode {
-            ReviewMode::Done => draw_done(f, area),
-            ReviewMode::Review(review) => review.render(f, appdata, area),
-            ReviewMode::Pending(pending) => pending.render(f, appdata, area),
-            ReviewMode::Unfinished(unfinished) => unfinished.render(f, &appdata.conn, area),
-            ReviewMode::IncRead(inc) => inc.render(f, &appdata.conn, area),
+            ReviewMode::Done => self.draw_done(f, appdata, area),
+            ReviewMode::Review(review) => review.render(f, appdata, cursor),
+            ReviewMode::Pending(pending) => pending.render(f, appdata, cursor),
+            ReviewMode::Unfinished(unfinished) => unfinished.render(f, appdata, cursor),
+            ReviewMode::IncRead(inc) => inc.render(f, appdata, cursor),
         }
 
         if let Some(popup) = &mut self.popup {
@@ -324,139 +411,182 @@ impl Widget for MainReview {
                 self.update_dependencies(&appdata.conn);
                 return;
             }
-
-            if area.height > 10 && area.width > 10 {
-                area = centered_rect(80, 70, area);
-                f.render_widget(Clear, area); //this clears out the background
-                area.x += 2;
-                area.y += 2;
-                area.height -= 4;
-                area.width -= 4;
-            }
-
-            popup.render(f, appdata, area);
+            popup.render_popup(f, appdata, area);
         }
     }
 
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
-        let mut action = Action::None;
+        let cursor = &self.get_cursor();
+        use MyKey::*;
         if let Some(popup) = &mut self.popup {
             popup.keyhandler(appdata, key);
             return;
         }
 
         match &mut self.mode {
-            ReviewMode::Done => mode_done(key, &mut action),
-            ReviewMode::Unfinished(unf) => unf.keyhandler(appdata, key, &mut action),
-            ReviewMode::Pending(rev) | ReviewMode::Review(rev) => {
-                rev.keyhandler(&appdata.conn, key, &mut action)
-            }
-            ReviewMode::IncRead(inc) => inc.keyhandler(&appdata.conn, key, &mut action),
-        }
-
-        match action {
-            Action::IncNext(source, id, cursor) => {
-                self.inc_next(appdata, id);
-                update_inc_text(&appdata.conn, source, id, &cursor).unwrap();
-            }
-            Action::IncDone(source, id, cursor) => {
-                self.inc_done(appdata, id);
-                update_inc_text(&appdata.conn, source, id, &cursor).unwrap();
-            }
-            Action::Review(question, answer, id, char) => {
-                let grade = match char {
-                    '1' => RecallGrade::None,
-                    '2' => RecallGrade::Failed,
-                    '3' => RecallGrade::Decent,
-                    '4' => RecallGrade::Easy,
-                    _ => panic!("illegal argument"),
-                };
-                if get_cardtype(&appdata.conn, id) == CardType::Pending {
-                    Card::activate_card(&appdata.conn, id);
+            ReviewMode::Done => self.mode_done(appdata, key),
+            ReviewMode::Unfinished(unf) => match key {
+                Alt('s') => {
+                    let id = unf.cardview.get_id();
+                    unf.cardview.save_state(&appdata.conn);
+                    self.random_mode(appdata);
+                    double_skip_duration(&appdata.conn, id);
                 }
-                self.new_review(appdata, id, grade);
-                update_card_question(&appdata.conn, id, question);
-                update_card_answer(&appdata.conn, id, answer);
-            }
-            Action::SkipUnf(question, answer, id) => {
-                self.random_mode(appdata);
-                update_card_question(&appdata.conn, id, question);
-                update_card_answer(&appdata.conn, id, answer);
-                double_skip_duration(&appdata.conn, id);
-            }
-            Action::SkipRev(question, answer, id) => {
-                self.random_mode(appdata);
-                update_card_question(&appdata.conn, id, question);
-                update_card_answer(&appdata.conn, id, answer);
-            }
-            Action::CompleteUnf(question, answer, id) => {
-                Card::complete_card(&appdata.conn, id);
-                self.random_mode(appdata);
-                update_card_question(&appdata.conn, id, question);
-                update_card_answer(&appdata.conn, id, answer);
-            }
-            Action::NewDependency(id) => {
-                let purpose = CardPurpose::NewDependency(vec![id]);
-                let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
-                self.popup = Some(Box::new(cardfinder));
-            }
-            Action::NewDependent(id) => {
-                let purpose = CardPurpose::NewDependent(vec![id]);
-                let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
-                self.popup = Some(Box::new(cardfinder));
-            }
-            Action::AddDependent(id) => {
-                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependency(vec![id]));
-                self.popup = Some(Box::new(addchild));
-            }
-            Action::AddDependency(id) => {
-                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependent(vec![id]));
-                self.popup = Some(Box::new(addchild));
-            }
-            Action::AddChild(id) => {
-                let addchild = AddChildWidget::new(&appdata.conn, Purpose::Source(id));
-                self.popup = Some(Box::new(addchild));
-            }
-            Action::PlayBackAudio(id) => {
-                Card::play_backaudio(&appdata.conn, id, &appdata.audio);
-            }
-            Action::Refresh => {
-                *self = crate::tabs::review::logic::MainReview::new(appdata);
-            }
-            Action::None => {}
+                Alt('f') => {
+                    let id = unf.cardview.get_id();
+                    unf.cardview.save_state(&appdata.conn);
+                    Card::complete_card(&appdata.conn, id);
+                    self.random_mode(appdata);
+                }
+                Alt('t') => {
+                    let id = unf.cardview.get_id();
+                    let purpose = CardPurpose::NewDependent(vec![id]);
+                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
+                    self.popup = Some(Box::new(cardfinder));
+                }
+                Alt('y') => {
+                    let id = unf.cardview.get_id();
+                    let purpose = CardPurpose::NewDependency(vec![id]);
+                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
+                    self.popup = Some(Box::new(cardfinder));
+                }
+                Alt('T') => {
+                    let id = unf.cardview.get_id();
+                    let addchild =
+                        AddChildWidget::new(&appdata.conn, Purpose::Dependency(vec![id]));
+                    self.popup = Some(Box::new(addchild));
+                }
+                Alt('Y') => {
+                    let id = unf.cardview.get_id();
+                    let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependent(vec![id]));
+                    self.popup = Some(Box::new(addchild));
+                }
+                Alt('g') => {
+                    if let Some(key) = &appdata.config.gptkey {
+                        let answer = get_gpt3_response(key, &unf.cardview.question.return_text());
+                        unf.cardview.answer.replace_text(answer);
+                    }
+                }
+                Alt('i') => {
+                    let id = unf.cardview.get_id();
+                    set_suspended(&appdata.conn, [id], true);
+                    unf.cardview.save_state(&appdata.conn);
+                    self.random_mode(appdata);
+                }
+                key if unf.cardview.question.is_selected(cursor) => {
+                    unf.cardview.question.keyhandler(appdata, key)
+                }
+                key if unf.cardview.answer.is_selected(cursor) => {
+                    unf.cardview.answer.keyhandler(appdata, key)
+                }
+                _ => {}
+            },
+            ReviewMode::Pending(rev) | ReviewMode::Review(rev) => match key {
+                KeyPress(pos) => self.view.cursor = pos,
+                Alt('s') => {
+                    rev.cardview.save_state(&appdata.conn);
+                    self.random_mode(appdata);
+                }
+                Alt('t') => {
+                    let purpose = CardPurpose::NewDependent(vec![rev.cardview.get_id()]);
+                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
+                    self.popup = Some(Box::new(cardfinder));
+                }
+                Alt('y') => {
+                    let purpose = CardPurpose::NewDependency(vec![rev.cardview.get_id()]);
+                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
+                    self.popup = Some(Box::new(cardfinder));
+                }
+                Alt('T') => {
+                    let addchild = AddChildWidget::new(
+                        &appdata.conn,
+                        Purpose::Dependency(vec![rev.cardview.get_id()]),
+                    );
+                    self.popup = Some(Box::new(addchild));
+                }
+                Alt('Y') => {
+                    let addchild = AddChildWidget::new(
+                        &appdata.conn,
+                        Purpose::Dependent(vec![rev.cardview.get_id()]),
+                    );
+                    self.popup = Some(Box::new(addchild));
+                }
+                Alt('i') => {
+                    set_suspended(&appdata.conn, [rev.cardview.get_id()], true);
+                    rev.cardview.save_state(&appdata.conn);
+                    self.random_mode(appdata);
+                }
+                Char(' ') | Enter if rev.cardview.answer.is_selected(cursor) => {
+                    rev.cardview.revealed = true;
+                    let area = rev.cardview.cardrater.get_area();
+                    self.view.move_to_area(area);
+                    Card::play_backaudio(appdata, rev.cardview.get_id());
+                }
+
+                Char(num)
+                    if rev.cardview.cardrater.is_selected(cursor)
+                        && num.is_ascii_digit()
+                        && (1..5).contains(&num.to_digit(10).unwrap()) =>
+                {
+                    let id = rev.cardview.get_id();
+                    let grade = match num {
+                        '1' => RecallGrade::None,
+                        '2' => RecallGrade::Failed,
+                        '3' => RecallGrade::Decent,
+                        '4' => RecallGrade::Easy,
+                        _ => panic!("illegal argument"),
+                    };
+                    if get_cardtype(&appdata.conn, id) == CardType::Pending {
+                        Card::activate_card(&appdata.conn, id);
+                    }
+                    rev.cardview.save_state(&appdata.conn);
+                    self.new_review(appdata, id, grade);
+                }
+                Char(' ') | Enter
+                    if rev.cardview.cardrater.is_selected(cursor)
+                        && rev.cardview.cardrater.selection.is_some() =>
+                {
+                    let grade = rev.cardview.cardrater.selection.clone().unwrap();
+                    let id = rev.cardview.get_id();
+                    if get_cardtype(&appdata.conn, id) == CardType::Pending {
+                        Card::activate_card(&appdata.conn, id);
+                    }
+                    rev.cardview.save_state(&appdata.conn);
+                    self.new_review(appdata, id, grade);
+                }
+                key if rev.cardview.is_selected(cursor) => {
+                    rev.cardview.keyhandler(appdata, cursor, key);
+                }
+                _ => {}
+            },
+            ReviewMode::IncRead(inc) => match key {
+                KeyPress(pos) => self.view.cursor = pos,
+                Alt('d') => {
+                    inc.source.update_text(&appdata.conn);
+                    let id = inc.source.id;
+                    self.inc_done(appdata, id);
+                }
+                Alt('s') => {
+                    inc.source.update_text(&appdata.conn);
+                    let id = inc.source.id;
+                    self.inc_next(appdata, id);
+                }
+                Alt('a') if inc.source.source.is_selected(cursor) => {
+                    let addchild =
+                        AddChildWidget::new(&appdata.conn, Purpose::Source(inc.source.id));
+                    self.popup = Some(Box::new(addchild));
+                }
+                key if inc.source.extracts.is_selected(cursor) => {
+                    inc.source.extracts.keyhandler(appdata, key)
+                }
+                key if inc.source.clozes.is_selected(cursor) => {
+                    inc.source.clozes.keyhandler(appdata, key)
+                }
+                key if inc.source.source.is_selected(cursor) => inc.source.keyhandler(appdata, key),
+                _ => {}
+            },
         }
     }
-}
-
-pub fn draw_done(f: &mut Frame<crate::MyType>, area: Rect) {
-    let mut field = Field::default();
-    field.replace_text("Nothing left to review now!\n\nYou could import anki cards from the import page, or add new cards manually.\n\nIf you've imported cards, press Alt+r here to refresh".to_string());
-    field.render(f, area, false);
-}
-
-#[allow(clippy::single_match)]
-pub fn mode_done(key: MyKey, action: &mut Action) {
-    match key {
-        MyKey::Alt('r') => *action = Action::Refresh,
-        _ => {}
-    }
-}
-
-pub enum Action {
-    IncNext(String, TopicID, CursorPos),
-    IncDone(String, TopicID, CursorPos),
-    Review(String, String, CardID, char),
-    SkipUnf(String, String, CardID),
-    SkipRev(String, String, CardID),
-    CompleteUnf(String, String, CardID),
-    NewDependency(CardID),
-    NewDependent(CardID),
-    AddDependency(CardID),
-    AddDependent(CardID),
-    AddChild(IncID),
-    PlayBackAudio(CardID),
-    Refresh,
-    None,
 }
 use crate::MyKey;
 

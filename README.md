@@ -16,7 +16,7 @@ https://user-images.githubusercontent.com/56874491/197415847-43992a98-a9b8-4b63-
 
 ### Windows  
 
-[Click to download binary](https://github.com/TBS1996/speki/releases/download/v0.3.1/speki-windows.tar.gz)
+[Click to download binary](https://github.com/TBS1996/speki/releases/download/v0.4.1/speki-windows.tar.gz)
 
 It will probably be flagged as dangerous by windows
 
@@ -34,7 +34,7 @@ yay -S speki
 ### Linux binary  
 
 
-[Click to download binary](https://github.com/TBS1996/speki/releases/download/v0.3.1/speki-linux.tar.gz)
+[Click to download binary](https://github.com/TBS1996/speki/releases/download/v0.4.1/speki-linux.tar.gz)
 You'll have to add it to your PATH manually for easy access. I'll look into how to to package it for various package managers, if you have experience with that then I'd appreciate help. 
 
 

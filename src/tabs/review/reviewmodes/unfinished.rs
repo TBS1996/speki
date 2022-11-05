@@ -12,7 +12,7 @@ pub struct UnfCard {
 
 impl UnfCard {
     pub fn new(appdata: &AppData, id: CardID) -> Self {
-        let cardview = CardView::new(&appdata.conn, id);
+        let cardview = CardView::new_with_id(appdata, id);
 
         Self { cardview }
     }

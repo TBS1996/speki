@@ -12,26 +12,23 @@ pub struct ProgressBar {
     pub max: u32,
     pub color: Color,
     pub area: Rect,
-    pub title: String,
 }
 
 impl ProgressBar {
-    pub fn new(title: String) -> Self {
+    pub fn new(max: u32) -> Self {
         Self {
             current: 0,
-            max: 0,
+            max,
             color: Color::Black,
             area: Rect::default(),
-            title,
         }
     }
-    pub fn new_full(current: u32, max: u32, color: Color, area: Rect, title: String) -> Self {
+    pub fn new_full(current: u32, max: u32, color: Color, area: Rect, _title: String) -> Self {
         Self {
             current,
             max,
             color,
             area,
-            title,
         }
     }
 }
@@ -47,14 +44,13 @@ impl Widget for ProgressBar {
         let current = self.current;
         let max = self.max;
         let color = self.color;
-        let title = self.title.clone();
         let area = self.get_area();
 
         let percent = (current as f32 / max as f32) * 100 as f32;
 
         let label = format!("{}/{}", current, max);
         let gauge = Gauge::default()
-            .block(Block::default().title(title).borders(Borders::ALL))
+            .block(Block::default().borders(Borders::ALL))
             .gauge_style(Style::default().fg(color).bg(Color::Black))
             .percent(percent as u16)
             .label(label);

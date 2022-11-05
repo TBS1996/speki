@@ -2,23 +2,22 @@ use rusqlite::Connection;
 use std::collections::HashSet;
 use std::fmt::Display;
 use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::widgets::Clear;
 
-use crate::app::{AppData, PopUp, Widget};
+use crate::app::{AppData, TabData, Widget};
+use crate::popups::edit_card::Editor;
+use crate::popups::find_card::{CardPurpose, FindCardWidget};
+use crate::popups::newchild::{AddChildWidget, Purpose};
 use crate::utils::aliases::*;
 use crate::utils::card::CardItem;
-use crate::utils::card::{Card, CardType, CardView};
-use crate::utils::misc::{centered_rect, split_leftright, split_updown_by_percent, View};
+use crate::utils::card::CardType;
+use crate::utils::misc::{split_leftright, split_updown_by_percent};
 use crate::utils::sql::fetch::{get_highest_pos, is_pending, CardQuery};
 use crate::utils::sql::update::{set_suspended, update_position};
 use crate::utils::statelist::KeyHandler;
 use crate::widgets::checkbox::CheckBoxItem;
-use crate::widgets::find_card::{CardPurpose, FindCardWidget};
-use crate::widgets::newchild::{AddChildWidget, Purpose};
 use crate::widgets::numeric_input::NumItem;
 use crate::widgets::optional_bool_filter::{FilterSetting, OptItem};
 use crate::{app::Tab, utils::statelist::StatefulList};
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 enum Filter {
@@ -134,14 +133,11 @@ pub struct Browse {
     selected: StatefulList<CardItem>,
     selected_ids: HashSet<CardID>,
     filteractions: StatefulList<ActionItem>,
-    popup: Option<Box<dyn PopUp>>,
-    cards: HashMap<CardID, Card>,
-    view: View,
-    cardview: CardView,
+    tabdata: TabData,
 }
 
 impl Browse {
-    pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
+    pub fn new(appdata: &AppData) -> Self {
         let cardlimit = 10000;
 
         let filters = StatefulList::with_items(
@@ -161,10 +157,6 @@ impl Browse {
         );
         let selected_ids = HashSet::new();
         let filteractions = StatefulList::<ActionItem>::default();
-        let popup = None;
-        let cards = HashMap::new();
-        let view = View::default();
-        let cardview = CardView::default();
 
         let mut myself = Self {
             cardlimit,
@@ -173,13 +165,10 @@ impl Browse {
             selected: StatefulList::new("Selected".to_string()),
             selected_ids,
             filteractions,
-            popup,
-            cards,
-            view,
-            cardview,
+            tabdata: TabData::default(),
         };
 
-        myself.apply_filter(conn);
+        myself.apply_filter(&appdata.conn);
         myself
     }
 
@@ -280,10 +269,6 @@ impl Browse {
         }
     }
 
-    fn navigate(&mut self, dir: NavDir) {
-        self.view.navigate(dir);
-    }
-
     fn apply_suspended(&self, appdata: &AppData, suspend: bool) {
         set_suspended(
             &appdata.conn,
@@ -307,9 +292,8 @@ impl Browse {
                     if dependencies.is_empty() {
                         return;
                     }
-                    let addchild =
-                        AddChildWidget::new(&appdata.conn, Purpose::Dependent(dependencies));
-                    self.popup = Some(Box::new(addchild));
+                    let addchild = AddChildWidget::new(appdata, Purpose::Dependent(dependencies));
+                    self.set_popup(Box::new(addchild));
                 }
                 4 => {
                     let dependencies = self
@@ -322,7 +306,7 @@ impl Browse {
                     }
                     let purpose = CardPurpose::NewDependency(dependencies);
                     let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
-                    self.popup = Some(Box::new(cardfinder));
+                    self.set_popup(Box::new(cardfinder));
                 }
                 5 => {
                     let dependents = self
@@ -333,9 +317,8 @@ impl Browse {
                     if dependents.is_empty() {
                         return;
                     }
-                    let addchild =
-                        AddChildWidget::new(&appdata.conn, Purpose::Dependency(dependents));
-                    self.popup = Some(Box::new(addchild));
+                    let addchild = AddChildWidget::new(appdata, Purpose::Dependency(dependents));
+                    self.set_popup(Box::new(addchild));
                 }
                 6 => {
                     let dependents = self
@@ -348,7 +331,7 @@ impl Browse {
                     }
                     let purpose = CardPurpose::NewDependent(dependents);
                     let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
-                    self.popup = Some(Box::new(cardfinder));
+                    self.set_popup(Box::new(cardfinder));
                 }
                 7 => self.save_pending_queue(&appdata.conn),
                 _ => return,
@@ -359,44 +342,27 @@ impl Browse {
 }
 
 impl Tab for Browse {
+    fn get_tabdata(&mut self) -> &mut TabData {
+        &mut self.tabdata
+    }
+
     fn get_title(&self) -> String {
         "Browse".to_string()
     }
 
-    fn get_view(&mut self) -> &mut View {
-        &mut self.view
-    }
-
     fn set_selection(&mut self, area: Rect) {
-        let chunks = split_leftright(
-            [
-                Constraint::Length(20),
-                Constraint::Percentage(50),
-                Constraint::Percentage(25),
-            ],
-            area,
-        );
+        let chunks = split_leftright([Constraint::Length(20), Constraint::Percentage(50)], area);
         let filters = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Ratio(10, 20), Constraint::Ratio(10, 20)].as_ref())
             .split(chunks[0]);
         let filteredandselected = split_updown_by_percent([50, 50], chunks[1]);
-        let cardview = split_updown_by_percent([25, 25, 25, 25], chunks[2]);
 
-        self.view.areas.clear();
-        self.view.areas.push(cardview[0]);
-        self.view.areas.push(cardview[1]);
-        self.view.areas.push(cardview[2]);
-        self.view.areas.push(cardview[3]);
-        self.view.areas.push(filters[0]);
-        self.view.areas.push(filters[1]);
-        self.view.areas.push(filteredandselected[0]);
-        self.view.areas.push(filteredandselected[1]);
+        self.tabdata.view.areas.push(filters[0]);
+        self.tabdata.view.areas.push(filters[1]);
+        self.tabdata.view.areas.push(filteredandselected[0]);
+        self.tabdata.view.areas.push(filteredandselected[1]);
 
-        self.cardview.dependents.set_area(cardview[0]);
-        self.cardview.question.set_area(cardview[1]);
-        self.cardview.answer.set_area(cardview[2]);
-        self.cardview.dependencies.set_area(cardview[3]);
         self.filters.set_area(filters[0]);
         self.filteractions.set_area(filters[1]);
         self.filtered.set_area(filteredandselected[0]);
@@ -407,38 +373,16 @@ impl Tab for Browse {
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
         appdata: &crate::app::AppData,
-        _area: Rect,
+        cursor: &(u16, u16),
     ) {
-        let cursor = &self.view.cursor;
         self.filters.render(f, appdata, cursor);
-
         self.filteractions.render(f, appdata, cursor);
         self.filtered.render(f, appdata, cursor);
         self.selected.render(f, appdata, cursor);
-        self.cardview.render(f, appdata, cursor);
-
-        if let Some(popup) = &mut self.popup {
-            let mut area = f.size();
-            if popup.should_quit() {
-                self.popup = None;
-                return;
-            }
-            if area.height > 10 && area.width > 10 {
-                area = centered_rect(80, 70, area);
-                f.render_widget(Clear, area); //this clears out the background
-                area.x += 2;
-                area.y += 2;
-                area.height -= 4;
-                area.width -= 4;
-            }
-
-            popup.render(f, appdata, area);
-        }
     }
 
-    fn keyhandler(&mut self, appdata: &crate::app::AppData, key: MyKey) {
+    fn keyhandler(&mut self, appdata: &crate::app::AppData, key: MyKey, cursor: &(u16, u16)) {
         use MyKey::*;
-        let cursor = &self.get_cursor();
 
         match key {
             Enter | Char(' ') if self.filtered.is_selected(cursor) => {
@@ -458,27 +402,29 @@ impl Tab for Browse {
             }
             Enter | Char(' ') if self.filteractions.is_selected(cursor) => self.do_action(appdata),
 
-            key if self.filtered.is_selected(cursor) => {
-                self.filtered.keyhandler(appdata, key);
+            Char('e') if self.selected.is_selected(cursor) => {
+                if let Some(idx) = self.selected.state.selected() {
+                    let id = self.selected.items[idx].id;
+                    let editor = Editor::new(appdata, id);
+                    self.set_popup(Box::new(editor));
+                }
+            }
+            Char('e') if self.filtered.is_selected(cursor) => {
                 if let Some(idx) = self.filtered.state.selected() {
                     let id = self.filtered.items[idx].id;
-                    self.cardview.change_card(&appdata.conn, id);
+                    let editor = Editor::new(appdata, id);
+                    self.set_popup(Box::new(editor));
                 }
+            }
+            key if self.filtered.is_selected(cursor) => {
+                self.filtered.keyhandler(appdata, key);
             }
             key if self.selected.is_selected(cursor) => {
                 self.selected.keyhandler(appdata, key);
-                if let Some(idx) = self.selected.state.selected() {
-                    let id = self.selected.items[idx].id;
-                    self.cardview.change_card(&appdata.conn, id);
-                }
             }
             key if self.filteractions.is_selected(cursor) => {
                 self.filteractions.keyhandler(appdata, key)
             }
-            key if self.cardview.is_selected(cursor) => {
-                self.cardview.keyhandler(appdata, cursor, key)
-            }
-
             key if self.filters.is_selected(cursor) => {
                 self.filters.keyhandler(appdata, key);
                 self.apply_filter(&appdata.conn);
@@ -488,7 +434,7 @@ impl Tab for Browse {
     }
 }
 
-use crate::{MyKey, NavDir};
+use crate::MyKey;
 
 struct ActionItem {
     text: String,

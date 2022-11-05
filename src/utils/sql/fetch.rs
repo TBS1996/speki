@@ -1,8 +1,8 @@
 use crate::utils::aliases::*;
+use crate::utils::ankitemplate::MediaContents;
 use crate::utils::card::{
     Card, CardTypeData, FinishedInfo, PendingInfo, RecallGrade, Review, UnfinishedInfo,
 }; //, Topic, Review}
-use crate::widgets::load_cards::MediaContents;
 use crate::widgets::topics::Topic;
 use rusqlite::{Connection, Result, Row};
 use std::path::PathBuf;

@@ -1,10 +1,16 @@
+use crate::popups::edit_card::Editor;
+use crate::popups::find_card::{CardPurpose, FindCardWidget};
+use crate::popups::newchild::{AddChildWidget, Purpose};
 use crate::utils::sql::fetch::fetch_card;
+use crate::utils::sql::update::update_topic;
 use crate::widgets::button::Button;
 use crate::widgets::cardrater::CardRater;
 use crate::widgets::textinput::Field;
+use crate::widgets::topics::TopicList;
 use crate::{MyKey, MyType};
 use rusqlite::Connection;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tui::layout::Rect;
 use tui::Frame;
 
 use std::path::PathBuf;
@@ -140,7 +146,7 @@ impl Card {
             dependencies: vec![],
             dependents: vec![],
             history: vec![],
-            topic: 0,
+            topic: 1,
             source: 0,
         }
     }
@@ -177,7 +183,6 @@ impl Card {
         self.backimage = imagepath;
         self
     }
-
     pub fn dependencies<IDVec: Into<Vec<CardID>>>(mut self, dependencies: IDVec) -> Self {
         for dependency in dependencies.into() {
             self.dependencies.push(dependency);
@@ -289,7 +294,7 @@ impl Card {
     }
 }
 
-use super::misc::get_current_unix;
+use super::misc::{get_current_unix, get_gpt3_response};
 use super::sql::delete::{remove_pending, remove_unfinished};
 use super::sql::fetch::fetch_question;
 use super::sql::insert::new_finished;
@@ -300,7 +305,7 @@ use super::sql::{
     update::set_resolved,
 };
 use super::statelist::{KeyHandler, StatefulList};
-use crate::app::{AppData, Widget};
+use crate::app::{AppData, TabData, Widget};
 use crate::utils::aliases::*;
 
 pub struct CardInfo {
@@ -322,10 +327,11 @@ pub struct CardView {
     pub answer: Field,
     pub dependencies: StatefulList<CardItem>,
     pub dependents: StatefulList<CardItem>,
+    pub topics: TopicList,
 }
 
-impl Default for CardView {
-    fn default() -> Self {
+impl CardView {
+    pub fn new(appdata: &AppData) -> Self {
         Self {
             card: None,
             revealed: true,
@@ -335,11 +341,10 @@ impl Default for CardView {
             answer: Field::new("Answer".to_string()),
             dependencies: StatefulList::new("Dependencies".to_string()),
             dependents: StatefulList::new("Dependents".to_string()),
+            topics: TopicList::new(&appdata.conn),
         }
     }
-}
 
-impl CardView {
     pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
         self.question.render(f, appdata, cursor);
         if self.revealed {
@@ -351,14 +356,68 @@ impl CardView {
         }
         self.dependencies.render(f, appdata, cursor);
         self.dependents.render(f, appdata, cursor);
+        self.topics.render(f, appdata, cursor);
     }
 
-    pub fn keyhandler(&mut self, appdata: &AppData, cursor: &(u16, u16), key: MyKey) {
+    pub fn keyhandler(
+        &mut self,
+        appdata: &AppData,
+        tabdata: &mut TabData,
+        cursor: &(u16, u16),
+        key: MyKey,
+    ) {
         match key {
             MyKey::Char(' ') | MyKey::Enter
                 if !self.revealed && self.answer.is_selected(cursor) =>
             {
-                self.revealed = true
+                self.revealed = true;
+                let area = self.cardrater.get_area();
+                if area != Rect::default() {
+                    tabdata.view.move_to_area(area);
+                }
+                if self.card.is_some() {
+                    Card::play_backaudio(appdata, self.get_id());
+                }
+            }
+            MyKey::Alt('g') if self.question.is_selected(cursor) && self.revealed => {
+                if let Some(key) = &appdata.config.gptkey {
+                    let answer = get_gpt3_response(key, &self.question.return_text());
+                    self.answer.replace_text(answer);
+                }
+            }
+            MyKey::Alt('t') if self.card.is_some() => {
+                let purpose = CardPurpose::NewDependent(vec![self.get_id()]);
+                let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
+                tabdata.popup = Some(Box::new(cardfinder));
+            }
+            MyKey::Alt('y') if self.card.is_some() => {
+                let purpose = CardPurpose::NewDependency(vec![self.get_id()]);
+                let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
+                tabdata.popup = Some(Box::new(cardfinder));
+            }
+            MyKey::Alt('T') if self.card.is_some() => {
+                let addchild =
+                    AddChildWidget::new(appdata, Purpose::Dependency(vec![self.get_id()]));
+                tabdata.popup = Some(Box::new(addchild));
+            }
+            MyKey::Alt('Y') if self.card.is_some() => {
+                let addchild =
+                    AddChildWidget::new(appdata, Purpose::Dependent(vec![self.get_id()]));
+                tabdata.popup = Some(Box::new(addchild));
+            }
+            MyKey::Char('e') if self.dependents.is_selected(cursor) => {
+                if let Some(idx) = self.dependents.state.selected() {
+                    let id = self.dependents.items[idx].id;
+                    let editor = Editor::new(appdata, id);
+                    tabdata.popup = Some(Box::new(editor));
+                }
+            }
+            MyKey::Char('e') if self.dependencies.is_selected(cursor) => {
+                if let Some(idx) = self.dependencies.state.selected() {
+                    let id = self.dependencies.items[idx].id;
+                    let editor = Editor::new(appdata, id);
+                    tabdata.popup = Some(Box::new(editor));
+                }
             }
             key if self.question.is_selected(cursor) => self.question.keyhandler(appdata, key),
             key if self.revealed && self.answer.is_selected(cursor) => {
@@ -369,8 +428,17 @@ impl CardView {
             }
             key if self.dependents.is_selected(cursor) => self.dependents.keyhandler(appdata, key),
             key if self.cardrater.is_selected(cursor) => self.cardrater.keyhandler(appdata, key),
+            key if self.topics.is_selected(cursor) => {
+                self.topics.keyhandler(appdata, key);
+                if let Some(topic_id) = self.topics.get_selected_id() {
+                    if let Some(card) = &mut self.card {
+                        card.topic = topic_id;
+                    }
+                }
+            }
             _ => {}
         }
+        self.save_state(&appdata.conn);
     }
 
     pub fn is_selected(&self, cursor: &(u16, u16)) -> bool {
@@ -392,15 +460,23 @@ impl CardView {
         false
     }
 
-    pub fn new(conn: &Arc<Mutex<Connection>>, id: CardID) -> Self {
-        let mut myself = Self::default();
-        myself.change_card(conn, id);
+    pub fn new_with_id(appdata: &AppData, id: CardID) -> Self {
+        let mut myself = Self::new(appdata);
+        myself.change_card(&appdata.conn, id);
         myself
     }
 
     pub fn change_card(&mut self, conn: &Arc<Mutex<Connection>>, id: CardID) {
         self.save_state(conn);
         let card = fetch_card(conn, id);
+        let topic_id = card.topic;
+        let idx = if topic_id == 0 {
+            0
+        } else {
+            self.topics.index_from_id(topic_id) as usize
+        };
+        self.topics.state.select(Some(idx));
+
         self.question.replace_text(card.question.clone());
         self.answer.replace_text(card.answer.clone());
         self.dependencies = {
@@ -424,8 +500,8 @@ impl CardView {
         self.card = Some(card);
     }
 
-    pub fn clear_card(&mut self) {
-        *self = Self::default();
+    pub fn clear_card(&mut self, appdata: &AppData) {
+        *self = Self::new(appdata);
     }
 
     pub fn save_state(&self, conn: &Arc<Mutex<Connection>>) {
@@ -433,8 +509,10 @@ impl CardView {
             return;
         }
         let id = self.get_id();
+        let topic_id = self.topics.get_selected_id().unwrap();
         update_card_question(conn, id, self.question.return_text());
         update_card_answer(conn, id, self.answer.return_text());
+        update_topic(conn, id, topic_id);
     }
 
     pub fn get_id(&self) -> CardID {
@@ -442,6 +520,27 @@ impl CardView {
             return card.id as CardID;
         }
         panic!();
+    }
+
+    pub fn submit_card(&mut self, appdata: &AppData, iscompleted: bool) {
+        let question = self.question.return_text();
+        let answer = self.answer.return_text();
+        let topic = self.topics.get_selected_id().unwrap();
+        let source = 0;
+
+        let status = if iscompleted {
+            CardTypeData::Finished(FinishedInfo::default())
+        } else {
+            CardTypeData::Unfinished(UnfinishedInfo::default())
+        };
+
+        let card = Card::new(status)
+            .question(question)
+            .answer(answer)
+            .topic(topic)
+            .source(source);
+
+        card.save_card(&appdata.conn);
     }
 }
 

@@ -1,18 +1,15 @@
-use crate::app::{AppData, PopUp, Widget};
+use crate::app::{AppData, TabData, Widget};
+use crate::popups::newchild::{AddChildWidget, Purpose};
 use crate::utils::aliases::*;
 use crate::utils::misc::{
-    get_dependencies, get_dependents, get_gpt3_response, split_leftright_by_percent, split_updown,
-    split_updown_by_percent, View,
+    get_dependencies, get_dependents, split_leftright_by_percent, split_updown,
+    split_updown_by_percent,
 };
 use crate::utils::sql::update::{set_suspended, update_inc_active};
 use crate::widgets::button::Button;
 use crate::widgets::mode_status::ModeStatus;
 use crate::widgets::progress_bar::ProgressBar;
 use crate::widgets::textinput::Field;
-use crate::widgets::{
-    find_card::{CardPurpose, FindCardWidget},
-    newchild::{AddChildWidget, Purpose},
-};
 use crate::{
     app::Tab,
     utils::{
@@ -115,8 +112,7 @@ pub struct MainReview {
     pub for_review: ForReview,
     pub start_qty: StartQty,
     pub automode: bool,
-    pub popup: Option<Box<dyn PopUp>>,
-    view: View,
+    tabdata: TabData,
 }
 
 use crate::utils::sql::fetch::{load_active_inc, CardQuery};
@@ -126,7 +122,7 @@ impl MainReview {
         let mode = ReviewMode::Done;
         let for_review = ForReview::new(&appdata.conn);
         let start_qty = StartQty::new(&for_review);
-        let progress_bar = ProgressBar::new("Progress".to_string());
+        let progress_bar = ProgressBar::new(0);
         let status = ModeStatus::default();
 
         let mut myself = Self {
@@ -136,8 +132,7 @@ impl MainReview {
             for_review,
             start_qty,
             automode: true,
-            popup: None,
-            view: View::default(),
+            tabdata: TabData::default(),
         };
         myself.random_mode(appdata);
         myself
@@ -273,7 +268,7 @@ impl MainReview {
         };
 
         let color = modecolor(&self.mode);
-        let cursor = self.get_cursor();
+        let cursor = self.get_cursor().clone();
         self.progress_bar.current = current;
         self.progress_bar.max = target;
         self.progress_bar.color = color;
@@ -282,8 +277,11 @@ impl MainReview {
 }
 
 impl Tab for MainReview {
+    fn get_tabdata(&mut self) -> &mut TabData {
+        &mut self.tabdata
+    }
+
     fn set_selection(&mut self, area: Rect) {
-        self.view.areas.clear();
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Max(4), Constraint::Ratio(7, 10)].as_ref())
@@ -299,8 +297,8 @@ impl Tab for MainReview {
         let (status, progbar) = (chunks[0], chunks[1]);
         self.status.set_area(status);
         self.progress_bar.set_area(progbar);
-        self.view.areas.push(status);
-        self.view.areas.push(progbar);
+        self.tabdata.view.areas.push(status);
+        self.tabdata.view.areas.push(progbar);
 
         match &mut self.mode {
             ReviewMode::Review(rev) | ReviewMode::Pending(rev) => {
@@ -313,15 +311,15 @@ impl Tab for MainReview {
                 let rightcolumn = split_updown_by_percent([50, 50], right);
                 let leftcolumn = split_updown_by_percent([50, 50], left);
 
-                self.view.areas.push(leftcolumn[0]);
-                self.view.areas.push(leftcolumn[1]);
-                self.view.areas.push(rightcolumn[0]);
-                self.view.areas.push(rightcolumn[1]);
-                self.view.areas.push(bottomleftright[0]);
-                self.view.areas.push(bottomleftright[1]);
+                self.tabdata.view.areas.push(leftcolumn[0]);
+                self.tabdata.view.areas.push(leftcolumn[1]);
+                self.tabdata.view.areas.push(rightcolumn[0]);
+                self.tabdata.view.areas.push(rightcolumn[1]);
+                self.tabdata.view.areas.push(bottomleftright[0]);
+                self.tabdata.view.areas.push(bottomleftright[1]);
 
                 if rev.cardview.question.get_area().width == 0 {
-                    self.view.move_to_area(leftcolumn[0]);
+                    self.tabdata.view.move_to_area(leftcolumn[0]);
                 }
 
                 rev.cardview.question.set_area(leftcolumn[0]);
@@ -338,10 +336,10 @@ impl Tab for MainReview {
                 let rightcolumn = split_updown_by_percent([50, 50], right);
                 let leftcolumn = split_updown_by_percent([50, 50], left);
 
-                self.view.areas.push(leftcolumn[0]);
-                self.view.areas.push(leftcolumn[1]);
-                self.view.areas.push(rightcolumn[0]);
-                self.view.areas.push(rightcolumn[1]);
+                self.tabdata.view.areas.push(leftcolumn[0]);
+                self.tabdata.view.areas.push(leftcolumn[1]);
+                self.tabdata.view.areas.push(rightcolumn[0]);
+                self.tabdata.view.areas.push(rightcolumn[1]);
 
                 unf.cardview.question.set_area(leftcolumn[0]);
                 unf.cardview.answer.set_area(leftcolumn[1]);
@@ -353,10 +351,10 @@ impl Tab for MainReview {
                 let (editing, rightside) = (mainvec[0], mainvec[1]);
                 let rightvec = split_updown_by_percent([10, 40, 40], rightside);
 
-                self.view.areas.push(editing);
-                self.view.areas.push(rightvec[0]);
-                self.view.areas.push(rightvec[1]);
-                self.view.areas.push(rightvec[2]);
+                self.tabdata.view.areas.push(editing);
+                self.tabdata.view.areas.push(rightvec[0]);
+                self.tabdata.view.areas.push(rightvec[1]);
+                self.tabdata.view.areas.push(rightvec[2]);
 
                 rev.source.source.set_area(editing);
                 rev.source.extracts.set_area(rightvec[1]);
@@ -364,10 +362,6 @@ impl Tab for MainReview {
             }
             ReviewMode::Done => {}
         }
-    }
-
-    fn get_view(&mut self) -> &mut View {
-        &mut self.view
     }
 
     fn get_title(&self) -> String {
@@ -384,15 +378,15 @@ impl Tab for MainReview {
         }
     }
 
-    fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, area: Rect) {
-        let cursor = &self.get_cursor();
+    fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, _cursor: &(u16, u16)) {
+        let cursor = &self.get_cursor().clone();
 
         self.status
             .render_it(f, &self.mode, &self.for_review, &self.start_qty);
-        self.draw_progress_bar(f, appdata, area);
+        self.draw_progress_bar(f, appdata, f.size());
 
         match &mut self.mode {
-            ReviewMode::Done => self.draw_done(f, appdata, area),
+            ReviewMode::Done => self.draw_done(f, appdata, f.size()),
             ReviewMode::Review(review) => review.render(f, appdata, cursor),
             ReviewMode::Pending(pending) => pending.render(f, appdata, cursor),
             ReviewMode::Unfinished(unfinished) => unfinished.render(f, appdata, cursor),
@@ -401,20 +395,11 @@ impl Tab for MainReview {
     }
 
     fn exit_popup(&mut self, appdata: &AppData) {
-        self.popup = None;
+        self.tabdata.popup = None;
         self.update_dependencies(&appdata.conn);
     }
 
-    fn get_popup(&mut self) -> Option<&mut Box<dyn PopUp>> {
-        if let Some(popup) = &mut self.popup {
-            Some(popup)
-        } else {
-            None
-        }
-    }
-
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
-        let cursor = &self.get_cursor();
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16)) {
         use MyKey::*;
 
         match &mut self.mode {
@@ -423,43 +408,14 @@ impl Tab for MainReview {
                 Alt('s') => {
                     let id = unf.cardview.get_id();
                     unf.cardview.save_state(&appdata.conn);
-                    self.random_mode(appdata);
                     double_skip_duration(&appdata.conn, id);
+                    self.random_mode(appdata);
                 }
                 Alt('f') => {
                     let id = unf.cardview.get_id();
                     unf.cardview.save_state(&appdata.conn);
                     Card::complete_card(&appdata.conn, id);
                     self.random_mode(appdata);
-                }
-                Alt('t') => {
-                    let id = unf.cardview.get_id();
-                    let purpose = CardPurpose::NewDependent(vec![id]);
-                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
-                    self.popup = Some(Box::new(cardfinder));
-                }
-                Alt('y') => {
-                    let id = unf.cardview.get_id();
-                    let purpose = CardPurpose::NewDependency(vec![id]);
-                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
-                    self.popup = Some(Box::new(cardfinder));
-                }
-                Alt('T') => {
-                    let id = unf.cardview.get_id();
-                    let addchild =
-                        AddChildWidget::new(&appdata.conn, Purpose::Dependency(vec![id]));
-                    self.popup = Some(Box::new(addchild));
-                }
-                Alt('Y') => {
-                    let id = unf.cardview.get_id();
-                    let addchild = AddChildWidget::new(&appdata.conn, Purpose::Dependent(vec![id]));
-                    self.popup = Some(Box::new(addchild));
-                }
-                Alt('g') => {
-                    if let Some(key) = &appdata.config.gptkey {
-                        let answer = get_gpt3_response(key, &unf.cardview.question.return_text());
-                        unf.cardview.answer.replace_text(answer);
-                    }
                 }
                 Alt('i') => {
                     let id = unf.cardview.get_id();
@@ -480,40 +436,10 @@ impl Tab for MainReview {
                     rev.cardview.save_state(&appdata.conn);
                     self.random_mode(appdata);
                 }
-                Alt('t') => {
-                    let purpose = CardPurpose::NewDependent(vec![rev.cardview.get_id()]);
-                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
-                    self.popup = Some(Box::new(cardfinder));
-                }
-                Alt('y') => {
-                    let purpose = CardPurpose::NewDependency(vec![rev.cardview.get_id()]);
-                    let cardfinder = FindCardWidget::new(&appdata.conn, purpose);
-                    self.popup = Some(Box::new(cardfinder));
-                }
-                Alt('T') => {
-                    let addchild = AddChildWidget::new(
-                        &appdata.conn,
-                        Purpose::Dependency(vec![rev.cardview.get_id()]),
-                    );
-                    self.popup = Some(Box::new(addchild));
-                }
-                Alt('Y') => {
-                    let addchild = AddChildWidget::new(
-                        &appdata.conn,
-                        Purpose::Dependent(vec![rev.cardview.get_id()]),
-                    );
-                    self.popup = Some(Box::new(addchild));
-                }
                 Alt('i') => {
                     set_suspended(&appdata.conn, [rev.cardview.get_id()], true);
                     rev.cardview.save_state(&appdata.conn);
                     self.random_mode(appdata);
-                }
-                Char(' ') | Enter if rev.cardview.answer.is_selected(cursor) => {
-                    rev.cardview.revealed = true;
-                    let area = rev.cardview.cardrater.get_area();
-                    self.view.move_to_area(area);
-                    Card::play_backaudio(appdata, rev.cardview.get_id());
                 }
 
                 Char(num)
@@ -548,7 +474,8 @@ impl Tab for MainReview {
                     self.new_review(appdata, id, grade);
                 }
                 key if rev.cardview.is_selected(cursor) => {
-                    rev.cardview.keyhandler(appdata, cursor, key);
+                    rev.cardview
+                        .keyhandler(appdata, &mut self.tabdata, cursor, key);
                 }
                 _ => {}
             },
@@ -564,9 +491,8 @@ impl Tab for MainReview {
                     self.inc_next(appdata, id);
                 }
                 Alt('a') if inc.source.source.is_selected(cursor) => {
-                    let addchild =
-                        AddChildWidget::new(&appdata.conn, Purpose::Source(inc.source.id));
-                    self.popup = Some(Box::new(addchild));
+                    let addchild = AddChildWidget::new(appdata, Purpose::Source(inc.source.id));
+                    self.set_popup(Box::new(addchild));
                 }
                 key if inc.source.extracts.is_selected(cursor) => {
                     inc.source.extracts.keyhandler(appdata, key)

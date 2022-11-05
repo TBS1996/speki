@@ -1,5 +1,4 @@
-use crate::app::{AppData, PopUp, Tab, Widget};
-use crate::utils::misc::View;
+use crate::app::{AppData, PopUpState, Tab, TabData, Widget};
 use crate::utils::sql::fetch::CardQuery;
 use crate::utils::statelist::{KeyHandler, StatefulList};
 use crate::utils::{aliases::*, card::Card, sql::insert::update_both};
@@ -10,7 +9,7 @@ use tui::{
     Frame,
 };
 
-use super::button::Button;
+use crate::widgets::button::Button;
 use crate::{MyKey, MyType};
 use std::sync::{Arc, Mutex};
 
@@ -19,9 +18,7 @@ pub struct FindCardWidget {
     pub searchterm: Field,
     pub list: StatefulList<CardMatch>,
     pub purpose: CardPurpose,
-    pub should_quit: bool,
-    area: Rect,
-    view: View,
+    tabdata: TabData,
 }
 
 #[derive(Clone, PartialEq)]
@@ -51,7 +48,6 @@ impl FindCardWidget {
         list.persistent_highlight = true;
         let searchterm = Field::default();
         list.reset_filter(conn, searchterm.return_text());
-        let should_quit = false;
         let prompt = match purpose {
             CardPurpose::NewDependent(_) => "Add new dependent".to_string(),
             CardPurpose::NewDependency(_) => "Add new dependency".to_string(),
@@ -63,9 +59,7 @@ impl FindCardWidget {
             searchterm,
             list,
             purpose,
-            should_quit,
-            area: Rect::default(),
-            view: View::default(),
+            tabdata: TabData::default(),
         }
     }
 
@@ -100,13 +94,7 @@ impl FindCardWidget {
                 todo!();
             }
         }
-        self.should_quit = true;
-    }
-}
-
-impl PopUp for FindCardWidget {
-    fn should_quit(&self) -> bool {
-        self.should_quit
+        self.tabdata.state = PopUpState::Exit;
     }
 }
 
@@ -115,8 +103,8 @@ impl Tab for FindCardWidget {
         "Find card".to_string()
     }
 
-    fn get_view(&mut self) -> &mut crate::utils::misc::View {
-        &mut self.view
+    fn get_tabdata(&mut self) -> &mut TabData {
+        &mut self.tabdata
     }
 
     fn navigate(&mut self, _dir: crate::NavDir) {}
@@ -140,14 +128,9 @@ impl Tab for FindCardWidget {
         self.list.set_area(matchlist);
     }
 
-    fn get_cursor(&mut self) -> (u16, u16) {
-        let area = self.searchterm.get_area();
-        (area.x, area.y)
-    }
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, _cursor: &(u16, u16)) {
         match key {
             MyKey::Enter => self.complete(&appdata.conn),
-            MyKey::Esc => self.should_quit = true,
             MyKey::Down => self.list.next(),
             MyKey::Up => self.list.previous(),
             key => {
@@ -158,9 +141,7 @@ impl Tab for FindCardWidget {
         }
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
-        self.set_selection(area);
-        let cursor = &self.get_cursor().clone();
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
         self.prompt.render(f, appdata, cursor);
         self.searchterm.render(f, appdata, cursor);
         self.list.render(f, appdata, cursor);

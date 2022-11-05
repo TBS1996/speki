@@ -55,7 +55,6 @@ impl CardRater {
 impl Widget for CardRater {
     fn keyhandler(&mut self, _appdata: &AppData, key: MyKey) {
         use MyKey::*;
-        dbg!(key.clone());
         match key {
             Left | Char('h') => self.left(),
             Right | Char('l') => self.right(),

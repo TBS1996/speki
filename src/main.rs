@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 pub mod app;
+pub mod popups;
 pub mod tabs;
 pub mod utils;
 pub mod widgets;
@@ -114,6 +115,7 @@ pub enum MyKey {
     ScrollDown,
     ScrollLeft,
     ScrollRight,
+    ExitPopups,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -178,6 +180,11 @@ impl MyKey {
                     KeyCode::Char('l') | KeyCode::Right => return Some(MyKey::Nav(NavDir::Right)),
                     KeyCode::Char(c) => return Some(MyKey::Ctrl(c)),
                     _ => {}
+                }
+            }
+            if modifiers == event::KeyModifiers::SHIFT {
+                if let KeyCode::Esc = key.code {
+                    return Some(MyKey::ExitPopups);
                 }
             }
             let key = match key.code {

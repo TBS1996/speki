@@ -156,7 +156,7 @@ impl<T: Display + KeyHandler> StatefulList<T> {
         }
     }
     pub fn keypress(&mut self, appdata: &AppData, pos: (u16, u16)) {
-        if pos.1 == self.area.y
+        if pos.1 <= self.area.y
             || pos.0 == self.area.x
             || pos.0 == self.area.x + self.area.width - 1
             || pos.1 == self.area.y + self.area.height - 1

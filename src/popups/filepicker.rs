@@ -1,3 +1,6 @@
+use crate::app::Tab;
+use crate::app::TabData;
+use crate::app::Widget;
 use crate::utils::statelist::KeyHandler;
 use crate::utils::statelist::StatefulList;
 use std::path::PathBuf;
@@ -45,6 +48,55 @@ pub struct FilePicker {
     path: PathBuf,
     pub state: PickState,
     allowed_extensions: Vec<String>,
+    tabdata: TabData,
+}
+
+impl Tab for FilePicker {
+    fn set_selection(&mut self, area: tui::layout::Rect) {
+        self.tabdata.view.areas.push(area);
+        self.contents.set_area(area);
+    }
+
+    fn keyhandler(
+        &mut self,
+        appdata: &crate::app::AppData,
+        key: crate::MyKey,
+        _cursor: &(u16, u16),
+    ) {
+        use crate::MyKey::*;
+        match key {
+            Char('h') | Left => self.prevdir(),
+            Char('l') | Right => self.select_dir(),
+            Enter => {
+                let idx = self.contents.state.selected().unwrap();
+                let path = self.contents.items[idx].clone();
+                if let Some(foo) = path.inner.extension() {
+                    if foo == "apkg" {
+                        self.state = PickState::Fetch(path.inner);
+                    }
+                } else {
+                    self.select_dir();
+                }
+            }
+            key => self.contents.keyhandler(appdata, key),
+        }
+    }
+
+    fn get_tabdata(&mut self) -> &mut TabData {
+        &mut self.tabdata
+    }
+
+    fn render(
+        &mut self,
+        f: &mut tui::Frame<MyType>,
+        appdata: &crate::app::AppData,
+        cursor: &(u16, u16),
+    ) {
+        self.contents.render(f, appdata, cursor);
+    }
+    fn get_title(&self) -> String {
+        "Filepicker".to_string()
+    }
 }
 
 impl FilePicker {
@@ -54,12 +106,14 @@ impl FilePicker {
     {
         let path = std::env::current_dir().unwrap();
         let contents = StatefulList::new("".to_string());
+        let tabdata = TabData::default();
 
         let mut me = Self {
             contents,
             path: path.clone(),
             state: PickState::Ongoing,
             allowed_extensions: extensions.into(),
+            tabdata,
         };
         me.fill_vec(&path);
         me
@@ -136,57 +190,6 @@ impl FilePicker {
             self.newdir(path.inner);
         }
     }
-
-    pub fn keyhandler(&mut self, key: crate::MyKey) {
-        use crate::MyKey::*;
-        // dbg!(&key);
-
-        match key {
-            Char('k') | Left => self.contents.previous(),
-            Char('j') | Down => self.contents.next(),
-            Char('h') | Up => self.prevdir(),
-            Char('l') | Right => self.select_dir(),
-            Enter => {
-                let idx = self.contents.state.selected().unwrap();
-                let path = self.contents.items[idx].clone();
-                if let Some(foo) = path.inner.extension() {
-                    if foo == "apkg" {
-                        self.state = PickState::Fetch(path.inner);
-                    }
-                } else {
-                    self.select_dir();
-                }
-            }
-            Esc => self.state = PickState::ExitEarly,
-            _ => {}
-        }
-    }
-
-    pub fn render(&mut self, _f: &mut tui::Frame<MyType>, _area: tui::layout::Rect) {
-        //self.contents.render(f, appdata, cursor);
-        /*
-        let mylist = {
-            let items: Vec<ListItem> = self
-                .contents
-                .items
-                .iter()
-                .map(|item| {
-                    let lines =
-                        Span::from(item.inner.clone().into_os_string().into_string().unwrap());
-                    ListItem::new(lines).style(Style::default().fg(Color::Gray).bg(Color::Black))
-                })
-                .collect();
-
-            let items = List::new(items).block(Block::default().borders(Borders::ALL).title(""));
-            let items = items.highlight_style(
-                Style::default()
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD),
-            );
-            items
-        };
-        f.render_stateful_widget(mylist, area, &mut self.contents.state);
-        */
-    }
 }
+
 use crate::MyType;

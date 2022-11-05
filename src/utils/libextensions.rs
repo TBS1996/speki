@@ -30,6 +30,8 @@ impl MyListState {
             self.offset = 0;
         }
     }
+
+    // this is literally all I needed ...
     pub fn get_offset(&self) -> usize {
         self.offset
     }

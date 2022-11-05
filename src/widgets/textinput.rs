@@ -300,7 +300,12 @@ impl Field {
         let col = self.current_visual_col();
         let xclicked = (pos.0 - self.area.x - 1) as usize;
 
-        let rightlen = self.current_rowlen() - self.cursor.column;
+        let rowlen = self.current_rowlen();
+        let rightlen = if rowlen > self.cursor.column {
+            rowlen - self.cursor.column
+        } else {
+            0
+        };
 
         if xclicked > col {
             let diff = xclicked - col;

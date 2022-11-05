@@ -9,8 +9,10 @@ use std::{
 use crate::{app::Audio, tabs::review::logic::ReviewMode, utils::card::CardItem, MyType, NavDir};
 use rusqlite::Connection;
 use tui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::Color,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
+    text::Spans,
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 
@@ -288,8 +290,6 @@ impl SpekiPaths {
 
 /*
 
-
-
 */
 
 pub fn get_current_unix() -> u32 {
@@ -312,6 +312,15 @@ pub fn new_mod(num: i64) -> u32 {
         val *= -1;
     }
     val as u32
+}
+
+pub fn get_rgb(val: u32) -> (u8, u8, u8) {
+    let unix = get_current_unix() as i64;
+    let val = val as i64;
+    let r = new_mod(val | unix) as u8;
+    let g = new_mod(val ^ unix) as u8;
+    let b = new_mod(val & unix) as u8;
+    (r, g, b)
 }
 
 impl Default for View {
@@ -339,7 +348,9 @@ impl View {
                 return;
             }
         }
-        panic!();
+        if !self.areas.is_empty() {
+            self.move_to_area(self.areas[0]);
+        }
     }
 
     pub fn move_to_area(&mut self, area: Rect) {
@@ -413,4 +424,20 @@ impl View {
             NavDir::Right => self.move_right(),
         }
     }
+}
+
+pub fn draw_paragraph(
+    f: &mut Frame<MyType>,
+    area: Rect,
+    text: Vec<Spans>,
+    borderstyle: Style,
+    alignment: Alignment,
+    borders: Borders,
+) {
+    let block = Block::default().borders(borders).border_style(borderstyle);
+    let paragraph = Paragraph::new(text)
+        .block(block)
+        .alignment(alignment)
+        .wrap(Wrap { trim: true });
+    f.render_widget(paragraph, area);
 }

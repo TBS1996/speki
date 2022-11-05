@@ -1,4 +1,5 @@
 pub mod aliases;
+pub mod ankitemplate;
 pub mod card;
 pub mod incread;
 pub mod interval;

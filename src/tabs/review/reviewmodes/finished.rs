@@ -17,7 +17,7 @@ pub struct CardReview {
 impl CardReview {
     pub fn new(id: CardID, appdata: &AppData) -> Self {
         Card::play_frontaudio(appdata, id);
-        let mut cardview = CardView::new(&appdata.conn, id);
+        let mut cardview = CardView::new_with_id(appdata, id);
         cardview.revealed = false;
         Self { cardview }
     }

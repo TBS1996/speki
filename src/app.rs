@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 use tui::{
-    layout::{Constraint, Layout, Rect},
+    layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Style},
     text::{Span, Spans},
     widgets::{Block, Borders, Clear, Tabs},
@@ -8,13 +8,13 @@ use tui::{
 };
 
 use crate::{
-    tabs::add_card::logic::NewCard,
-    utils::misc::{centered_rect, View},
+    tabs::add_card::NewCard,
+    utils::misc::{draw_paragraph, split_updown, View},
     NavDir,
 };
 
 use crate::{
-    tabs::{browse::logic::Browse, incread::logic::MainInc, review::logic::MainReview},
+    tabs::{browse::Browse, incread::MainInc, review::logic::MainReview},
     utils::misc::split_leftright_by_percent,
     widgets::textinput::Field,
     MyType, SpekiPaths,
@@ -71,10 +71,10 @@ impl TabsState {
     pub fn new(appdata: &AppData) -> TabsState {
         let mut tabs: Vec<Box<dyn Tab>> = vec![];
         let revlist = MainReview::new(appdata);
-        let addcards = NewCard::new(&appdata.conn);
+        let addcards = NewCard::new(appdata);
         let incread = MainInc::new(&appdata.conn);
-        let importer = Importer::new(&appdata.conn);
-        let browse = Browse::new(&appdata.conn);
+        let importer = Importer::new();
+        let browse = Browse::new(appdata);
 
         tabs.push(Box::new(revlist));
         tabs.push(Box::new(addcards));
@@ -113,7 +113,7 @@ impl TabsState {
 
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         match key {
-            MyKey::Nav(dir) => self.tabs[self.index].navigate(dir),
+            //MyKey::Nav(dir) => self.tabs[self.index].navigate(dir),
             key => self.tabs[self.index].main_keyhandler(appdata, key),
         }
     }
@@ -122,7 +122,7 @@ impl TabsState {
     }
 }
 
-use crate::tabs::import::logic::Importer;
+use crate::tabs::import::Importer;
 use std::sync::{Arc, Mutex};
 
 pub struct App {
@@ -250,18 +250,21 @@ quit: Alt+q
 
 use crate::MyKey;
 
-pub trait PopUp: Tab {
-    fn should_quit(&self) -> bool;
-    fn render_popup(&mut self, f: &mut Frame<MyType>, appdata: &AppData, mut area: Rect) {
-        if area.height > 10 && area.width > 10 {
-            area = centered_rect(80, 70, area);
-            f.render_widget(Clear, area); //this clears out the background
-            area.x += 2;
-            area.y += 2;
-            area.height -= 4;
-            area.width -= 4;
-        }
-        self.main_render(f, appdata, area);
+pub enum PopupValue {
+    None,
+    Err,
+    Ok,
+}
+
+pub enum PopUpState {
+    Continue,
+    Exit,
+    Switch(Box<dyn Tab>),
+}
+
+impl Default for PopUpState {
+    fn default() -> Self {
+        Self::Continue
     }
 }
 
@@ -270,6 +273,7 @@ pub trait Widget {
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16));
     fn get_area(&self) -> Rect;
     fn set_area(&mut self, area: Rect);
+    fn refresh(&mut self) {}
 
     fn is_selected(&self, cursor: &(u16, u16)) -> bool {
         View::isitselected(self.get_area(), cursor)
@@ -277,14 +281,15 @@ pub trait Widget {
 }
 
 pub trait Tab {
+    fn refresh(&mut self) {}
     fn get_title(&self) -> String;
     fn get_manual(&self) -> String {
         String::new()
     }
     fn set_selection(&mut self, area: Rect);
 
-    fn get_cursor(&mut self) -> (u16, u16) {
-        self.get_view().clone().cursor
+    fn get_cursor(&mut self) -> &(u16, u16) {
+        &self.get_view().cursor
     }
     fn navigate(&mut self, dir: NavDir) {
         if let Some(popup) = self.get_popup() {
@@ -294,43 +299,140 @@ pub trait Tab {
         }
     }
 
-    fn get_view(&mut self) -> &mut View;
+    fn get_view(&mut self) -> &mut View {
+        &mut self.get_tabdata().view
+    }
+
+    fn get_tabdata(&mut self) -> &mut TabData;
 
     fn main_keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         if let Some(popup) = self.get_popup() {
-            popup.main_keyhandler(appdata, key);
+            match key {
+                MyKey::Esc if popup.get_popup().is_none() => self.exit_popup(appdata),
+                key => popup.main_keyhandler(appdata, key),
+            }
             return;
         }
         if let MyKey::KeyPress(pos) = key.clone() {
             self.get_view().cursor = pos;
         }
+        let cursor = self.get_cursor().clone();
         match key {
             MyKey::Nav(dir) => self.navigate(dir),
-            key => self.keyhandler(appdata, key),
+            key => self.keyhandler(appdata, key, &cursor),
         }
     }
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey);
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16));
 
     fn main_render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
+        self.get_view().areas.clear();
         self.set_selection(area);
-        self.render(f, appdata, area);
+        self.get_tabdata().view.validate_pos();
+        let cursor = self.get_cursor().clone();
+        self.render(f, appdata, &cursor);
+        let mut navbar = String::new();
         if let Some(popup) = self.get_popup() {
-            if popup.should_quit() {
-                self.exit_popup(appdata);
-                return;
+            match popup.get_state() {
+                PopUpState::Continue => popup.render_popup(f, appdata, area, &mut navbar),
+                PopUpState::Exit => self.exit_popup(appdata),
+                PopUpState::Switch(_tab) => {} //*popup = *tab,
             }
-            popup.render_popup(f, appdata, area);
         }
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect);
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16));
 
-    fn get_popup(&mut self) -> Option<&mut Box<dyn PopUp>> {
-        None
+    fn get_popup(&mut self) -> Option<&mut Box<dyn Tab>> {
+        if let Some(popup) = &mut self.get_tabdata().popup {
+            Some(popup)
+        } else {
+            None
+        }
     }
     fn exit_popup(&mut self, appdata: &AppData) {
         let _ = appdata;
-        // if there's a way to statically enforce this requirement, make an issue or PR about it <3
-        panic!("Overriding the get_popup() method requires you to also override the exit_popup() method")
+        self.get_tabdata().popup = None;
+    }
+
+    fn switch_popup(&mut self, _obj: &Box<dyn Tab>) {}
+
+    fn set_popup(&mut self, popup: Box<dyn Tab>) {
+        self.get_tabdata().popup = Some(popup);
+    }
+
+    fn render_popup(
+        &mut self,
+        f: &mut Frame<MyType>,
+        appdata: &AppData,
+        mut area: Rect,
+        navbar: &mut String,
+    ) {
+        navbar.push_str(" ❱❱ ");
+        navbar.push_str(&self.get_title());
+        if let Some(popup) = self.get_popup() {
+            match popup.get_state() {
+                PopUpState::Continue => popup.render_popup(f, appdata, area, navbar),
+                PopUpState::Exit => self.exit_popup(appdata),
+                PopUpState::Switch(_tab) => {}
+            }
+        } else {
+            if area.height > 10 && area.width > 10 {
+                f.render_widget(Clear, area); //this clears out the background
+                let chunks = split_updown([Constraint::Length(3), Constraint::Min(1)], area);
+                draw_paragraph(
+                    f,
+                    chunks[0],
+                    vec![Spans::from(navbar.clone())],
+                    Style::default(),
+                    Alignment::Left,
+                    Borders::ALL,
+                );
+                area = chunks[1];
+                //area = centered_rect(80, 70, area);
+                area.x += 2;
+                area.y += 2;
+                area.height -= 4;
+                area.width -= 4;
+            }
+            let cursor = self.get_cursor().clone();
+            self.set_selection(area);
+            self.render(f, appdata, &cursor);
+            //self.main_render(f, appdata, area);
+        }
+    }
+
+    fn get_state(&mut self) -> &PopUpState {
+        &self.get_tabdata().state
+    }
+
+    fn get_popup_value(&self) -> PopupValue {
+        PopupValue::None
+    }
+}
+
+#[derive(Default)]
+pub struct TabData {
+    pub view: View,
+    pub popup: Option<Box<dyn Tab>>,
+    pub state: PopUpState,
+}
+
+impl Default for Box<dyn Tab> {
+    fn default() -> Self {
+        Box::new(Dummy)
+    }
+}
+
+struct Dummy;
+
+impl Tab for Dummy {
+    fn set_selection(&mut self, _area: Rect) {}
+    fn render(&mut self, _f: &mut Frame<MyType>, _appdata: &AppData, _cursor: &(u16, u16)) {}
+    fn keyhandler(&mut self, _appdata: &AppData, _key: MyKey, _cursor: &(u16, u16)) {}
+    fn get_title(&self) -> String {
+        todo!()
+    }
+    fn get_tabdata(&mut self) -> &mut TabData {
+        todo!()
     }
 }

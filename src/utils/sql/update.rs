@@ -61,6 +61,10 @@ pub fn update_position(conn: &Arc<Mutex<Connection>>, id: CardID, position: u32)
     update_card(conn, "pending_cards", "position", position, [id]).unwrap()
 }
 
+pub fn update_topic(conn: &Arc<Mutex<Connection>>, id: CardID, topic_id: TopicID) {
+    update_card(conn, "cards", "topic", topic_id, [id]).unwrap()
+}
+
 pub fn set_cardtype(conn: &Arc<Mutex<Connection>>, id: CardID, cardtype: CardType) {
     let cardtype = match cardtype {
         CardType::Pending => 0,

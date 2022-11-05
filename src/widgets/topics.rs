@@ -112,7 +112,7 @@ impl TopicList {
         }
     }
 
-    pub fn index_from_id(&self, id: u32) -> u32 {
+    pub fn index_from_id(&self, id: TopicID) -> u32 {
         for (index, topic) in self.items.iter().enumerate() {
             if topic.id == id {
                 return index as u32;

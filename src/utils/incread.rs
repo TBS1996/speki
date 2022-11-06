@@ -37,10 +37,10 @@ pub struct IncRead {
     pub id: IncID,
     pub parent: IncID,
     pub topic: TopicID,
+    pub isactive: bool,
     pub source: Field,
     pub extracts: StatefulList<IncListItem>,
     pub clozes: StatefulList<CardItem>,
-    pub isactive: bool,
 }
 
 impl IncRead {

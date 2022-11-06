@@ -123,7 +123,10 @@ impl TabsState {
 }
 
 use crate::tabs::import::Importer;
-use std::sync::{Arc, Mutex};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 pub struct App {
     pub tabs: TabsState,
@@ -251,9 +254,16 @@ quit: Alt+q
 use crate::MyKey;
 
 pub enum PopupValue {
+    Path(PathBuf),
     None,
     Err,
     Ok,
+}
+
+impl Default for PopupValue {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 pub enum PopUpState {
@@ -325,18 +335,20 @@ pub trait Tab {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16));
 
     fn main_render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
-        self.get_view().areas.clear();
-        self.set_selection(area);
-        self.get_tabdata().view.validate_pos();
-        let cursor = self.get_cursor().clone();
-        self.render(f, appdata, &cursor);
         let mut navbar = String::new();
         if let Some(popup) = self.get_popup() {
-            match popup.get_state() {
+            let state = popup.get_state();
+            match std::mem::replace(state, PopUpState::Continue) {
                 PopUpState::Continue => popup.render_popup(f, appdata, area, &mut navbar),
                 PopUpState::Exit => self.exit_popup(appdata),
-                PopUpState::Switch(_tab) => {} //*popup = *tab,
+                PopUpState::Switch(tab) => *popup = tab,
             }
+        } else {
+            self.get_view().areas.clear();
+            self.set_selection(area);
+            self.get_tabdata().view.validate_pos();
+            let cursor = self.get_cursor().clone();
+            self.render(f, appdata, &cursor);
         }
     }
 
@@ -396,17 +408,17 @@ pub trait Tab {
             }
             let cursor = self.get_cursor().clone();
             self.set_selection(area);
+            self.get_tabdata().view.validate_pos();
             self.render(f, appdata, &cursor);
-            //self.main_render(f, appdata, area);
         }
     }
 
-    fn get_state(&mut self) -> &PopUpState {
-        &self.get_tabdata().state
+    fn get_state(&mut self) -> &mut PopUpState {
+        &mut self.get_tabdata().state
     }
 
-    fn get_popup_value(&self) -> PopupValue {
-        PopupValue::None
+    fn get_popup_value(&mut self) -> &PopupValue {
+        &self.get_tabdata().value
     }
 }
 
@@ -414,6 +426,7 @@ pub trait Tab {
 pub struct TabData {
     pub view: View,
     pub popup: Option<Box<dyn Tab>>,
+    pub value: PopupValue,
     pub state: PopUpState,
 }
 

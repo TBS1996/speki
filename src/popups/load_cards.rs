@@ -8,6 +8,7 @@ use crate::utils::statelist::{StatefulList, TextItem};
 use crate::widgets::textinput::Field;
 use crate::widgets::topics::TopicList;
 use crate::{MyKey, MyType};
+use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 
@@ -47,6 +48,29 @@ pub struct LoadCards {
 impl LoadCards {
     pub fn new(appdata: &AppData, deckname: String) -> Self {
         let template = Template::new(appdata, deckname);
+        let fields = StatefulList::new("Fields".to_string());
+        let importbutton = Button::new("import cards".to_string());
+        let previewbutton = Button::new("previewing card".to_string());
+
+        let mut ldc = Self {
+            template,
+            front_view: Field::default(),
+            back_view: Field::default(),
+            front_template: Field::new("Front template".to_string()),
+            back_template: Field::new("Back template".to_string()),
+            topics: TopicList::new(&appdata.conn),
+            importbutton,
+            previewbutton,
+            fields,
+            viewpos: 0,
+            tabdata: TabData::default(),
+        };
+        ldc.refresh_template_and_view(0);
+        ldc
+    }
+
+    pub fn new_csv(appdata: &AppData, path: PathBuf) -> Self {
+        let template = Template::new_csv(path);
         let fields = StatefulList::new("Fields".to_string());
         let importbutton = Button::new("import cards".to_string());
         let previewbutton = Button::new("previewing card".to_string());
@@ -158,9 +182,9 @@ impl Tab for LoadCards {
         let (topleft, topright) = (toprow[0], toprow[1]);
         let (bottomleft, bottomright) = (bottomrow[0], bottomrow[1]);
 
+        self.tabdata.view.areas.push(topleft);
         self.tabdata.view.areas.push(thetopics);
         self.tabdata.view.areas.push(preview);
-        self.tabdata.view.areas.push(topleft);
         self.tabdata.view.areas.push(topright);
         self.tabdata.view.areas.push(bottomleft);
         self.tabdata.view.areas.push(bottomright);

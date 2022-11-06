@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs,
+    fs, io,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -51,8 +51,6 @@ struct CardField {
     audio: Option<PathBuf>,
 }
 
-// perhaps instead of having things like {{Word}} in the string i should rather
-// save the index of where different fields should be in the template
 #[derive(Default, Clone, Debug)]
 pub struct Temple {
     name: String,
@@ -68,6 +66,86 @@ pub struct Template {
 }
 
 impl Template {
+    // basically emulates anki template thing for a CSV file cause im lazy but hey it works.. soon
+    pub fn new_csv(path: PathBuf) -> Self {
+        let mut notes = HashMap::new();
+        let mut cards = vec![];
+        let mut models = HashMap::new();
+        let mut qty = 0;
+
+        //        let path = String::from("importing.csv");
+        let mut rdr = Reader::from_path(path).unwrap();
+        let mut index = 0;
+        for result in rdr.records() {
+            let record = result.unwrap();
+            let mut cardfields = vec![];
+            qty = record.len();
+            for field in record.iter() {
+                cardfields.push(CardField {
+                    text: field.to_string(),
+                    image: None,
+                    audio: None,
+                });
+            }
+            let note = Note {
+                model_id: 0,
+                fields: cardfields,
+            };
+            notes.insert(index, note);
+            let kort = Kort {
+                note_id: index,
+                template_ord: 0,
+                reps: 0,
+            };
+            cards.push(kort);
+            index += 1;
+        }
+        let mut fields = vec![];
+        let mut afmt = String::new();
+
+        for i in 1..qty + 1 {
+            let field = format!("field{}", i);
+            fields.push(field);
+        }
+
+        for i in 1..fields.len() {
+            let mut field = fields[i].clone();
+            field.push('}');
+            field.push('}');
+            field.insert(0, '{');
+            field.insert(0, '{');
+            afmt.push_str(&field);
+        }
+        let qfmt = {
+            let mut field = fields[0].clone();
+            field.push('}');
+            field.push('}');
+            field.insert(0, '{');
+            field.insert(0, '{');
+            field
+        };
+
+        let thetemple = Temple {
+            name: String::from("csv_template"),
+            qfmt,
+            afmt,
+        };
+
+        let model = Model {
+            is_cloze: false,
+            fields,
+            name: "csv_model".to_string(),
+            templates: vec![thetemple],
+        };
+
+        models.insert(0, model);
+        Template {
+            cards,
+            notes,
+            models,
+        }
+    }
+
     pub fn new(appdata: &AppData, deckname: String) -> Self {
         let cards = vec![];
         let notes: HashMap<NoteID, Note> = HashMap::new();
@@ -542,6 +620,7 @@ impl CardField {
 }
 
 use anyhow::Result;
+use csv::Reader;
 use regex::Regex;
 use rusqlite::Connection;
 

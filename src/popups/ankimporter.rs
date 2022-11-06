@@ -287,14 +287,16 @@ impl Tab for Ankimporter {
 
         let (prompt, searchfield, results) = (chunks[0], chunks[1], chunks[2]);
 
-        self.prompt.set_area(prompt);
+        self.tabdata.view.areas.push(searchfield);
+
         self.searchterm.set_area(searchfield);
+        self.prompt.set_area(prompt);
         self.list.set_area(results);
         self.description.set_area(desc);
     }
 
-    fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &AppData, _cursor: &(u16, u16)) {
-        let cursor = &(0, 0);
+    fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+        //let cursor = &(0, 0);
         self.prompt.render(f, appdata, cursor);
         self.searchterm.render(f, appdata, cursor);
         self.list.render(f, appdata, cursor);

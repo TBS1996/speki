@@ -181,6 +181,7 @@ impl Template {
             cloze_format(&mut text, self.cards[idx].template_ord as u32 + 1);
             hide_close(&mut text);
         }
+        let text = text.trim().to_string();
         text
     }
     pub fn fill_back_view(&self, template: String, idx: usize) -> String {
@@ -190,6 +191,7 @@ impl Template {
         if model.is_cloze {
             hide_close(&mut text);
         }
+        let text = text.trim().to_string();
         text
     }
 

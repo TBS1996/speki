@@ -118,7 +118,8 @@ impl TabsState {
         }
     }
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
-        self.tabs[self.index].main_render(f, appdata, area);
+        let mut navbar = String::new();
+        self.tabs[self.index].main_render(f, appdata, area, &mut navbar);
     }
 }
 
@@ -334,20 +335,43 @@ pub trait Tab {
     }
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16));
 
-    fn main_render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
-        let mut navbar = String::new();
+    fn main_render(
+        &mut self,
+        f: &mut Frame<MyType>,
+        appdata: &AppData,
+        mut area: Rect,
+        navbar: &mut String,
+    ) {
         if let Some(popup) = self.get_popup() {
+            navbar.push_str(" ❱❱ ");
+            navbar.push_str(&popup.get_title());
             let state = popup.get_state();
             match std::mem::replace(state, PopUpState::Continue) {
-                PopUpState::Continue => popup.render_popup(f, appdata, area, &mut navbar),
+                PopUpState::Continue => popup.main_render(f, appdata, area, navbar),
                 PopUpState::Exit => self.exit_popup(appdata),
                 PopUpState::Switch(tab) => *popup = tab,
             }
         } else {
-            self.get_view().areas.clear();
+            if !navbar.is_empty() && area.height > 10 && area.width > 10 {
+                f.render_widget(Clear, area); //this clears out the background
+                let chunks = split_updown([Constraint::Length(3), Constraint::Min(1)], area);
+                draw_paragraph(
+                    f,
+                    chunks[0],
+                    vec![Spans::from(navbar.clone())],
+                    Style::default(),
+                    Alignment::Left,
+                    Borders::ALL,
+                );
+                area = chunks[1];
+                area.x += 2;
+                area.y += 2;
+                area.height -= 4;
+                area.width -= 4;
+            }
+            let cursor = self.get_cursor().clone();
             self.set_selection(area);
             self.get_tabdata().view.validate_pos();
-            let cursor = self.get_cursor().clone();
             self.render(f, appdata, &cursor);
         }
     }
@@ -370,47 +394,6 @@ pub trait Tab {
 
     fn set_popup(&mut self, popup: Box<dyn Tab>) {
         self.get_tabdata().popup = Some(popup);
-    }
-
-    fn render_popup(
-        &mut self,
-        f: &mut Frame<MyType>,
-        appdata: &AppData,
-        mut area: Rect,
-        navbar: &mut String,
-    ) {
-        navbar.push_str(" ❱❱ ");
-        navbar.push_str(&self.get_title());
-        if let Some(popup) = self.get_popup() {
-            match popup.get_state() {
-                PopUpState::Continue => popup.render_popup(f, appdata, area, navbar),
-                PopUpState::Exit => self.exit_popup(appdata),
-                PopUpState::Switch(_tab) => {}
-            }
-        } else {
-            if area.height > 10 && area.width > 10 {
-                f.render_widget(Clear, area); //this clears out the background
-                let chunks = split_updown([Constraint::Length(3), Constraint::Min(1)], area);
-                draw_paragraph(
-                    f,
-                    chunks[0],
-                    vec![Spans::from(navbar.clone())],
-                    Style::default(),
-                    Alignment::Left,
-                    Borders::ALL,
-                );
-                area = chunks[1];
-                //area = centered_rect(80, 70, area);
-                area.x += 2;
-                area.y += 2;
-                area.height -= 4;
-                area.width -= 4;
-            }
-            let cursor = self.get_cursor().clone();
-            self.set_selection(area);
-            self.get_tabdata().view.validate_pos();
-            self.render(f, appdata, &cursor);
-        }
     }
 
     fn get_state(&mut self) -> &mut PopUpState {
@@ -437,7 +420,6 @@ impl Default for Box<dyn Tab> {
 }
 
 struct Dummy;
-
 impl Tab for Dummy {
     fn set_selection(&mut self, _area: Rect) {}
     fn render(&mut self, _f: &mut Frame<MyType>, _appdata: &AppData, _cursor: &(u16, u16)) {}

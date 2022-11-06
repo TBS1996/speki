@@ -1,11 +1,8 @@
-use std::path::PathBuf;
-
 use crate::{
     app::{Tab, TabData, Widget},
     popups::{
         ankimporter::Ankimporter,
         filepicker::{FilePicker, FilePickerPurpose},
-        load_cards::LoadCards,
     },
     utils::misc::split_updown_by_percent,
     widgets::button::Button,
@@ -35,7 +32,7 @@ impl Tab for Importer {
 
     fn keyhandler(
         &mut self,
-        appdata: &crate::app::AppData,
+        _appdata: &crate::app::AppData,
         key: crate::MyKey,
         cursor: &(u16, u16),
     ) {
@@ -46,8 +43,8 @@ impl Tab for Importer {
             MyKey::Enter if self.local.is_selected(cursor) => {
                 let ldc = FilePicker::new(
                     FilePickerPurpose::LoadCards,
-                    "Choose a CSV file".to_string(),
-                    ["csv".to_string()],
+                    "Choose a TSV file (tab-separated) with a header".to_string(),
+                    ["tsv".to_string(), "csv".to_string()],
                 );
                 self.set_popup(Box::new(ldc));
             }

@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs, io,
+    fs,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -71,15 +71,18 @@ impl Template {
         let mut notes = HashMap::new();
         let mut cards = vec![];
         let mut models = HashMap::new();
-        let mut qty = 0;
 
         //        let path = String::from("importing.csv");
-        let mut rdr = Reader::from_path(path).unwrap();
+        //let mut rdr = Reader::from_path(path).unwrap();
+        let mut rdr = ReaderBuilder::new()
+            .delimiter(b'\t')
+            .from_path(path)
+            .unwrap();
+
         let mut index = 0;
         for result in rdr.records() {
             let record = result.unwrap();
             let mut cardfields = vec![];
-            qty = record.len();
             for field in record.iter() {
                 cardfields.push(CardField {
                     text: field.to_string(),
@@ -100,16 +103,17 @@ impl Template {
             cards.push(kort);
             index += 1;
         }
-        let mut fields = vec![];
         let mut afmt = String::new();
 
-        for i in 1..qty + 1 {
-            let field = format!("field{}", i);
-            fields.push(field);
+        let headers = rdr.headers().unwrap();
+        let mut fields = vec![];
+        for header in headers.iter() {
+            let hdr = header.trim().to_owned();
+            fields.push(hdr);
         }
 
         for i in 1..fields.len() {
-            let mut field = fields[i].clone();
+            let mut field = fields[i].trim().to_owned();
             field.push('}');
             field.push('}');
             field.insert(0, '{');
@@ -117,7 +121,7 @@ impl Template {
             afmt.push_str(&field);
         }
         let qfmt = {
-            let mut field = fields[0].clone();
+            let mut field = fields[0].trim().to_owned();
             field.push('}');
             field.push('}');
             field.insert(0, '{');
@@ -126,7 +130,7 @@ impl Template {
         };
 
         let thetemple = Temple {
-            name: String::from("csv_template"),
+            name: String::from("tsv_template"),
             qfmt,
             afmt,
         };
@@ -134,7 +138,7 @@ impl Template {
         let model = Model {
             is_cloze: false,
             fields,
-            name: "csv_model".to_string(),
+            name: "tsv_model".to_string(),
             templates: vec![thetemple],
         };
 
@@ -620,7 +624,7 @@ impl CardField {
 }
 
 use anyhow::Result;
-use csv::Reader;
+use csv::ReaderBuilder;
 use regex::Regex;
 use rusqlite::Connection;
 

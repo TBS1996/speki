@@ -4,7 +4,7 @@ use std::io::Write;
 
 use crate::utils::ankitemplate::{ImportProgress, Template};
 use crate::utils::libextensions::MyListState;
-use crate::utils::misc::{PopUpStatus, SpekiPaths};
+use crate::utils::misc::SpekiPaths;
 use crate::utils::statelist::{KeyHandler, StatefulList};
 use crate::widgets::textinput::Field;
 use crate::MyType;
@@ -70,7 +70,7 @@ impl fmt::Display for Deck {
         write!(f, "{}", self.title)
     }
 }
-use crate::app::{AppData, PopUpState, Tab, TabData, Widget};
+use crate::app::{AppData, Tab, TabData, Widget};
 impl Ankimporter {
     pub fn new() -> Self {
         let mut list = StatefulList::<Deck>::new("".to_string());
@@ -320,11 +320,9 @@ enum Stringstatus {
 
 use futures_util::StreamExt;
 
-use super::edit_card::Editor;
 use super::load_cards::LoadCards;
 use super::message_popup::{Msg, MsgPopup};
 use super::progress_popup::Progress;
-use super::wikiselect::WikiSelect;
 #[tokio::main]
 pub async fn download_deck(
     url: String,

@@ -9,13 +9,13 @@ use crate::{
     MyKey,
 };
 
-pub struct Importer {
-    anki: Button,
-    local: Button,
+pub struct Importer<'a> {
+    anki: Button<'a>,
+    local: Button<'a>,
     tabdata: TabData,
 }
 
-impl Importer {
+impl<'a> Importer<'a> {
     pub fn new() -> Self {
         Self {
             anki: Button::new("Anki".to_string()),
@@ -25,7 +25,7 @@ impl Importer {
     }
 }
 
-impl Tab for Importer {
+impl<'a> Tab for Importer<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }

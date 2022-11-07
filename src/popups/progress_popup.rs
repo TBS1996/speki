@@ -13,16 +13,22 @@ pub struct Progress {
     rx: Receiver<ImportProgress>,
     tabdata: TabData,
     popupvalue: PopupValue,
+    next_tab: Option<Box<dyn Tab>>,
 }
 
 impl Progress {
-    pub fn new(rx: Receiver<ImportProgress>, title: String) -> Self {
+    pub fn new(
+        rx: Receiver<ImportProgress>,
+        title: String,
+        next_tab: Option<Box<dyn Tab>>,
+    ) -> Self {
         Self {
             bar: ProgressBar::new(0),
             title,
             rx,
             tabdata: TabData::default(),
             popupvalue: PopupValue::None,
+            next_tab,
         }
     }
 }
@@ -54,12 +60,20 @@ impl Tab for Progress {
             self.bar.render(f, appdata, &(0, 0));
 
             if prog.curr_index == prog.max - 1 {
+                if let Some(tab) = std::mem::take(&mut self.next_tab) {
+                    self.tabdata.state = PopUpState::Switch(tab);
+                } else {
+                    self.popupvalue = PopupValue::Ok;
+                    self.tabdata.state = PopUpState::Exit;
+                }
+            }
+        } else {
+            if let Some(tab) = std::mem::take(&mut self.next_tab) {
+                self.tabdata.state = PopUpState::Switch(tab);
+            } else {
                 self.popupvalue = PopupValue::Ok;
                 self.tabdata.state = PopUpState::Exit;
             }
-        } else {
-            self.popupvalue = PopupValue::Ok;
-            self.tabdata.state = PopUpState::Exit;
         }
     }
 

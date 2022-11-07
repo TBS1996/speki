@@ -1,55 +1,49 @@
 use tui::{
-    layout::{Alignment, Rect},
+    layout::Rect,
     style::{Color, Style},
-    text::{Span, Spans},
-    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 
-use crate::{app::Widget, utils::misc::View};
+use crate::app::Widget;
 
-#[derive(Clone)]
-pub struct Button {
-    pub text: String,
-    area: Rect,
+use super::infobox::InfoBox;
+
+pub struct Button<'a> {
+    pub inner: InfoBox<'a>,
 }
 
-impl Button {
+impl<'a> Button<'a> {
     pub fn new(text: String) -> Self {
         Self {
-            text,
-            area: Rect::default(),
+            inner: InfoBox::new(text),
         }
+    }
+    pub fn change_text(&mut self, text: String) {
+        self.inner.change_text(text);
     }
 }
 
-impl Widget for Button {
+impl<'a> Widget for Button<'a> {
     fn set_area(&mut self, area: Rect) {
-        self.area = area;
+        self.inner.area = area;
     }
     fn get_area(&self) -> Rect {
-        self.area
+        self.inner.area
     }
     fn keyhandler(&mut self, _appdata: &crate::app::AppData, _key: crate::MyKey) {}
 
     fn render(
         &mut self,
         f: &mut Frame<crate::MyType>,
-        _appdata: &crate::app::AppData,
+        appdata: &crate::app::AppData,
         cursor: &(u16, u16),
     ) {
-        let text = vec![Span::from(self.text.clone())];
-        let area = self.get_area();
-        let selected = View::isitselected(area, cursor);
+        if self.inner.is_selected(cursor) {
+            self.inner.borderstyle = Style::default().fg(Color::Red);
+        } else {
+            self.inner.borderstyle = Style::default().fg(Color::White);
+        }
 
-        let bordercolor = if selected { Color::Red } else { Color::White };
-        let style = Style::default().fg(bordercolor);
-
-        let block = Block::default().borders(Borders::ALL).border_style(style);
-        let paragraph = Paragraph::new(Spans::from(text))
-            .block(block)
-            .alignment(Alignment::Center)
-            .wrap(Wrap { trim: true });
-        f.render_widget(paragraph, area);
+        self.inner.render(f, appdata, cursor);
     }
 }

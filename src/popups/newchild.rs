@@ -16,23 +16,28 @@ use std::sync::{Arc, Mutex};
 
 use crate::widgets::button::Button;
 
+#[derive(Clone)]
 pub enum Purpose {
     Source(TopicID),
     Dependency(Vec<CardID>),
     Dependent(Vec<CardID>),
 }
 
-pub struct AddChildWidget {
-    pub prompt: Button,
-    pub cardview: CardView,
+pub struct AddChildWidget<'a> {
+    pub prompt: Button<'a>,
+    pub cardview: CardView<'a>,
     pub purpose: Purpose,
     tabdata: TabData,
 }
 
-impl AddChildWidget {
+impl<'a> AddChildWidget<'a> {
     pub fn new(appdata: &AppData, purpose: Purpose) -> Self {
-        let prompt = Self::add_prompt(&appdata.conn, &purpose);
-        let cardview = CardView::new(appdata);
+        let cardview = CardView::new(&appdata.conn);
+        let prompt = match &purpose {
+            Purpose::Source(_) => Button::new("Add new sourced card".to_string()),
+            Purpose::Dependency(_) => Button::new("Add new dependent".to_string()),
+            Purpose::Dependent(_) => Button::new("Add new dependency".to_string()),
+        };
 
         AddChildWidget {
             prompt,
@@ -40,15 +45,6 @@ impl AddChildWidget {
             purpose,
             tabdata: TabData::default(),
         }
-    }
-
-    fn add_prompt(_conn: &Arc<Mutex<Connection>>, purpose: &Purpose) -> Button {
-        let text = match purpose {
-            Purpose::Source(_) => Button::new("Add new sourced card".to_string()),
-            Purpose::Dependency(_) => Button::new("Add new dependent".to_string()),
-            Purpose::Dependent(_) => Button::new("Add new dependency".to_string()),
-        };
-        text
     }
 
     fn submit_card(&mut self, conn: &Arc<Mutex<Connection>>, isfinished: bool) {
@@ -91,7 +87,7 @@ impl AddChildWidget {
     }
 }
 
-impl Tab for AddChildWidget {
+impl<'a> Tab for AddChildWidget<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }

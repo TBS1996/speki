@@ -346,7 +346,8 @@ pub trait Tab {
             navbar.push_str(" ❱❱ ");
             navbar.push_str(&popup.get_title());
             let state = popup.get_state();
-            match std::mem::replace(state, PopUpState::Continue) {
+            //match std::mem::replace(state, PopUpState::Continue) {
+            match std::mem::take(state) {
                 PopUpState::Continue => popup.main_render(f, appdata, area, navbar),
                 PopUpState::Exit => self.exit_popup(appdata),
                 PopUpState::Switch(tab) => *popup = tab,
@@ -371,7 +372,7 @@ pub trait Tab {
             }
             let cursor = self.get_cursor().clone();
             self.set_selection(area);
-            self.get_tabdata().view.validate_pos();
+            self.get_tabdata().view.validate_pos(); // ensures cursor is on a widget;
             self.render(f, appdata, &cursor);
         }
     }
@@ -403,6 +404,9 @@ pub trait Tab {
     fn get_popup_value(&mut self) -> &PopupValue {
         &self.get_tabdata().value
     }
+    fn set_next_tab(&mut self, next_tab: Option<Box<dyn Tab>>) {
+        self.get_tabdata().next_tab = next_tab;
+    }
 }
 
 #[derive(Default)]
@@ -411,6 +415,7 @@ pub struct TabData {
     pub popup: Option<Box<dyn Tab>>,
     pub value: PopupValue,
     pub state: PopUpState,
+    pub next_tab: Option<Box<dyn Tab>>,
 }
 
 impl Default for Box<dyn Tab> {

@@ -39,7 +39,7 @@ impl RecallGrade {
 #[derive(Debug, Clone)]
 pub struct Review {
     pub grade: RecallGrade,
-    pub date: u32,
+    pub date: UnixTime,
     pub answertime: f32,
 }
 
@@ -48,7 +48,7 @@ impl Review {
         let unix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_secs() as u32;
+            .as_secs();
 
         Review {
             grade: grade.clone(),
@@ -318,10 +318,10 @@ pub struct CardInfo {
     stability: f32,
 }
 
-pub struct CardView {
+pub struct CardView<'a> {
     pub card: Option<Card>,
     pub revealed: bool,
-    revealbutton: Button,
+    revealbutton: Button<'a>,
     pub cardrater: CardRater,
     pub question: Field,
     pub answer: Field,
@@ -330,8 +330,8 @@ pub struct CardView {
     pub topics: TopicList,
 }
 
-impl CardView {
-    pub fn new(appdata: &AppData) -> Self {
+impl<'a> CardView<'a> {
+    pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
         Self {
             card: None,
             revealed: true,
@@ -341,7 +341,7 @@ impl CardView {
             answer: Field::new("Answer".to_string()),
             dependencies: StatefulList::new("Dependencies".to_string()),
             dependents: StatefulList::new("Dependents".to_string()),
-            topics: TopicList::new(&appdata.conn),
+            topics: TopicList::new(conn),
         }
     }
 
@@ -461,7 +461,7 @@ impl CardView {
     }
 
     pub fn new_with_id(appdata: &AppData, id: CardID) -> Self {
-        let mut myself = Self::new(appdata);
+        let mut myself = Self::new(&appdata.conn);
         myself.change_card(&appdata.conn, id);
         myself
     }
@@ -501,7 +501,7 @@ impl CardView {
     }
 
     pub fn clear_card(&mut self, appdata: &AppData) {
-        *self = Self::new(appdata);
+        *self = Self::new(&appdata.conn);
     }
 
     pub fn save_state(&self, conn: &Arc<Mutex<Connection>>) {

@@ -85,6 +85,9 @@ impl Default for Field {
 }
 
 impl Field {
+    pub fn clear_selection(&mut self) {
+        self.startselect = None;
+    }
     pub fn new_with_text(text: String, row: usize, column: usize) -> Self {
         let mut field = Self::default();
         field.replace_text(text);

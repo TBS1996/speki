@@ -11,17 +11,17 @@ use tui::layout::Rect;
 use tui::Frame;
 
 //#[derive(Clone)]
-pub struct NewCard {
-    pub prompt: Button,
-    cardview: CardView,
+pub struct NewCard<'a> {
+    pub prompt: Button<'a>,
+    cardview: CardView<'a>,
     tabdata: TabData,
 }
 
 use std::sync::{Arc, Mutex};
 
-impl NewCard {
-    pub fn new(appdata: &AppData) -> NewCard {
-        let cardview = CardView::new(appdata);
+impl<'a> NewCard<'a> {
+    pub fn new(appdata: &AppData) -> NewCard<'a> {
+        let cardview = CardView::new(&appdata.conn);
 
         NewCard {
             prompt: Button::new("Add new card".to_string()),
@@ -36,11 +36,11 @@ impl NewCard {
 
     pub fn submit_card(&mut self, appdata: &AppData, iscompleted: bool) {
         self.cardview.submit_card(appdata, iscompleted);
-        *self = Self::new(appdata);
+        self.cardview = CardView::new(&appdata.conn);
     }
 }
 
-impl Tab for NewCard {
+impl<'a> Tab for NewCard<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }
@@ -74,6 +74,7 @@ Add card as unfinished: Alt+u
         self.tabdata.view.areas.push(chunks[2]);
 
         self.prompt.set_area(chunks[0]);
+
         self.cardview.question.set_area(chunks[1]);
         self.cardview.answer.set_area(chunks[2]);
         self.cardview.topics.set_area(right);

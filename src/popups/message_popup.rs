@@ -1,36 +1,34 @@
 use crate::{
     app::{PopUpState, PopupValue, Tab, TabData, Widget},
     utils::misc::split_updown_by_percent,
-    widgets::button::Button,
+    widgets::infobox::InfoBox,
 };
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, TryRecvError};
 
 pub enum Msg {
     Ok(String),
     Done,
 }
 
-pub struct MsgPopup {
-    msg: Button,
+pub struct MsgPopup<'a> {
+    msg: InfoBox<'a>,
     title: String,
     rx: Receiver<Msg>,
-    popupvalue: PopupValue,
     tabdata: TabData,
 }
 
-impl MsgPopup {
+impl<'a> MsgPopup<'a> {
     pub fn new(rx: Receiver<Msg>, title: String) -> Self {
         Self {
-            msg: Button::new("Initiating...".to_string()),
+            msg: InfoBox::new(String::new()),
             title,
             rx,
-            popupvalue: PopupValue::None,
             tabdata: TabData::default(),
         }
     }
 }
 
-impl Tab for MsgPopup {
+impl<'a> Tab for MsgPopup<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }
@@ -49,18 +47,16 @@ impl Tab for MsgPopup {
         appdata: &crate::app::AppData,
         _cursor: &(u16, u16),
     ) {
-        if let Ok(prog) = self.rx.recv() {
-            if let Msg::Ok(msg) = prog {
-                self.msg.text = msg;
-                self.msg.render(f, appdata, &(0, 0));
-            } else {
-                self.popupvalue = PopupValue::Ok;
+        match self.rx.try_recv() {
+            Ok(Msg::Ok(string)) => self.msg.change_text(string),
+            Err(TryRecvError::Empty) => {}
+            Err(TryRecvError::Disconnected) | Ok(Msg::Done) => {
+                self.tabdata.value = PopupValue::Ok;
                 self.tabdata.state = PopUpState::Exit;
             }
-        } else {
-            self.popupvalue = PopupValue::Ok;
-            self.tabdata.state = PopUpState::Exit;
         }
+
+        self.msg.render(f, appdata, &(0, 0));
     }
 
     fn set_selection(&mut self, area: tui::layout::Rect) {

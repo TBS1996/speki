@@ -3,15 +3,20 @@ use super::card::{Card, CardTypeData, FinishedInfo};
 use super::sql::fetch::{get_incread, load_extracts, CardQuery};
 use super::sql::insert::new_incread;
 use super::statelist::KeyHandler;
-use crate::app::{AppData, Widget};
+use crate::app::{AppData, TabData, Widget};
+use crate::popups::edit_card::Editor;
+use crate::popups::edit_text::TextEditor;
 use crate::utils::card::CardItem;
 use crate::utils::sql::update::update_inc_text;
 use crate::utils::statelist::StatefulList;
+use crate::widgets::button::Button;
 use crate::widgets::textinput::Field;
-use crate::MyKey;
+use crate::widgets::topics::TopicList;
+use crate::{MyKey, MyType};
 use rusqlite::Connection;
 use std::fmt::{self, Display};
 use std::sync::{Arc, Mutex};
+use tui::Frame;
 
 #[derive(Clone)]
 pub struct IncListItem {
@@ -39,22 +44,19 @@ pub struct IncRead {
     pub topic: TopicID,
     pub isactive: bool,
     pub source: Field,
-    pub extracts: StatefulList<IncListItem>,
-    pub clozes: StatefulList<CardItem>,
+    pub extracts: Vec<IncListItem>,
+    pub clozes: Vec<CardItem>,
 }
 
 impl IncRead {
     pub fn new(conn: &Arc<Mutex<Connection>>, id: IncID) -> Self {
-        get_incread(conn, id).unwrap()
+        get_incread(conn, id)
     }
 
     pub fn extract(&mut self, conn: &Arc<Mutex<Connection>>) {
         if let Some(extract) = self.source.return_selection() {
             new_incread(conn, self.id, self.topic, extract, true).unwrap();
-            self.extracts = StatefulList::with_items(
-                "Extracts".to_string(),
-                load_extracts(conn, self.id).unwrap(),
-            );
+            self.extracts = load_extracts(conn, self.id).unwrap();
         }
     }
     pub fn cloze(&mut self, conn: &Arc<Mutex<Connection>>) {
@@ -69,9 +71,7 @@ impl IncRead {
                 .topic(self.topic)
                 .source(self.id)
                 .save_card(conn);
-
-            let cloze_cards = CardQuery::default().source(self.id).fetch_carditems(conn);
-            self.clozes = StatefulList::with_items("Clozes".to_string(), cloze_cards);
+            self.clozes = CardQuery::default().source(self.id).fetch_carditems(conn);
         }
     }
     pub fn update_text(&self, conn: &Arc<Mutex<Connection>>) {
@@ -80,38 +80,80 @@ impl IncRead {
     }
 }
 
-impl Widget for IncRead {
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
-        match key {
-            MyKey::Alt('x') => {
-                self.extract(&appdata.conn);
-                self.source.set_normal_mode();
-            }
-            MyKey::Alt('z') => {
-                self.cloze(&appdata.conn);
-                self.source.set_normal_mode();
-            }
-            MyKey::Esc => {
-                self.update_text(&appdata.conn);
-            }
-            key => self.source.keyhandler(appdata, key),
+pub struct IncView<'a> {
+    pub text: IncRead,
+    pub topics: TopicList,
+    pub extracts: StatefulList<IncListItem>,
+    pub clozes: StatefulList<CardItem>,
+    pub parent: Button<'a>,
+}
+
+impl<'a> IncView<'a> {
+    pub fn new(appdata: &AppData, id: IncID) -> Self {
+        let text = IncRead::new(&appdata.conn, id);
+        let topics = TopicList::new(&appdata.conn);
+        let extracts = StatefulList::with_items("Extracts".to_string(), text.extracts.clone());
+        let clozes = StatefulList::with_items("Clozes".to_string(), text.clozes.clone());
+        let parent = Button::new("Go to parent".to_string());
+        Self {
+            text,
+            topics,
+            extracts,
+            clozes,
+            parent,
         }
     }
-    fn render(
+
+    pub fn keyhandler(
         &mut self,
-        f: &mut tui::Frame<crate::MyType>,
-        appdata: &crate::app::AppData,
+        appdata: &AppData,
+        tabdata: &mut TabData,
         cursor: &(u16, u16),
+        key: MyKey,
     ) {
-        self.source.render(f, appdata, cursor);
-        self.extracts.render(f, appdata, cursor);
-        self.clozes.render(f, appdata, cursor);
+        match key {
+            MyKey::Char('e') if self.extracts.is_selected(cursor) => {
+                if let Some(idx) = self.extracts.state.selected() {
+                    let id = self.extracts.items[idx].id;
+                    tabdata.popup = Some(Box::new(TextEditor::new(appdata, id)));
+                }
+            }
+            key if self.extracts.is_selected(cursor) => self.extracts.keyhandler(appdata, key),
+            MyKey::Char('e') if self.clozes.is_selected(cursor) => {
+                if let Some(idx) = self.clozes.state.selected() {
+                    let id = self.clozes.items[idx].id;
+                    tabdata.popup = Some(Box::new(Editor::new(appdata, id)));
+                }
+            }
+            key if self.clozes.is_selected(cursor) => self.clozes.keyhandler(appdata, key),
+
+            MyKey::Alt('x') if self.text.source.is_selected(cursor) => {
+                self.text.extract(&appdata.conn);
+                self.extracts =
+                    StatefulList::with_items("Extracts".to_string(), self.text.extracts.clone());
+                self.text.source.clear_selection();
+            }
+            MyKey::Alt('z') if self.text.source.is_selected(cursor) => {
+                self.text.cloze(&appdata.conn);
+                self.clozes =
+                    StatefulList::with_items("Extracts".to_string(), self.text.clozes.clone());
+
+                self.text.source.clear_selection();
+            }
+            key if self.text.source.is_selected(cursor) => {
+                self.text.source.keyhandler(appdata, key)
+            }
+            key if self.topics.is_selected(cursor) => self.topics.keyhandler(appdata, key),
+
+            _ => {}
+        }
     }
 
-    fn get_area(&self) -> tui::layout::Rect {
-        self.source.get_area()
-    }
-    fn set_area(&mut self, area: tui::layout::Rect) {
-        self.source.set_area(area);
+    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+        self.text.source.render(f, appdata, cursor);
+        self.extracts.render(f, appdata, cursor);
+        self.clozes.render(f, appdata, cursor);
+        self.topics.render(f, appdata, cursor);
+        self.parent.render(f, appdata, cursor);
     }
 }

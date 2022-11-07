@@ -1,5 +1,4 @@
 use crate::app::{AppData, TabData, Widget};
-use crate::popups::newchild::{AddChildWidget, Purpose};
 use crate::utils::aliases::*;
 use crate::utils::misc::{
     get_dependencies, get_dependents, split_leftright_by_percent, split_updown,
@@ -30,11 +29,11 @@ use tui::{
     Frame,
 };
 
-pub enum ReviewMode {
-    Review(CardReview),
-    Pending(CardReview),
-    Unfinished(UnfCard),
-    IncRead(IncMode),
+pub enum ReviewMode<'a> {
+    Review(CardReview<'a>),
+    Pending(CardReview<'a>),
+    Unfinished(UnfCard<'a>),
+    IncRead(IncMode<'a>),
     Done,
 }
 
@@ -105,9 +104,9 @@ impl StartQty {
     }
 }
 
-pub struct MainReview {
+pub struct MainReview<'a> {
     progress_bar: ProgressBar,
-    pub mode: ReviewMode,
+    pub mode: ReviewMode<'a>,
     pub status: ModeStatus,
     pub for_review: ForReview,
     pub start_qty: StartQty,
@@ -117,7 +116,7 @@ pub struct MainReview {
 
 use crate::utils::sql::fetch::{load_active_inc, CardQuery};
 
-impl MainReview {
+impl<'a> MainReview<'a> {
     pub fn new(appdata: &AppData) -> Self {
         let mode = ReviewMode::Done;
         let for_review = ForReview::new(&appdata.conn);
@@ -276,7 +275,7 @@ impl MainReview {
     }
 }
 
-impl Tab for MainReview {
+impl<'a> Tab for MainReview<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }
@@ -356,7 +355,8 @@ impl Tab for MainReview {
                 self.tabdata.view.areas.push(rightvec[1]);
                 self.tabdata.view.areas.push(rightvec[2]);
 
-                rev.source.source.set_area(editing);
+                rev.source.text.source.set_area(editing);
+                rev.source.topics.set_area(rightvec[0]);
                 rev.source.extracts.set_area(rightvec[1]);
                 rev.source.clozes.set_area(rightvec[2]);
             }
@@ -481,27 +481,19 @@ impl Tab for MainReview {
             },
             ReviewMode::IncRead(inc) => match key {
                 Alt('d') => {
-                    inc.source.update_text(&appdata.conn);
-                    let id = inc.source.id;
+                    //inc.source.update_text(&appdata.conn);
+                    let id = inc.source.text.id;
                     self.inc_done(appdata, id);
                 }
                 Alt('s') => {
-                    inc.source.update_text(&appdata.conn);
-                    let id = inc.source.id;
+                    //inc.source.update_text(&appdata.conn);
+                    let id = inc.source.text.id;
                     self.inc_next(appdata, id);
                 }
-                Alt('a') if inc.source.source.is_selected(cursor) => {
-                    let addchild = AddChildWidget::new(appdata, Purpose::Source(inc.source.id));
-                    self.set_popup(Box::new(addchild));
+                key => {
+                    inc.source
+                        .keyhandler(appdata, &mut self.tabdata, cursor, key);
                 }
-                key if inc.source.extracts.is_selected(cursor) => {
-                    inc.source.extracts.keyhandler(appdata, key)
-                }
-                key if inc.source.clozes.is_selected(cursor) => {
-                    inc.source.clozes.keyhandler(appdata, key)
-                }
-                key if inc.source.source.is_selected(cursor) => inc.source.keyhandler(appdata, key),
-                _ => {}
             },
         }
     }

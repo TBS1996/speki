@@ -27,9 +27,11 @@ pub struct MediaContents {
 
 #[derive(Clone, Debug)]
 pub struct Kort {
+    card_id: AnkiCID,
     note_id: NoteID,
     pub template_ord: usize,
     reps: u32,
+    interval: f32,
 }
 
 #[derive(Clone, Debug)]
@@ -96,9 +98,11 @@ impl Template {
             };
             notes.insert(index, note);
             let kort = Kort {
+                card_id: 0,
                 note_id: index,
                 template_ord: 0,
                 reps: 0,
+                interval: 1.0,
             };
             cards.push(kort);
             index += 1;
@@ -247,7 +251,23 @@ impl Template {
                     max: cardlen,
                 });
             };
-            card::Card::new(CardTypeData::Pending(PendingInfo::default()))
+            if self.cards[idx].reps == 0 {
+                card::Card::new(CardTypeData::Pending(PendingInfo::default()))
+                    .question(frontside)
+                    .answer(backside)
+                    .topic(topic)
+                    .frontimage(media.frontimage)
+                    .backimage(media.backimage)
+                    .frontaudio(media.frontaudio)
+                    .backaudio(media.backaudio)
+                    .save_card(&conn);
+            } else {
+                let history = Self::get_review_history(&conn, self.cards[idx].card_id);
+                let interval = self.cards[idx].interval;
+                let card_id = card::Card::new(CardTypeData::Finished(FinishedInfo {
+                    strength: 1.0,
+                    stability: interval,
+                }))
                 .question(frontside)
                 .answer(backside)
                 .topic(topic)
@@ -256,7 +276,40 @@ impl Template {
                 .frontaudio(media.frontaudio)
                 .backaudio(media.backaudio)
                 .save_card(&conn);
+
+                for review in history {
+                    revlog_new(&conn, card_id, review).unwrap();
+                }
+            }
         }
+    }
+
+    fn get_review_history(conn: &Arc<Mutex<Connection>>, id: AnkiCID) -> Vec<Review> {
+        let mut reviews = vec![];
+        let guard = conn.lock().unwrap();
+        let mut stmt = guard
+            .prepare("SELECT id, ease, time where cid = ?")
+            .unwrap();
+        stmt.query_map([id], |row| {
+            let date: AnkiCID = row.get::<usize, AnkiCID>(0).unwrap();
+            let grade: RecallGrade = match row.get::<usize, NoteID>(1).unwrap() {
+                1 => RecallGrade::Failed,
+                2 | 3 => RecallGrade::Decent,
+                4 => RecallGrade::Easy,
+                _ => panic!(),
+            };
+            let answertime = row.get::<usize, NoteID>(1).unwrap() as f32 / 1000.0f32;
+            let cardreview = Review {
+                grade,
+                date,
+                answertime,
+            };
+            reviews.push(cardreview);
+            Ok(())
+        })
+        .unwrap()
+        .for_each(|_| {});
+        reviews
     }
 
     pub fn play_front_audio(&self, audio: &Option<Audio>, viewpos: usize) {
@@ -477,14 +530,27 @@ impl Template {
 
     fn load_cards(&mut self, conn: &Arc<Mutex<Connection>>) -> Result<()> {
         let guard = conn.lock().unwrap();
-        let mut stmt = guard.prepare("SELECT nid, ord, reps FROM cards").unwrap();
+        let mut stmt = guard
+            .prepare("SELECT id, nid, ord, ivl, reps FROM cards")
+            .unwrap();
         stmt.query_map([], |row| {
-            let note_id: NoteID = row.get::<usize, NoteID>(0).unwrap();
-            let template_ord: usize = row.get::<usize, usize>(1).unwrap();
-            let reps: u32 = row.get::<usize, u32>(2).unwrap();
+            let card_id: AnkiCID = row.get::<usize, AnkiCID>(0).unwrap();
+            let note_id: NoteID = row.get::<usize, NoteID>(1).unwrap();
+            let template_ord: usize = row.get::<usize, usize>(2).unwrap();
+            let interval: i32 = row.get::<usize, i32>(3).unwrap();
+            let reps: u32 = row.get::<usize, u32>(4).unwrap();
+
+            let interval = if interval > 0 {
+                interval as f32
+            } else {
+                (interval * -1) as f32 / 86400.0f32
+            };
+
             self.cards.push(Kort {
+                card_id,
                 note_id,
                 template_ord,
+                interval,
                 reps,
             });
             Ok(())
@@ -631,8 +697,9 @@ use regex::Regex;
 use rusqlite::Connection;
 
 use super::{
-    card::{self, CardTypeData, PendingInfo},
+    card::{self, CardTypeData, FinishedInfo, PendingInfo, RecallGrade, Review},
     misc::SpekiPaths,
+    sql::insert::revlog_new,
 };
 
 fn cloze_format(trd: &mut String, ord: u32) {

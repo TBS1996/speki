@@ -1,23 +1,16 @@
 use tui::Frame;
 
-use crate::app::Widget;
-use crate::{
-    app::AppData,
-    utils::{aliases::CardID, incread::IncRead},
-    MyType,
-};
+use crate::utils::incread::IncView;
+use crate::{app::AppData, utils::aliases::CardID, MyType};
 
-pub struct IncMode {
-    pub source: IncRead,
+pub struct IncMode<'a> {
+    pub source: IncView<'a>,
 }
-impl IncMode {
+impl<'a> IncMode<'a> {
     pub fn new(appdata: &AppData, id: CardID) -> Self {
-        let source = IncRead::new(&appdata.conn, id);
+        let source = IncView::new(appdata, id);
         Self { source }
     }
-}
-
-impl IncMode {
     pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
         self.source.render(f, appdata, cursor);
     }

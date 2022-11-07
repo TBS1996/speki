@@ -38,8 +38,8 @@ fn get_description(pagesource: &String, id: &u32) -> String {
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
-pub struct Ankimporter {
-    prompt: Button,
+pub struct Ankimporter<'a> {
+    prompt: Button<'a>,
     searchterm: Field,
     description: Field,
     list: StatefulList<Deck>,
@@ -71,7 +71,7 @@ impl fmt::Display for Deck {
     }
 }
 use crate::app::{AppData, Tab, TabData, Widget};
-impl Ankimporter {
+impl<'a> Ankimporter<'a> {
     pub fn new() -> Self {
         let mut list = StatefulList::<Deck>::new("".to_string());
         list.persistent_highlight = true;
@@ -183,7 +183,7 @@ impl Ankimporter {
     }
 }
 
-impl Tab for Ankimporter {
+impl<'a> Tab for Ankimporter<'a> {
     fn get_title(&self) -> String {
         "ankimporter".to_string()
     }
@@ -216,7 +216,7 @@ impl Tab for Ankimporter {
                     thread::spawn(move || {
                         Template::rename_media(deckname, paths, tx).unwrap();
                     });
-                    let prog = Progress::new(rx, "Preparing media files".to_string());
+                    let prog = Progress::new(rx, "Preparing media files".to_string(), None);
                     self.set_popup(Box::new(prog));
                     self.state = State::Renaming(name);
                 }
@@ -245,7 +245,7 @@ impl Tab for Ankimporter {
                     thread::spawn(move || {
                         download_deck(download_link, tx, threadpaths);
                     });
-                    let prog = Progress::new(rx, "Downloading deck".to_string());
+                    let prog = Progress::new(rx, "Downloading deck".to_string(), None);
                     self.set_popup(Box::new(prog));
                     self.state = State::Downloading(name);
                 }

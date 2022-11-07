@@ -10,11 +10,11 @@ use crate::{
     MyType,
 };
 
-pub struct CardReview {
-    pub cardview: CardView,
+pub struct CardReview<'a> {
+    pub cardview: CardView<'a>,
 }
 
-impl CardReview {
+impl<'a> CardReview<'a> {
     pub fn new(id: CardID, appdata: &AppData) -> Self {
         Card::play_frontaudio(appdata, id);
         let mut cardview = CardView::new_with_id(appdata, id);

@@ -31,21 +31,21 @@ enum Ftype {
     Image,
 }
 
-pub struct LoadCards {
+pub struct LoadCards<'a> {
     template: Template,
     front_template: Field,
     back_template: Field,
     front_view: Field,
     back_view: Field,
     topics: TopicList,
-    importbutton: Button,
-    previewbutton: Button,
+    importbutton: Button<'a>,
+    previewbutton: Button<'a>,
     fields: StatefulList<TextItem>,
     viewpos: usize,
     tabdata: TabData,
 }
 
-impl LoadCards {
+impl<'a> LoadCards<'a> {
     pub fn new(appdata: &AppData, deckname: String) -> Self {
         let template = Template::new(appdata, deckname);
         let fields = StatefulList::new("Fields".to_string());
@@ -158,7 +158,7 @@ use crate::app::Widget;
 
 use crate::widgets::button::Button;
 
-impl Tab for LoadCards {
+impl<'a> Tab for LoadCards<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }
@@ -225,7 +225,7 @@ impl Tab for LoadCards {
             self.viewpos + 1,
             self.template.cards.len()
         );
-        self.previewbutton.text = buttontext;
+        self.previewbutton.change_text(buttontext);
         self.previewbutton.render(f, appdata, cursor);
         self.fields.render(f, appdata, cursor);
         self.topics.render(f, appdata, cursor);
@@ -276,7 +276,7 @@ impl Tab for LoadCards {
                     tmpclone.import_cards(connclone, tx, topic);
                 });
                 //let max = self.template.cards.len() as u32;
-                let prog = Progress::new(rx, "Importing cards".to_string());
+                let prog = Progress::new(rx, "Importing cards".to_string(), None);
                 self.set_popup(Box::new(prog));
             }
             key if self.front_template.is_selected(cursor) => {

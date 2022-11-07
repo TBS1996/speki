@@ -479,7 +479,6 @@ pub fn get_dependencies(conn: &Arc<Mutex<Connection>>, dependent: CardID) -> Res
 use crate::utils::card::CardType;
 
 use crate::utils::incread::IncRead;
-use crate::utils::statelist::StatefulList;
 use crate::widgets::textinput::Field;
 
 struct IncTemp {
@@ -501,26 +500,27 @@ pub fn fetch_media(conn: &Arc<Mutex<Connection>>, id: CardID) -> MediaContents {
 
 // -------------------------------------------------------------- //
 
-pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<IncRead> {
+pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> IncRead {
     let extracts = load_extracts(conn, id).unwrap();
-    let cloze_cards = CardQuery::default().source(id).fetch_carditems(conn);
+    let clozes = CardQuery::default().source(id).fetch_carditems(conn);
     conn.lock()
         .unwrap()
         .query_row("SELECT * FROM incread WHERE id = ?", [id], |row| {
             Ok(IncRead {
                 id,
-                parent: row.get(1)?,
-                topic: row.get(2)?,
+                parent: row.get(1).unwrap(),
+                topic: row.get(2).unwrap(),
                 source: Field::new_with_text(
                     row.get(3).unwrap(),
                     row.get(7).unwrap(),
                     row.get(8).unwrap(),
                 ),
-                extracts: StatefulList::with_items("Extracts".to_string(), extracts),
-                clozes: StatefulList::with_items("Clozes".to_string(), cloze_cards),
-                isactive: row.get(4)?,
+                extracts,
+                clozes,
+                isactive: row.get(4).unwrap(),
             })
         })
+        .unwrap()
 }
 
 use crate::utils::incread::IncListItem;

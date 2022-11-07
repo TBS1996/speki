@@ -13,8 +13,8 @@ use crate::widgets::button::Button;
 use crate::{MyKey, MyType};
 use std::sync::{Arc, Mutex};
 
-pub struct FindCardWidget {
-    pub prompt: Button,
+pub struct FindCardWidget<'a> {
+    pub prompt: Button<'a>,
     pub searchterm: Field,
     pub list: StatefulList<CardMatch>,
     pub purpose: CardPurpose,
@@ -42,7 +42,7 @@ pub enum CardPurpose {
     NewCloze(TopicID),
 }
 
-impl FindCardWidget {
+impl<'a> FindCardWidget<'a> {
     pub fn new(conn: &Arc<Mutex<Connection>>, purpose: CardPurpose) -> Self {
         let mut list = StatefulList::<CardMatch>::new("".to_string());
         list.persistent_highlight = true;
@@ -98,7 +98,7 @@ impl FindCardWidget {
     }
 }
 
-impl Tab for FindCardWidget {
+impl<'a> Tab for FindCardWidget<'a> {
     fn get_title(&self) -> String {
         "Find card".to_string()
     }

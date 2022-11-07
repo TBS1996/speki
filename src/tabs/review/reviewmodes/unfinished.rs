@@ -6,11 +6,11 @@ use crate::utils::card::CardView;
 
 use crate::utils::aliases::CardID;
 
-pub struct UnfCard {
-    pub cardview: CardView,
+pub struct UnfCard<'a> {
+    pub cardview: CardView<'a>,
 }
 
-impl UnfCard {
+impl<'a> UnfCard<'a> {
     pub fn new(appdata: &AppData, id: CardID) -> Self {
         let cardview = CardView::new_with_id(appdata, id);
 

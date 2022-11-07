@@ -8,12 +8,12 @@ use crate::{
 
 use crate::utils::aliases::*;
 
-pub struct Editor {
-    card: CardView,
+pub struct Editor<'a> {
+    card: CardView<'a>,
     tabdata: TabData,
 }
 
-impl Editor {
+impl<'a> Editor<'a> {
     pub fn new(appdata: &AppData, id: CardID) -> Self {
         Self {
             card: CardView::new_with_id(appdata, id),
@@ -22,7 +22,7 @@ impl Editor {
     }
 }
 
-impl Tab for Editor {
+impl<'a> Tab for Editor<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }

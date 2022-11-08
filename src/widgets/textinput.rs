@@ -132,7 +132,11 @@ impl Field {
         self.mode = Mode::Visual;
     }
 
-    pub fn debug(&mut self) {}
+    pub fn debug(&mut self) {
+        let x = self.current_visual_col();
+        let y = self.current_abs_visual_line();
+        dbg!(x, y, self.rowlen);
+    }
 
     fn jump_forward(&mut self, jmp: usize) {
         self.cursor.column = std::cmp::min(
@@ -461,10 +465,20 @@ impl Field {
                 let heythere = self.get_rowcol(cursor) as usize;
                 return heythere + lines;
             }
-            lines += self.get_visrow_qty(i) as usize;
+            let actual_rowlen = self.get_rowlen(i);
+            lines += if actual_rowlen == self.rowlen as usize {
+                1
+            } else {
+                (self.get_rowlen(i) as u16 / (self.rowlen + 0) as u16) as usize + 1
+            }
         }
         panic!();
     }
+    /*
+        fn get_visrow_qty(&self, row: usize) -> u16 {
+            (self.get_rowlen(row) as u16 / (self.rowlen + 0) as u16) + 1
+        }
+    */
 
     fn get_rowcol(&self, cursor: &CursorPos) -> u16 {
         cursor.column as u16 / self.rowlen as u16
@@ -859,7 +873,19 @@ impl Widget for Field {
             MyKey::ScrollDown => self.visual_down(),
             MyKey::ScrollLeft => self.prev(),
             MyKey::ScrollRight => self.next(),
-            MyKey::KeyPress(pos) => self.keypress(pos),
+            MyKey::KeyPress(pos) => {
+                if let Mode::Visual = self.mode {
+                    self.set_normal_mode();
+                }
+                self.keypress(pos);
+            }
+            MyKey::Drag(pos) => {
+                if let Mode::Visual = self.mode {
+                    self.keypress(pos);
+                } else {
+                    self.set_visual_mode();
+                }
+            }
             _ => {}
         }
 

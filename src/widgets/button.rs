@@ -4,7 +4,7 @@ use tui::{
     Frame,
 };
 
-use crate::app::Widget;
+use crate::{app::Widget, utils::aliases::Pos};
 
 use super::infobox::InfoBox;
 
@@ -36,7 +36,7 @@ impl<'a> Widget for Button<'a> {
         &mut self,
         f: &mut Frame<crate::MyType>,
         appdata: &crate::app::AppData,
-        cursor: &(u16, u16),
+        cursor: &Pos,
     ) {
         if self.inner.is_selected(cursor) {
             self.inner.borderstyle = Style::default().fg(Color::Red);

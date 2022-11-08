@@ -120,12 +120,12 @@ impl<'a> Tab for AddChildWidget<'a> {
         self.cardview.question.set_area(question);
         self.cardview.answer.set_area(answer);
     }
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         self.prompt.render(f, appdata, &cursor);
         self.cardview.render(f, appdata, cursor)
     }
 
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16)) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &Pos) {
         use MyKey::*;
         match key {
             Alt('f') => self.submit_card(&appdata.conn, true),

@@ -296,8 +296,8 @@ impl<'a> Tab for MainReview<'a> {
         let (status, progbar) = (chunks[0], chunks[1]);
         self.status.set_area(status);
         self.progress_bar.set_area(progbar);
-        self.tabdata.view.areas.push(status);
-        self.tabdata.view.areas.push(progbar);
+        //self.tabdata.view.areas.push(status);
+        //self.tabdata.view.areas.push(progbar);
 
         match &mut self.mode {
             ReviewMode::Review(rev) | ReviewMode::Pending(rev) => {
@@ -310,16 +310,12 @@ impl<'a> Tab for MainReview<'a> {
                 let rightcolumn = split_updown_by_percent([50, 50], right);
                 let leftcolumn = split_updown_by_percent([50, 50], left);
 
-                self.tabdata.view.areas.push(leftcolumn[0]);
                 self.tabdata.view.areas.push(leftcolumn[1]);
+                self.tabdata.view.areas.push(leftcolumn[0]);
                 self.tabdata.view.areas.push(rightcolumn[0]);
                 self.tabdata.view.areas.push(rightcolumn[1]);
                 self.tabdata.view.areas.push(bottomleftright[0]);
                 self.tabdata.view.areas.push(bottomleftright[1]);
-
-                if rev.cardview.question.get_area().width == 0 {
-                    self.tabdata.view.move_to_area(leftcolumn[0]);
-                }
 
                 rev.cardview.question.set_area(leftcolumn[0]);
                 rev.cardview.answer.set_area(leftcolumn[1]);
@@ -348,7 +344,7 @@ impl<'a> Tab for MainReview<'a> {
             ReviewMode::IncRead(rev) => {
                 let mainvec = split_leftright_by_percent([75, 15], area);
                 let (editing, rightside) = (mainvec[0], mainvec[1]);
-                let rightvec = split_updown_by_percent([10, 40, 40], rightside);
+                let rightvec = split_updown_by_percent([33, 33, 33], rightside);
 
                 self.tabdata.view.areas.push(editing);
                 self.tabdata.view.areas.push(rightvec[0]);
@@ -378,7 +374,7 @@ impl<'a> Tab for MainReview<'a> {
         }
     }
 
-    fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, _cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut Frame<crate::MyType>, appdata: &AppData, _cursor: &Pos) {
         let cursor = &self.get_cursor().clone();
 
         self.status
@@ -399,7 +395,7 @@ impl<'a> Tab for MainReview<'a> {
         self.update_dependencies(&appdata.conn);
     }
 
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16)) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &Pos) {
         use MyKey::*;
 
         match &mut self.mode {
@@ -460,6 +456,7 @@ impl<'a> Tab for MainReview<'a> {
                     }
                     rev.cardview.save_state(&appdata.conn);
                     self.new_review(appdata, id, grade);
+                    self.tabdata.view.move_up();
                 }
                 Char(' ') | Enter
                     if rev.cardview.cardrater.is_selected(cursor)
@@ -472,6 +469,7 @@ impl<'a> Tab for MainReview<'a> {
                     }
                     rev.cardview.save_state(&appdata.conn);
                     self.new_review(appdata, id, grade);
+                    self.tabdata.view.move_up();
                 }
                 key if rev.cardview.is_selected(cursor) => {
                     rev.cardview

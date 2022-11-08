@@ -157,12 +157,16 @@ impl Browse {
         );
         let selected_ids = HashSet::new();
         let filteractions = StatefulList::<ActionItem>::default();
+        let mut filtered = StatefulList::new("Filtered".to_string());
+        filtered.fixed_fields = false;
+        let mut selected = StatefulList::new("Selected".to_string());
+        selected.fixed_fields = false;
 
         let mut myself = Self {
             cardlimit,
             filters,
-            filtered: StatefulList::new("Filtered".to_string()),
-            selected: StatefulList::new("Selected".to_string()),
+            filtered,
+            selected,
             selected_ids,
             filteractions,
             tabdata: TabData::default(),
@@ -373,7 +377,7 @@ impl Tab for Browse {
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
         appdata: &crate::app::AppData,
-        cursor: &(u16, u16),
+        cursor: &Pos,
     ) {
         self.filters.render(f, appdata, cursor);
         self.filteractions.render(f, appdata, cursor);
@@ -381,7 +385,7 @@ impl Tab for Browse {
         self.selected.render(f, appdata, cursor);
     }
 
-    fn keyhandler(&mut self, appdata: &crate::app::AppData, key: MyKey, cursor: &(u16, u16)) {
+    fn keyhandler(&mut self, appdata: &crate::app::AppData, key: MyKey, cursor: &Pos) {
         use MyKey::*;
 
         match key {

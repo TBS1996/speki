@@ -27,12 +27,7 @@ impl<'a> Tab for Editor<'a> {
         &mut self.tabdata
     }
 
-    fn keyhandler(
-        &mut self,
-        appdata: &crate::app::AppData,
-        key: crate::MyKey,
-        cursor: &(u16, u16),
-    ) {
+    fn keyhandler(&mut self, appdata: &crate::app::AppData, key: crate::MyKey, cursor: &Pos) {
         self.card
             .keyhandler(appdata, &mut self.tabdata, cursor, key);
     }
@@ -61,7 +56,7 @@ impl<'a> Tab for Editor<'a> {
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
         appdata: &crate::app::AppData,
-        cursor: &(u16, u16),
+        cursor: &Pos,
     ) {
         self.card.render(f, appdata, cursor);
     }

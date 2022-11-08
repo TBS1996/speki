@@ -15,7 +15,7 @@ use tui::{
 use unicode_width::UnicodeWidthStr;
 #[derive(Debug, Clone, Default)]
 pub struct MyListState {
-    offset: usize,
+    pub offset: usize,
     selected: Option<usize>,
 }
 

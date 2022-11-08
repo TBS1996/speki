@@ -1,5 +1,6 @@
 use crate::app::Widget;
 use crate::tabs::review::logic::{ForReview, StartQty};
+use crate::utils::aliases::Pos;
 use tui::layout::Alignment;
 use tui::style::Modifier;
 use tui::widgets::Paragraph;
@@ -108,7 +109,7 @@ impl Widget for ModeStatus {
         &mut self,
         _f: &mut Frame<crate::MyType>,
         _appdata: &crate::app::AppData,
-        _cursor: &(u16, u16),
+        _cursor: &Pos,
     ) {
     }
     fn keyhandler(&mut self, _appdata: &crate::app::AppData, _key: crate::MyKey) {}

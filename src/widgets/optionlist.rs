@@ -35,7 +35,7 @@ impl Widget for OptionMenu {
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
         appdata: &crate::app::AppData,
-        cursor: &(u16, u16),
+        cursor: &Pos,
     ) {
     }
 }

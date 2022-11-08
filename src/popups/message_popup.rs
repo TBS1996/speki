@@ -1,6 +1,6 @@
 use crate::{
     app::{PopUpState, PopupValue, Tab, TabData, Widget},
-    utils::misc::split_updown_by_percent,
+    utils::{aliases::Pos, misc::split_updown_by_percent},
     widgets::infobox::InfoBox,
 };
 use std::sync::mpsc::{Receiver, TryRecvError};
@@ -33,19 +33,13 @@ impl<'a> Tab for MsgPopup<'a> {
         &mut self.tabdata
     }
 
-    fn keyhandler(
-        &mut self,
-        _appdata: &crate::app::AppData,
-        _key: crate::MyKey,
-        _cursor: &(u16, u16),
-    ) {
-    }
+    fn keyhandler(&mut self, _appdata: &crate::app::AppData, _key: crate::MyKey, _cursor: &Pos) {}
 
     fn render(
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
         appdata: &crate::app::AppData,
-        _cursor: &(u16, u16),
+        _cursor: &Pos,
     ) {
         match self.rx.try_recv() {
             Ok(Msg::Ok(string)) => self.msg.change_text(string),
@@ -56,7 +50,7 @@ impl<'a> Tab for MsgPopup<'a> {
             }
         }
 
-        self.msg.render(f, appdata, &(0, 0));
+        self.msg.render(f, appdata, &Pos::default());
     }
 
     fn set_selection(&mut self, area: tui::layout::Rect) {

@@ -16,6 +16,7 @@ use crate::{MyKey, MyType};
 use rusqlite::Connection;
 use std::fmt::{self, Display};
 use std::sync::{Arc, Mutex};
+use tui::style::{Modifier, Style};
 use tui::Frame;
 
 #[derive(Clone)]
@@ -94,7 +95,11 @@ impl<'a> IncView<'a> {
         let topics = TopicList::new(&appdata.conn);
         let extracts = StatefulList::with_items("Extracts".to_string(), text.extracts.clone());
         let clozes = StatefulList::with_items("Clozes".to_string(), text.clozes.clone());
-        let parent = Button::new("Go to parent".to_string());
+        let mut parent = Button::new("Go to parent".to_string());
+        let parent_id = text.parent;
+        if parent_id == 0 {
+            parent.inner.textstyle = Style::default().add_modifier(Modifier::DIM);
+        }
         Self {
             text,
             topics,
@@ -108,18 +113,25 @@ impl<'a> IncView<'a> {
         &mut self,
         appdata: &AppData,
         tabdata: &mut TabData,
-        cursor: &(u16, u16),
+        cursor: &Pos,
         key: MyKey,
     ) {
         match key {
-            MyKey::Char('e') if self.extracts.is_selected(cursor) => {
+            MyKey::Enter if self.parent.is_selected(cursor) => {
+                let parent = self.text.parent;
+                if parent != 0 {
+                    let inc = TextEditor::new(appdata, parent);
+                    tabdata.popup = Some(Box::new(inc));
+                }
+            }
+            MyKey::Char('e') | MyKey::Enter if self.extracts.is_selected(cursor) => {
                 if let Some(idx) = self.extracts.state.selected() {
                     let id = self.extracts.items[idx].id;
                     tabdata.popup = Some(Box::new(TextEditor::new(appdata, id)));
                 }
             }
             key if self.extracts.is_selected(cursor) => self.extracts.keyhandler(appdata, key),
-            MyKey::Char('e') if self.clozes.is_selected(cursor) => {
+            MyKey::Char('e') | MyKey::Enter if self.clozes.is_selected(cursor) => {
                 if let Some(idx) = self.clozes.state.selected() {
                     let id = self.clozes.items[idx].id;
                     tabdata.popup = Some(Box::new(Editor::new(appdata, id)));
@@ -149,7 +161,7 @@ impl<'a> IncView<'a> {
         }
     }
 
-    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         self.text.source.render(f, appdata, cursor);
         self.extracts.render(f, appdata, cursor);
         self.clozes.render(f, appdata, cursor);

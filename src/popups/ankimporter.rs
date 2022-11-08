@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 
+use crate::utils::aliases::Pos;
 use crate::utils::ankitemplate::{ImportProgress, Template};
 use crate::utils::libextensions::MyListState;
 use crate::utils::misc::SpekiPaths;
@@ -230,7 +231,7 @@ impl<'a> Tab for Ankimporter<'a> {
         }
     }
 
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, _cursor: &(u16, u16)) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, _cursor: &Pos) {
         match key {
             MyKey::Enter => match self.list.state.selected() {
                 None => self.fetch(),
@@ -245,7 +246,9 @@ impl<'a> Tab for Ankimporter<'a> {
                     thread::spawn(move || {
                         download_deck(download_link, tx, threadpaths);
                     });
-                    let prog = Progress::new(rx, "Downloading deck".to_string(), None);
+                    let wiki = WikiSelect::new(3);
+                    let prog =
+                        Progress::new(rx, "Downloading deck".to_string(), Some(Box::new(wiki)));
                     self.set_popup(Box::new(prog));
                     self.state = State::Downloading(name);
                 }
@@ -295,7 +298,7 @@ impl<'a> Tab for Ankimporter<'a> {
         self.description.set_area(desc);
     }
 
-    fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         //let cursor = &(0, 0);
         self.prompt.render(f, appdata, cursor);
         self.searchterm.render(f, appdata, cursor);
@@ -325,6 +328,7 @@ use futures_util::StreamExt;
 use super::load_cards::LoadCards;
 use super::message_popup::{Msg, MsgPopup};
 use super::progress_popup::Progress;
+use super::wikiselect::WikiSelect;
 #[tokio::main]
 pub async fn download_deck(
     url: String,

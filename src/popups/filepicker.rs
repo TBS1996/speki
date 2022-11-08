@@ -2,6 +2,7 @@ use crate::app::AppData;
 use crate::app::Tab;
 use crate::app::TabData;
 use crate::app::Widget;
+use crate::utils::aliases::Pos;
 use crate::utils::misc::split_updown_by_percent;
 use crate::utils::statelist::KeyHandler;
 use crate::utils::statelist::StatefulList;
@@ -162,12 +163,7 @@ impl<'a> Tab for FilePicker<'a> {
         self.contents.set_area(chunks[1]);
     }
 
-    fn keyhandler(
-        &mut self,
-        appdata: &crate::app::AppData,
-        key: crate::MyKey,
-        _cursor: &(u16, u16),
-    ) {
+    fn keyhandler(&mut self, appdata: &crate::app::AppData, key: crate::MyKey, _cursor: &Pos) {
         use crate::MyKey::*;
         match key {
             Char('h') | Left => self.prevdir(),
@@ -196,7 +192,7 @@ impl<'a> Tab for FilePicker<'a> {
         &mut self,
         f: &mut tui::Frame<MyType>,
         appdata: &crate::app::AppData,
-        cursor: &(u16, u16),
+        cursor: &Pos,
     ) {
         self.description.render(f, appdata, cursor);
         self.contents.render(f, appdata, cursor);

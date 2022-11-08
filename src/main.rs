@@ -14,7 +14,7 @@ use crate::utils::sql::init_db;
 use crossterm::{
     event::{
         self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
-        MouseEventKind,
+        MouseButton, MouseEventKind,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -110,7 +110,8 @@ pub enum MyKey {
     DeleteCard,
     SwapTab,
     BackSwapTab,
-    KeyPress((u16, u16)),
+    KeyPress(Pos),
+    Drag(Pos),
     ScrollUp,
     ScrollDown,
     ScrollLeft,
@@ -126,6 +127,8 @@ pub enum NavDir {
     Right,
 }
 
+use crate::utils::aliases::*;
+
 // TODO make it recursive, so a modifier key can have any other keys inside it
 impl MyKey {
     fn from(event: event::Event) -> Option<MyKey> {
@@ -137,7 +140,9 @@ impl MyKey {
 
         if let Mouse(mouse) = event {
             match mouse.kind {
-                MouseEventKind::Down(_) => return Some(MyKey::KeyPress((mouse.column, mouse.row))),
+                MouseEventKind::Down(_) => {
+                    return Some(MyKey::KeyPress(Pos::new(mouse.column, mouse.row)))
+                }
                 MouseEventKind::ScrollUp if mouse.modifiers == event::KeyModifiers::SHIFT => {
                     return Some(MyKey::ScrollLeft)
                 }
@@ -146,6 +151,9 @@ impl MyKey {
                 }
                 MouseEventKind::ScrollUp => return Some(MyKey::ScrollUp),
                 MouseEventKind::ScrollDown => return Some(MyKey::ScrollDown),
+                MouseEventKind::Drag(MouseButton::Left) => {
+                    return Some(MyKey::Drag(Pos::new(mouse.column, mouse.row)))
+                }
                 _ => {}
             }
         }

@@ -2,6 +2,7 @@ use tui::layout::Rect;
 
 use crate::app::{AppData, Tab, TabData};
 use crate::popups::progress_popup::Progress;
+use crate::utils::aliases::Pos;
 use crate::utils::ankitemplate::{ImportProgress, Template};
 use crate::utils::misc::{split_leftright_by_percent, split_updown_by_percent};
 use crate::utils::statelist::{StatefulList, TextItem};
@@ -201,7 +202,7 @@ impl<'a> Tab for LoadCards<'a> {
         self.fields.set_area(thefields);
     }
 
-    fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         let media = self.template.get_media(self.viewpos);
         let mut frontstring = "Front side ".to_string();
         let mut backstring = "Back side ".to_string();
@@ -236,7 +237,7 @@ impl<'a> Tab for LoadCards<'a> {
         self.importbutton.render(f, appdata, cursor);
     }
 
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16)) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &Pos) {
         use MyKey::*;
 
         match key {

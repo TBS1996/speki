@@ -494,7 +494,7 @@ impl Widget for TopicList {
         }
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, cursor: &Pos) {
         let title = "Topics".to_string();
         let area = self.get_area();
         let selected = View::isitselected(area, cursor);

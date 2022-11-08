@@ -116,7 +116,7 @@ make cloze (visual mode): Alt+z
         self.reload_inc_list(&appdata.conn);
     }
 
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16)) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &Pos) {
         use crate::MyKey::*;
 
         match key {
@@ -143,7 +143,7 @@ make cloze (visual mode): Alt+z
         }
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         self.topics.render(f, appdata, cursor);
         self.inclist.render(f, appdata, cursor);
     }

@@ -128,7 +128,7 @@ impl<'a> Tab for FindCardWidget<'a> {
         self.list.set_area(matchlist);
     }
 
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, _cursor: &(u16, u16)) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, _cursor: &Pos) {
         match key {
             MyKey::Enter => self.complete(&appdata.conn),
             MyKey::Down => self.list.next(),
@@ -141,7 +141,7 @@ impl<'a> Tab for FindCardWidget<'a> {
         }
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         self.prompt.render(f, appdata, cursor);
         self.searchterm.render(f, appdata, cursor);
         self.list.render(f, appdata, cursor);

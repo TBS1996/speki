@@ -9,7 +9,10 @@ use tui::{
 
 use crate::{
     tabs::add_card::NewCard,
-    utils::misc::{draw_paragraph, split_updown, View},
+    utils::{
+        aliases::Pos,
+        misc::{draw_paragraph, split_updown, View},
+    },
     NavDir,
 };
 
@@ -65,6 +68,7 @@ pub struct AppData {
 pub struct TabsState {
     pub tabs: Vec<Box<dyn Tab>>,
     pub index: usize,
+    titlepositions: Vec<usize>,
 }
 
 impl TabsState {
@@ -82,7 +86,33 @@ impl TabsState {
         tabs.push(Box::new(incread));
         tabs.push(Box::new(importer));
 
-        TabsState { tabs, index: 0 }
+        let mut tabs = TabsState {
+            tabs,
+            index: 0,
+            titlepositions: vec![],
+        };
+        tabs.calibrate_startpos();
+        tabs
+    }
+
+    fn calibrate_startpos(&mut self) {
+        self.titlepositions = vec![0];
+        let mut xpos = 1;
+        let padlen = 3;
+        for (index, tab) in self.tabs.iter().enumerate() {
+            let title = tab.get_title();
+            xpos += title.len() + padlen;
+            self.titlepositions.push(xpos);
+        }
+    }
+
+    fn get_tab_index(&self, pos: Pos) -> usize {
+        for idx in (0..self.titlepositions.len()).rev() {
+            if self.titlepositions[idx] < pos.x as usize {
+                return idx;
+            }
+        }
+        0
     }
     pub fn next(&mut self) {
         if self.index < self.tabs.len() - 1 {
@@ -159,9 +189,22 @@ impl App {
         }
     }
 
+    fn drag_tab(&mut self, _pos: Pos) {
+        /*
+        let current_index = self.tabs.index;
+        let new_index = self.tabs.get_tab_index(pos);
+        if new_index < current_index {
+            let new_title_len = self.tabs.tabs[new_index].get_title().len();
+        }
+        self.tabs.tabs.swap(current_index, new_index);
+        self.tabs.index = new_index;
+        */
+    }
+
     pub fn keyhandler(&mut self, key: MyKey) {
         match key {
-            MyKey::KeyPress(pos) if pos.1 < 2 => self.press_tab(pos),
+            MyKey::KeyPress(pos) if pos.y < 2 => self.press_tab(pos),
+            MyKey::Drag(pos) if pos.y < 2 => self.drag_tab(pos),
             MyKey::Tab => self.tabs.next(),
             MyKey::BackTab => self.tabs.previous(),
             MyKey::SwapTab => self.tabs.swap_right(),
@@ -186,17 +229,8 @@ impl App {
         self.tabs.render(f, &self.appdata, area);
     }
 
-    fn press_tab(&mut self, pos: (u16, u16)) {
-        let mut xpos = 1;
-        let padlen = 3;
-        for (index, tab) in self.tabs.tabs.iter().enumerate() {
-            let title = tab.get_title();
-            xpos += title.len() + padlen;
-            if xpos > pos.0 as usize {
-                self.tabs.index = index;
-                return;
-            }
-        }
+    fn press_tab(&mut self, pos: Pos) {
+        self.tabs.index = self.tabs.get_tab_index(pos);
     }
 
     fn render_tab_menu(&self, f: &mut Frame<MyType>, area: Rect) -> Rect {
@@ -247,7 +281,7 @@ quit: Alt+q
         let mut field = Field::new_with_text(msg, 0, 0);
         let chunks = split_leftright_by_percent([66, 33], area);
         field.set_area(chunks[1]);
-        field.render(f, &self.appdata, &(0, 0));
+        field.render(f, &self.appdata, &Pos::default());
         chunks[0]
     }
 }
@@ -281,12 +315,12 @@ impl Default for PopUpState {
 
 pub trait Widget {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey);
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16));
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos);
     fn get_area(&self) -> Rect;
     fn set_area(&mut self, area: Rect);
     fn refresh(&mut self) {}
 
-    fn is_selected(&self, cursor: &(u16, u16)) -> bool {
+    fn is_selected(&self, cursor: &Pos) -> bool {
         View::isitselected(self.get_area(), cursor)
     }
 }
@@ -299,7 +333,7 @@ pub trait Tab {
     }
     fn set_selection(&mut self, area: Rect);
 
-    fn get_cursor(&mut self) -> &(u16, u16) {
+    fn get_cursor(&mut self) -> &Pos {
         &self.get_view().cursor
     }
     fn navigate(&mut self, dir: NavDir) {
@@ -333,7 +367,7 @@ pub trait Tab {
             key => self.keyhandler(appdata, key, &cursor),
         }
     }
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16));
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &Pos);
 
     fn main_render(
         &mut self,
@@ -346,14 +380,16 @@ pub trait Tab {
             navbar.push_str(" ❱❱ ");
             navbar.push_str(&popup.get_title());
             let state = popup.get_state();
-            //match std::mem::replace(state, PopUpState::Continue) {
             match std::mem::take(state) {
                 PopUpState::Continue => popup.main_render(f, appdata, area, navbar),
                 PopUpState::Exit => self.exit_popup(appdata),
-                PopUpState::Switch(tab) => *popup = tab,
+                PopUpState::Switch(tab) => {
+                    *popup = tab;
+                    popup.main_render(f, appdata, area, navbar);
+                }
             }
         } else {
-            if !navbar.is_empty() && area.height > 10 && area.width > 10 {
+            if !navbar.is_empty() {
                 f.render_widget(Clear, area); //this clears out the background
                 let chunks = split_updown([Constraint::Length(3), Constraint::Min(1)], area);
                 draw_paragraph(
@@ -365,10 +401,7 @@ pub trait Tab {
                     Borders::ALL,
                 );
                 area = chunks[1];
-                area.x += 2;
-                area.y += 2;
-                area.height -= 4;
-                area.width -= 4;
+                self.transform_area(&mut area);
             }
             let cursor = self.get_cursor().clone();
             self.set_selection(area);
@@ -377,7 +410,14 @@ pub trait Tab {
         }
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16));
+    fn transform_area(&self, area: &mut Rect) {
+        area.x += 2;
+        area.y += 2;
+        area.height -= 4;
+        area.width -= 4;
+    }
+
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos);
 
     fn get_popup(&mut self) -> Option<&mut Box<dyn Tab>> {
         if let Some(popup) = &mut self.get_tabdata().popup {
@@ -427,8 +467,8 @@ impl Default for Box<dyn Tab> {
 struct Dummy;
 impl Tab for Dummy {
     fn set_selection(&mut self, _area: Rect) {}
-    fn render(&mut self, _f: &mut Frame<MyType>, _appdata: &AppData, _cursor: &(u16, u16)) {}
-    fn keyhandler(&mut self, _appdata: &AppData, _key: MyKey, _cursor: &(u16, u16)) {}
+    fn render(&mut self, _f: &mut Frame<MyType>, _appdata: &AppData, _cursor: &Pos) {}
+    fn keyhandler(&mut self, _appdata: &AppData, _key: MyKey, _cursor: &Pos) {}
     fn get_title(&self) -> String {
         todo!()
     }

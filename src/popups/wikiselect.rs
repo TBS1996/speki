@@ -37,7 +37,7 @@ impl<'a> Tab for WikiSelect<'a> {
 
     fn navigate(&mut self, _dir: crate::NavDir) {}
 
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, _cursor: &(u16, u16)) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, _cursor: &Pos) {
         match key {
             MyKey::Enter => {
                 let text = self.searchbar.return_text();
@@ -68,7 +68,7 @@ impl<'a> Tab for WikiSelect<'a> {
         self.tabdata.view.areas.push(chunks[2]);
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         self.prompt.render(f, appdata, cursor);
         self.searchbar.render(f, appdata, cursor);
     }

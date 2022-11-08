@@ -5,7 +5,7 @@ use tui::{
     widgets::{Block, Borders, Paragraph, Wrap},
 };
 
-use crate::app::Widget;
+use crate::{app::Widget, utils::aliases::Pos};
 
 pub struct InfoBox<'a> {
     pub area: Rect,
@@ -68,7 +68,7 @@ impl<'a> Widget for InfoBox<'a> {
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
         _appdata: &crate::app::AppData,
-        _cursor: &(u16, u16),
+        _cursor: &Pos,
     ) {
         let block = Block::default()
             .borders(self.borders)

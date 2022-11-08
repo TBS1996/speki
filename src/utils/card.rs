@@ -345,7 +345,7 @@ impl<'a> CardView<'a> {
         }
     }
 
-    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         self.question.render(f, appdata, cursor);
         if self.revealed {
             self.answer.render(f, appdata, cursor);
@@ -363,7 +363,7 @@ impl<'a> CardView<'a> {
         &mut self,
         appdata: &AppData,
         tabdata: &mut TabData,
-        cursor: &(u16, u16),
+        cursor: &Pos,
         key: MyKey,
     ) {
         match key {
@@ -381,8 +381,9 @@ impl<'a> CardView<'a> {
             }
             MyKey::Alt('g') if self.question.is_selected(cursor) && self.revealed => {
                 if let Some(key) = &appdata.config.gptkey {
-                    let answer = get_gpt3_response(key, &self.question.return_text());
-                    self.answer.replace_text(answer);
+                    if let Some(answer) = get_gpt3_response(key, &self.question.return_text()) {
+                        self.answer.replace_text(answer);
+                    }
                 }
             }
             MyKey::Alt('t') if self.card.is_some() => {
@@ -405,14 +406,14 @@ impl<'a> CardView<'a> {
                     AddChildWidget::new(appdata, Purpose::Dependent(vec![self.get_id()]));
                 tabdata.popup = Some(Box::new(addchild));
             }
-            MyKey::Char('e') if self.dependents.is_selected(cursor) => {
+            MyKey::Char('e') | MyKey::Enter if self.dependents.is_selected(cursor) => {
                 if let Some(idx) = self.dependents.state.selected() {
                     let id = self.dependents.items[idx].id;
                     let editor = Editor::new(appdata, id);
                     tabdata.popup = Some(Box::new(editor));
                 }
             }
-            MyKey::Char('e') if self.dependencies.is_selected(cursor) => {
+            MyKey::Char('e') | MyKey::Enter if self.dependencies.is_selected(cursor) => {
                 if let Some(idx) = self.dependencies.state.selected() {
                     let id = self.dependencies.items[idx].id;
                     let editor = Editor::new(appdata, id);
@@ -441,7 +442,7 @@ impl<'a> CardView<'a> {
         self.save_state(&appdata.conn);
     }
 
-    pub fn is_selected(&self, cursor: &(u16, u16)) -> bool {
+    pub fn is_selected(&self, cursor: &Pos) -> bool {
         if self.question.is_selected(cursor) {
             return true;
         }

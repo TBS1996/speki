@@ -4,7 +4,7 @@ use tui::Frame;
 use crate::app::AppData;
 use crate::utils::card::CardView;
 
-use crate::utils::aliases::CardID;
+use crate::utils::aliases::{CardID, Pos};
 
 pub struct UnfCard<'a> {
     pub cardview: CardView<'a>,
@@ -17,7 +17,7 @@ impl<'a> UnfCard<'a> {
         Self { cardview }
     }
 
-    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         self.cardview.render(f, appdata, cursor);
     }
 

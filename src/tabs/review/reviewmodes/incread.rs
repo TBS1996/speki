@@ -1,5 +1,6 @@
 use tui::Frame;
 
+use crate::utils::aliases::Pos;
 use crate::utils::incread::IncView;
 use crate::{app::AppData, utils::aliases::CardID, MyType};
 
@@ -11,7 +12,7 @@ impl<'a> IncMode<'a> {
         let source = IncView::new(appdata, id);
         Self { source }
     }
-    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         self.source.render(f, appdata, cursor);
     }
 

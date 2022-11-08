@@ -2,7 +2,7 @@ use tui::style::Color;
 
 use crate::{
     app::{PopUpState, PopupValue, Tab, TabData, Widget},
-    utils::{ankitemplate::ImportProgress, misc::split_updown_by_percent},
+    utils::{aliases::Pos, ankitemplate::ImportProgress, misc::split_updown_by_percent},
     widgets::progress_bar::ProgressBar,
 };
 use std::sync::mpsc::Receiver;
@@ -37,19 +37,13 @@ impl Tab for Progress {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }
-    fn keyhandler(
-        &mut self,
-        _appdata: &crate::app::AppData,
-        _key: crate::MyKey,
-        _cursor: &(u16, u16),
-    ) {
-    }
+    fn keyhandler(&mut self, _appdata: &crate::app::AppData, _key: crate::MyKey, _cursor: &Pos) {}
 
     fn render(
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
         appdata: &crate::app::AppData,
-        _cursor: &(u16, u16),
+        _cursor: &Pos,
     ) {
         if let Ok(prog) = self.rx.recv() {
             let current = prog.curr_index as u32;
@@ -57,7 +51,7 @@ impl Tab for Progress {
             self.bar.max = prog.max as u32;
             //let rgb = get_rgb(current);
             self.bar.color = Color::Gray; //Color::Rgb(rgb.0, rgb.1, rgb.2);
-            self.bar.render(f, appdata, &(0, 0));
+            self.bar.render(f, appdata, &Pos::default());
 
             if prog.curr_index == prog.max - 1 {
                 if let Some(tab) = std::mem::take(&mut self.next_tab) {

@@ -1,5 +1,6 @@
 use crate::{
     app::{AppData, Widget},
+    utils::aliases::Pos,
     MyKey, MyType,
 };
 use crossterm::{
@@ -177,7 +178,7 @@ impl Field {
     }
 
     fn get_visrow_qty(&self, row: usize) -> u16 {
-        (self.get_rowlen(row) as u16 / self.rowlen as u16) + 1
+        (self.get_rowlen(row) as u16 / (self.rowlen + 0) as u16) + 1
     }
 
     fn get_current_visrow_qty(&self) -> u16 {
@@ -285,12 +286,12 @@ impl Field {
         }
     }
 
-    fn keypress(&mut self, pos: (u16, u16)) {
-        if pos.1 <= self.area.y || pos.0 == self.area.x || pos.1 > self.area.y + self.area.height {
+    fn keypress(&mut self, pos: Pos) {
+        if pos.y <= self.area.y || pos.x == self.area.x || pos.y > self.area.y + self.area.height {
             return;
         }
         let line = self.current_abs_visual_line() - self.scroll as usize;
-        let yclicked = (pos.1 - self.area.y - 1) as usize;
+        let yclicked = (pos.y - self.area.y - 1) as usize;
         if line > yclicked {
             for _ in 0..(line - yclicked) {
                 self.visual_up();
@@ -301,7 +302,7 @@ impl Field {
             }
         }
         let col = self.current_visual_col();
-        let xclicked = (pos.0 - self.area.x - 1) as usize;
+        let xclicked = (pos.x - self.area.x - 1) as usize;
 
         let rowlen = self.current_rowlen();
         let rightlen = if rowlen > self.cursor.column {
@@ -358,6 +359,14 @@ impl Field {
         retstring
     }
 
+    /*
+
+
+
+
+
+    */
+
     pub fn return_selection(&self) -> Option<String> {
         if self.selection_exists() {
             let start = self.startselect.clone().unwrap();
@@ -367,9 +376,11 @@ impl Field {
             let (start, end) = (splitvec[0].clone(), splitvec[1].clone());
             if start.row == end.row {
                 let line = self.text[start.row].clone();
-                let (left, _) = line.split_at(end.column + 1);
+                let left_bytepos = Self::find_grapheme_bytepos(&line, end.column + 1);
+                let (left, _) = line.split_at(left_bytepos);
                 let left = left.to_string();
-                let (_, selected) = left.split_at(start.column);
+                let bytepos = Self::find_grapheme_bytepos(&left, start.column);
+                let (_, selected) = left.split_at(bytepos);
                 Some(selected.to_string())
             } else {
                 let mut retstring = self.get_text_right_of_position(&start);
@@ -475,8 +486,18 @@ impl Field {
         if selected {
             let cursorshape = match self.mode {
                 Mode::Normal => CursorShape::Block,
-                Mode::Visual => CursorShape::Block,
                 Mode::Insert => CursorShape::Line,
+                Mode::Visual => {
+                    if let Some(startselect) = self.startselect {
+                        if startselect == self.cursor {
+                            CursorShape::UnderScore
+                        } else {
+                            CursorShape::Block
+                        }
+                    } else {
+                        CursorShape::Block
+                    }
+                }
             };
             let mut stdout = stdout();
             execute!(stdout, SetCursorShape(cursorshape),).unwrap();
@@ -789,7 +810,7 @@ impl Widget for Field {
     fn get_area(&self) -> Rect {
         self.area
     }
-    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, cursor: &Pos) {
         let area = self.get_area();
         let selected = self.is_selected(cursor);
         let scroll = self.scroll;
@@ -827,10 +848,8 @@ impl Widget for Field {
                 None
             }
         };
-
         let formatted_text = self.cursorsplit(f, area, selected);
-        let paragraph = Paraclone::new(formatted_text, selection, (scroll, 0)).block(block);
-
+        let paragraph = Paraclone::new(formatted_text, selection, Pos::new(0, scroll)).block(block);
         f.render_widget(paragraph, area);
     }
 
@@ -860,17 +879,13 @@ pub struct Paraclone<'a> {
     block: Option<Block<'a>>,
     style: Style,
     text: Text<'a>,
-    scroll: (u16, u16),
+    scroll: Pos,
     alignment: Alignment,
     selection: Option<Vec<(usize, usize)>>,
 }
 
 impl<'a> Paraclone<'a> {
-    pub fn new<T>(
-        text: T,
-        selection: Option<Vec<(usize, usize)>>,
-        scroll: (u16, u16),
-    ) -> Paraclone<'a>
+    pub fn new<T>(text: T, selection: Option<Vec<(usize, usize)>>, scroll: Pos) -> Paraclone<'a>
     where
         T: Into<tui::text::Text<'a>>,
     {
@@ -894,7 +909,7 @@ impl<'a> Paraclone<'a> {
         self
     }
 
-    pub fn scroll(mut self, offset: (u16, u16)) -> Paraclone<'a> {
+    pub fn scroll(mut self, offset: Pos) -> Paraclone<'a> {
         self.scroll = offset;
         self
     }
@@ -956,20 +971,20 @@ impl<'a> TuiWidget for Paraclone<'a> {
         let mut thestyle = Style::default();
         while let Some((current_line, _)) = line_composer.next_line() {
             let mut x: u16 = 0;
-            if y >= self.scroll.0 {
+            if y >= self.scroll.y {
                 for StyledGrapheme { symbol, .. } in current_line {
                     if let Some(selvec) = &self.selection {
                         thestyle = stylegetter(y as usize, x as usize, selvec)
                     }
 
-                    buf.get_mut(text_area.left() + x, text_area.top() + y - self.scroll.0)
+                    buf.get_mut(text_area.left() + x, text_area.top() + y - self.scroll.y)
                         .set_symbol(symbol)
                         .set_style(thestyle);
                     x += symbol.width() as u16;
                 }
             }
             y += 1;
-            if y >= text_area.height + self.scroll.0 {
+            if y >= text_area.height + self.scroll.y {
                 break;
             }
         }

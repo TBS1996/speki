@@ -4,7 +4,7 @@ use crate::{
         ankimporter::Ankimporter,
         filepicker::{FilePicker, FilePickerPurpose},
     },
-    utils::misc::split_updown_by_percent,
+    utils::{aliases::Pos, misc::split_updown_by_percent},
     widgets::button::Button,
     MyKey,
 };
@@ -30,12 +30,7 @@ impl<'a> Tab for Importer<'a> {
         &mut self.tabdata
     }
 
-    fn keyhandler(
-        &mut self,
-        _appdata: &crate::app::AppData,
-        key: crate::MyKey,
-        cursor: &(u16, u16),
-    ) {
+    fn keyhandler(&mut self, _appdata: &crate::app::AppData, key: crate::MyKey, cursor: &Pos) {
         match key {
             MyKey::Enter if self.anki.is_selected(cursor) => {
                 self.set_popup(Box::new(Ankimporter::new()));
@@ -67,7 +62,7 @@ impl<'a> Tab for Importer<'a> {
         &mut self,
         f: &mut tui::Frame<crate::MyType>,
         appdata: &crate::app::AppData,
-        cursor: &(u16, u16),
+        cursor: &Pos,
     ) {
         self.anki.render(f, appdata, cursor);
         self.local.render(f, appdata, cursor);

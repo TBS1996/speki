@@ -2,6 +2,7 @@ use crate::app::AppData;
 use crate::app::Tab;
 use crate::app::TabData;
 use crate::app::Widget;
+use crate::utils::aliases::Pos;
 use crate::utils::card::CardView;
 use crate::utils::misc::{split_leftright_by_percent, split_updown_by_percent};
 use crate::widgets::button::Button;
@@ -68,19 +69,18 @@ Add card as unfinished: Alt+u
         let right = chunks[1];
         let chunks = split_updown_by_percent([10, 37, 37], left);
 
-        self.tabdata.view.areas.push(chunks[0]);
-        self.tabdata.view.areas.push(right);
         self.tabdata.view.areas.push(chunks[1]);
+        self.tabdata.view.areas.push(right);
+        self.tabdata.view.areas.push(chunks[0]);
         self.tabdata.view.areas.push(chunks[2]);
 
         self.prompt.set_area(chunks[0]);
-
         self.cardview.question.set_area(chunks[1]);
         self.cardview.answer.set_area(chunks[2]);
         self.cardview.topics.set_area(right);
     }
 
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &(u16, u16)) {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &Pos) {
         match key {
             MyKey::Alt('f') => self.submit_card(appdata, true),
             MyKey::Alt('u') => self.submit_card(appdata, false),
@@ -91,7 +91,7 @@ Add card as unfinished: Alt+u
             _ => {}
         }
     }
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         self.prompt.render(f, appdata, cursor);
         self.cardview.render(f, appdata, cursor);
     }

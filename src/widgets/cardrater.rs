@@ -6,7 +6,7 @@ use tui::{
 
 use crate::{
     app::AppData,
-    utils::{card::RecallGrade, misc::View},
+    utils::{aliases::Pos, card::RecallGrade, misc::View},
     MyType,
 };
 use crate::{app::Widget, MyKey};
@@ -69,7 +69,7 @@ impl Widget for CardRater {
         self.area
     }
 
-    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, cursor: &(u16, u16)) {
+    fn render(&mut self, f: &mut Frame<MyType>, _appdata: &AppData, cursor: &Pos) {
         let area = self.get_area();
         let selected = View::isitselected(self.get_area(), cursor);
         let style = if selected {

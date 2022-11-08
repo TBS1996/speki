@@ -147,11 +147,15 @@ use hyper::{body::Buf, header, Body, Client, Request};
 use hyper_tls::HttpsConnector;
 use serde_derive::{Deserialize, Serialize};
 
-use super::{aliases::CardID, sql::fetch::fetch_card, statelist::StatefulList};
+use super::{
+    aliases::{CardID, Pos},
+    sql::fetch::fetch_card,
+    statelist::StatefulList,
+};
 
 // stole code from here: https://github.com/zahidkhawaja/rusty
 #[tokio::main]
-pub async fn get_gpt3_response(api_key: &str, user_input: &str) -> String {
+pub async fn get_gpt3_response(api_key: &str, user_input: &str) -> Option<String> {
     let https = HttpsConnector::new();
     let client = Client::builder().build(https);
     let uri = "https://api.openai.com/v1/completions";
@@ -183,17 +187,19 @@ pub async fn get_gpt3_response(api_key: &str, user_input: &str) -> String {
     let json: OpenAIResponse = match serde_json::from_reader(body.reader()) {
         Ok(response) => response,
         Err(_) => {
-            std::process::exit(1);
+            return None;
         }
     };
 
-    json.choices[0]
-        .text
-        .split('\n')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n")
+    Some(
+        json.choices[0]
+            .text
+            .split('\n')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
 }
 
 pub fn get_dependencies(conn: &Arc<Mutex<Connection>>, id: CardID) -> StatefulList<CardItem> {
@@ -323,23 +329,15 @@ pub fn get_rgb(val: u32) -> (u8, u8, u8) {
     (r, g, b)
 }
 
-impl Default for View {
-    fn default() -> Self {
-        let areas = vec![];
-        let cursor = (0, 4);
-        Self { areas, cursor }
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct View {
     pub areas: Vec<Rect>,
-    pub cursor: (u16, u16),
+    pub cursor: Pos,
 }
 
 impl View {
     pub fn debug_show_cursor(&self, f: &mut Frame<MyType>) {
-        f.set_cursor(self.cursor.0, self.cursor.1);
+        f.set_cursor(self.cursor.x, self.cursor.y);
     }
 
     pub fn validate_pos(&mut self) {
@@ -356,23 +354,23 @@ impl View {
     pub fn move_to_area(&mut self, area: Rect) {
         let x = area.x + area.width / 2;
         let y = area.y + area.height / 2;
-        self.cursor = (x, y);
+        self.cursor = Pos::new(x, y);
     }
 
     pub fn is_selected(&self, area: Rect) -> bool {
         Self::isitselected(area, &self.cursor)
     }
 
-    pub fn isitselected(area: Rect, cursor: &(u16, u16)) -> bool {
-        cursor.0 >= area.x
-            && cursor.0 < area.x + area.width
-            && cursor.1 >= area.y
-            && cursor.1 < area.y + area.height
+    pub fn isitselected(area: Rect, cursor: &Pos) -> bool {
+        cursor.x >= area.x
+            && cursor.x < area.x + area.width
+            && cursor.y >= area.y
+            && cursor.y < area.y + area.height
     }
 
     fn move_cursor<F>(&mut self, mut func: F)
     where
-        F: FnMut(&mut (u16, u16), &Rect),
+        F: FnMut(&mut Pos, &Rect),
     {
         let mut currentarea = self.areas[0];
         let mut new_pos = self.cursor;
@@ -392,26 +390,26 @@ impl View {
     }
 
     pub fn move_right(&mut self) {
-        let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
-            new_pos.0 = currentarea.x + currentarea.width;
+        let closure = |new_pos: &mut Pos, currentarea: &Rect| {
+            new_pos.x = currentarea.x + currentarea.width;
         };
         self.move_cursor(closure);
     }
     pub fn move_left(&mut self) {
-        let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
-            new_pos.0 = std::cmp::max(currentarea.x, 1) - 1;
+        let closure = |new_pos: &mut Pos, currentarea: &Rect| {
+            new_pos.x = std::cmp::max(currentarea.x, 1) - 1;
         };
         self.move_cursor(closure);
     }
     pub fn move_up(&mut self) {
-        let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
-            new_pos.1 = std::cmp::max(currentarea.y, 1) - 1;
+        let closure = |new_pos: &mut Pos, currentarea: &Rect| {
+            new_pos.y = std::cmp::max(currentarea.y, 1) - 1;
         };
         self.move_cursor(closure);
     }
     pub fn move_down(&mut self) {
-        let closure = |new_pos: &mut (u16, u16), currentarea: &Rect| {
-            new_pos.1 = currentarea.y + currentarea.height;
+        let closure = |new_pos: &mut Pos, currentarea: &Rect| {
+            new_pos.y = currentarea.y + currentarea.height;
         };
         self.move_cursor(closure);
     }

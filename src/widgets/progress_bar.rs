@@ -5,7 +5,7 @@ use tui::{
     Frame,
 };
 
-use crate::app::Widget;
+use crate::{app::Widget, utils::aliases::Pos};
 
 pub struct ProgressBar {
     pub current: u32,
@@ -39,7 +39,7 @@ impl Widget for ProgressBar {
         &mut self,
         f: &mut Frame<crate::MyType>,
         _appdata: &crate::app::AppData,
-        _cursor: &(u16, u16),
+        _cursor: &Pos,
     ) {
         let current = self.current;
         let max = self.max;

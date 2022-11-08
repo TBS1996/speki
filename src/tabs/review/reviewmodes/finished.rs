@@ -3,7 +3,7 @@ use tui::Frame;
 use crate::{
     app::AppData,
     utils::{
-        aliases::CardID,
+        aliases::{CardID, Pos},
         card::{Card, CardView},
         sql::fetch::is_resolved,
     },
@@ -22,7 +22,7 @@ impl<'a> CardReview<'a> {
         Self { cardview }
     }
 
-    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &(u16, u16)) {
+    pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
         let resolved = is_resolved(&appdata.conn, self.cardview.get_id());
 
         if !resolved {

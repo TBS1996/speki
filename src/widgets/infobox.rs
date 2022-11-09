@@ -15,10 +15,12 @@ pub struct InfoBox<'a> {
     pub borders: Borders,
     pub textstyle: Style,
     pub title_alignment: Alignment,
+    pub txtlen: usize,
 }
 
 impl<'a> InfoBox<'a> {
     pub fn new(text: String) -> Self {
+        let thelen = text.len();
         Self {
             area: Rect::default(),
             text: vec![Spans::from(Span::from(text))],
@@ -27,6 +29,7 @@ impl<'a> InfoBox<'a> {
             borders: Borders::ALL,
             textstyle: Style::default(),
             title_alignment: Alignment::Left,
+            txtlen: thelen,
         }
     }
     pub fn borders(mut self, borders: Borders) -> Self {
@@ -52,6 +55,7 @@ impl<'a> InfoBox<'a> {
     }
 
     pub fn change_text(&mut self, text: String) {
+        self.txtlen = text.len();
         self.text = vec![Spans::from(Span::from(text))];
     }
 }

@@ -1,9 +1,11 @@
+pub mod anki_users;
 pub mod ankimporter;
 pub mod edit_card;
 pub mod edit_text;
 pub mod filepicker;
 pub mod find_card;
 pub mod load_cards;
+pub mod menu;
 pub mod message_popup;
 pub mod newchild;
 pub mod progress_popup;

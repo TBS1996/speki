@@ -241,7 +241,6 @@ impl<T: Display + KeyHandler> StatefulList<T> {
     }
 
     fn dragging(&mut self, new: Pos) {
-        panic!();
         if !self.is_selected(&new) {
             return;
         }

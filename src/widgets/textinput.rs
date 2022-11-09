@@ -191,7 +191,8 @@ impl Field {
 
     pub fn newline(&mut self) {
         let current_line = self.text[self.cursor.row].clone();
-        let (left, right) = current_line.split_at(self.cursor.column);
+        let splitat = Self::find_grapheme_bytepos(&current_line, self.cursor.column);
+        let (left, right) = current_line.split_at(splitat);
         self.text[self.cursor.row] = left.to_string();
         self.text.insert(self.cursor.row + 1, right.to_string());
         self.cursor.row += 1;

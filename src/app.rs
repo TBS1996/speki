@@ -8,7 +8,7 @@ use tui::{
 };
 
 use crate::{
-    tabs::add_card::NewCard,
+    tabs::{add_card::NewCard, import::import_tab},
     utils::{
         aliases::Pos,
         misc::{draw_paragraph, split_updown, View},
@@ -77,7 +77,7 @@ impl TabsState {
         let revlist = MainReview::new(appdata);
         let addcards = NewCard::new(appdata);
         let incread = MainInc::new(&appdata.conn);
-        let importer = Importer::new();
+        let importer = import_tab::new();
         let browse = Browse::new(appdata);
 
         tabs.push(Box::new(revlist));
@@ -99,7 +99,7 @@ impl TabsState {
         self.titlepositions = vec![0];
         let mut xpos = 1;
         let padlen = 3;
-        for (index, tab) in self.tabs.iter().enumerate() {
+        for (_, tab) in self.tabs.iter().enumerate() {
             let title = tab.get_title();
             xpos += title.len() + padlen;
             self.titlepositions.push(xpos);
@@ -153,7 +153,6 @@ impl TabsState {
     }
 }
 
-use crate::tabs::import::Importer;
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -326,6 +325,9 @@ pub trait Widget {
 }
 
 pub trait Tab {
+    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &Pos);
+    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos);
+
     fn refresh(&mut self) {}
     fn get_title(&self) -> String;
     fn get_manual(&self) -> String {
@@ -367,7 +369,6 @@ pub trait Tab {
             key => self.keyhandler(appdata, key, &cursor),
         }
     }
-    fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &Pos);
 
     fn main_render(
         &mut self,
@@ -416,8 +417,6 @@ pub trait Tab {
         area.height -= 4;
         area.width -= 4;
     }
-
-    fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos);
 
     fn get_popup(&mut self) -> Option<&mut Box<dyn Tab>> {
         if let Some(popup) = &mut self.get_tabdata().popup {

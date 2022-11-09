@@ -27,7 +27,7 @@ impl<'a> NewCard<'a> {
         NewCard {
             prompt: Button::new("Add new card".to_string()),
             cardview,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Add card".to_string()),
         }
     }
 
@@ -46,9 +46,6 @@ impl<'a> Tab for NewCard<'a> {
         &mut self.tabdata
     }
 
-    fn get_title(&self) -> String {
-        "Add card".to_string()
-    }
     fn get_manual(&self) -> String {
         r#"
 

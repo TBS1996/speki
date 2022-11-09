@@ -169,7 +169,7 @@ impl Browse {
             selected,
             selected_ids,
             filteractions,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Browse".to_string()),
         };
 
         myself.apply_filter(&appdata.conn);
@@ -348,10 +348,6 @@ impl Browse {
 impl Tab for Browse {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
-    }
-
-    fn get_title(&self) -> String {
-        "Browse".to_string()
     }
 
     fn set_selection(&mut self, area: Rect) {

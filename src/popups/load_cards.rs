@@ -64,7 +64,7 @@ impl<'a> LoadCards<'a> {
             previewbutton,
             fields,
             viewpos: 0,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Load cards".to_string()),
         };
         ldc.refresh_template_and_view(0);
         ldc
@@ -87,7 +87,7 @@ impl<'a> LoadCards<'a> {
             previewbutton,
             fields,
             viewpos: 0,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Load cards".to_string()),
         };
         ldc.refresh_template_and_view(0);
         ldc
@@ -162,10 +162,6 @@ use crate::widgets::button::Button;
 impl<'a> Tab for LoadCards<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
-    }
-
-    fn get_title(&self) -> String {
-        "load cards".to_string()
     }
 
     fn set_selection(&mut self, area: Rect) {

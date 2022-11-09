@@ -59,7 +59,7 @@ impl<'a> FindCardWidget<'a> {
             searchterm,
             list,
             purpose,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Find card".to_string()),
         }
     }
 
@@ -99,10 +99,6 @@ impl<'a> FindCardWidget<'a> {
 }
 
 impl<'a> Tab for FindCardWidget<'a> {
-    fn get_title(&self) -> String {
-        "Find card".to_string()
-    }
-
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }

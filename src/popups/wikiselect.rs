@@ -22,17 +22,13 @@ impl<'a> WikiSelect<'a> {
             searchbar: Field::default(),
             prompt: InfoBox::new("Search for a wikipedia page".to_string()),
             topic: id,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Wikipedia selection".to_string()),
         }
     }
 }
 impl<'a> Tab for WikiSelect<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
-    }
-
-    fn get_title(&self) -> String {
-        "Wikipedia selection".to_string()
     }
 
     fn navigate(&mut self, _dir: crate::NavDir) {}

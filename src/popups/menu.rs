@@ -17,7 +17,6 @@ pub struct Menu<'a> {
     tabdata: TabData,
     xpad: u32,
     ypad: u32,
-    title: String,
     in_place: bool,
     prompt: InfoBox<'a>,
 }
@@ -50,10 +49,9 @@ impl<'a> Menu<'a> {
 
         Self {
             buttons,
-            tabdata: TabData::default(),
+            tabdata: TabData::new(title),
             xpad,
             ypad,
-            title,
             in_place,
             prompt,
         }
@@ -108,10 +106,6 @@ impl<'a> Tab for Menu<'a> {
 
     fn get_tabdata(&mut self) -> &mut crate::app::TabData {
         &mut self.tabdata
-    }
-
-    fn get_title(&self) -> String {
-        self.title.clone()
     }
 
     fn keyhandler(&mut self, appdata: &crate::app::AppData, key: crate::MyKey, cursor: &Pos) {

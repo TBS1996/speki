@@ -57,7 +57,7 @@ impl<'a> FilePicker<'a> {
     {
         let path = std::env::current_dir().unwrap();
         let contents = StatefulList::new("".to_string());
-        let tabdata = TabData::default();
+        let tabdata = TabData::new("File picker".to_string());
         let description = InfoBox::new(description);
 
         let mut me = Self {
@@ -188,17 +188,9 @@ impl<'a> Tab for FilePicker<'a> {
         &mut self.tabdata
     }
 
-    fn render(
-        &mut self,
-        f: &mut tui::Frame<MyType>,
-        appdata: &crate::app::AppData,
-        cursor: &Pos,
-    ) {
+    fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &crate::app::AppData, cursor: &Pos) {
         self.description.render(f, appdata, cursor);
         self.contents.render(f, appdata, cursor);
-    }
-    fn get_title(&self) -> String {
-        "Filepicker".to_string()
     }
 }
 

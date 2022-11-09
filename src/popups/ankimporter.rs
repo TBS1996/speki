@@ -86,7 +86,7 @@ impl<'a> Ankimporter<'a> {
             list,
             descmap: HashMap::new(),
             state: State::Main,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Anki Importing".to_string()),
         }
     }
 
@@ -185,9 +185,6 @@ impl<'a> Ankimporter<'a> {
 }
 
 impl<'a> Tab for Ankimporter<'a> {
-    fn get_title(&self) -> String {
-        "ankimporter".to_string()
-    }
     fn navigate(&mut self, _dir: crate::NavDir) {}
 
     fn get_tabdata(&mut self) -> &mut TabData {

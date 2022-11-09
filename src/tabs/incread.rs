@@ -35,7 +35,7 @@ impl MainInc {
         MainInc {
             inclist,
             topics,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Incremental reading".to_string()),
         }
     }
     /*
@@ -86,9 +86,6 @@ impl Tab for MainInc {
 
         self.topics.set_area(chunks[0]);
         self.inclist.set_area(chunks[1]);
-    }
-    fn get_title(&self) -> String {
-        "Incremental reading".to_string()
     }
 
     fn get_manual(&self) -> String {

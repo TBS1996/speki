@@ -43,7 +43,7 @@ impl<'a> AddChildWidget<'a> {
             prompt,
             cardview,
             purpose,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Add card".to_string()),
         }
     }
 
@@ -91,9 +91,7 @@ impl<'a> Tab for AddChildWidget<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }
-    fn get_title(&self) -> String {
-        "Add card".to_string()
-    }
+
     fn set_selection(&mut self, area: Rect) {
         let chunks = Layout::default()
             .direction(Vertical)

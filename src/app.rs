@@ -99,7 +99,7 @@ impl TabsState {
         self.titlepositions = vec![0];
         let mut xpos = 1;
         let padlen = 3;
-        for (_, tab) in self.tabs.iter().enumerate() {
+        for (_, tab) in self.tabs.iter_mut().enumerate() {
             let title = tab.get_title();
             xpos += title.len() + padlen;
             self.titlepositions.push(xpos);
@@ -232,7 +232,7 @@ impl App {
         self.tabs.index = self.tabs.get_tab_index(pos);
     }
 
-    fn render_tab_menu(&self, f: &mut Frame<MyType>, area: Rect) -> Rect {
+    fn render_tab_menu(&mut self, f: &mut Frame<MyType>, area: Rect) -> Rect {
         let chunks = Layout::default()
             .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
             .split(area);
@@ -240,7 +240,7 @@ impl App {
         let titles = self
             .tabs
             .tabs
-            .iter()
+            .iter_mut()
             .map(|t| {
                 Spans::from(Span::styled(
                     t.get_title(),
@@ -329,7 +329,6 @@ pub trait Tab {
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos);
 
     fn refresh(&mut self) {}
-    fn get_title(&self) -> String;
     fn get_manual(&self) -> String {
         String::new()
     }
@@ -446,15 +445,31 @@ pub trait Tab {
     fn set_next_tab(&mut self, next_tab: Option<Box<dyn Tab>>) {
         self.get_tabdata().next_tab = next_tab;
     }
+    fn get_title(&mut self) -> &String {
+        &self.get_tabdata().title
+    }
 }
 
-#[derive(Default)]
 pub struct TabData {
+    pub title: String,
     pub view: View,
     pub popup: Option<Box<dyn Tab>>,
     pub value: PopupValue,
     pub state: PopUpState,
     pub next_tab: Option<Box<dyn Tab>>,
+}
+
+impl TabData {
+    pub fn new(title: String) -> Self {
+        Self {
+            title,
+            view: View::default(),
+            popup: None,
+            value: PopupValue::default(),
+            state: PopUpState::default(),
+            next_tab: None,
+        }
+    }
 }
 
 impl Default for Box<dyn Tab> {
@@ -468,7 +483,7 @@ impl Tab for Dummy {
     fn set_selection(&mut self, _area: Rect) {}
     fn render(&mut self, _f: &mut Frame<MyType>, _appdata: &AppData, _cursor: &Pos) {}
     fn keyhandler(&mut self, _appdata: &AppData, _key: MyKey, _cursor: &Pos) {}
-    fn get_title(&self) -> String {
+    fn get_title(&mut self) -> &String {
         todo!()
     }
     fn get_tabdata(&mut self) -> &mut TabData {

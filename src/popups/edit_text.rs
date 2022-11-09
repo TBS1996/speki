@@ -17,7 +17,7 @@ impl<'a> TextEditor<'a> {
     pub fn new(appdata: &AppData, id: IncID) -> Self {
         Self {
             incview: IncView::new(appdata, id),
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Edit text".to_string()),
         }
     }
 }
@@ -31,9 +31,7 @@ impl<'a> Tab for TextEditor<'a> {
     ) {
         self.incview.render(f, appdata, cursor);
     }
-    fn get_title(&self) -> String {
-        "Edit text".to_string()
-    }
+
     fn set_selection(&mut self, area: tui::layout::Rect) {
         let leftright = split_leftright_by_percent([75, 25], area);
         let rightcol = split_updown_by_percent([10, 30, 30, 30], leftright[1]);

@@ -9,7 +9,6 @@ use std::sync::mpsc::Receiver;
 
 pub struct Progress {
     bar: ProgressBar,
-    title: String,
     rx: Receiver<ImportProgress>,
     tabdata: TabData,
     popupvalue: PopupValue,
@@ -24,9 +23,8 @@ impl Progress {
     ) -> Self {
         Self {
             bar: ProgressBar::new(0),
-            title,
             rx,
-            tabdata: TabData::default(),
+            tabdata: TabData::new(title),
             popupvalue: PopupValue::None,
             next_tab,
         }
@@ -75,9 +73,5 @@ impl Tab for Progress {
         let chunks = split_updown_by_percent([10, 20, 70], area);
         self.tabdata.view.areas.push(chunks[1]);
         self.bar.set_area(chunks[1]);
-    }
-
-    fn get_title(&self) -> String {
-        self.title.clone()
     }
 }

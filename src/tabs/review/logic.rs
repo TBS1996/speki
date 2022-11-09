@@ -131,7 +131,7 @@ impl<'a> MainReview<'a> {
             for_review,
             start_qty,
             automode: true,
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Review".to_string()),
         };
         myself.random_mode(appdata);
         myself
@@ -358,10 +358,6 @@ impl<'a> Tab for MainReview<'a> {
             }
             ReviewMode::Done => {}
         }
-    }
-
-    fn get_title(&self) -> String {
-        "Review".to_string()
     }
 
     fn get_manual(&self) -> String {

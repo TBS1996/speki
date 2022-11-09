@@ -17,7 +17,7 @@ impl<'a> Editor<'a> {
     pub fn new(appdata: &AppData, id: CardID) -> Self {
         Self {
             card: CardView::new_with_id(appdata, id),
-            tabdata: TabData::default(),
+            tabdata: TabData::new("Edit card".to_string()),
         }
     }
 }
@@ -30,9 +30,6 @@ impl<'a> Tab for Editor<'a> {
     fn keyhandler(&mut self, appdata: &crate::app::AppData, key: crate::MyKey, cursor: &Pos) {
         self.card
             .keyhandler(appdata, &mut self.tabdata, cursor, key);
-    }
-    fn get_title(&self) -> String {
-        "Edit card".to_string()
     }
 
     fn set_selection(&mut self, area: tui::layout::Rect) {

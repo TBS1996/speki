@@ -12,7 +12,6 @@ pub enum Msg {
 
 pub struct MsgPopup<'a> {
     msg: InfoBox<'a>,
-    title: String,
     rx: Receiver<Msg>,
     tabdata: TabData,
 }
@@ -21,9 +20,8 @@ impl<'a> MsgPopup<'a> {
     pub fn new(rx: Receiver<Msg>, title: String) -> Self {
         Self {
             msg: InfoBox::new(String::new()),
-            title,
             rx,
-            tabdata: TabData::default(),
+            tabdata: TabData::new(title),
         }
     }
 }
@@ -57,9 +55,5 @@ impl<'a> Tab for MsgPopup<'a> {
         let chunks = split_updown_by_percent([10, 20, 70], area);
         self.tabdata.view.areas.push(chunks[1]);
         self.msg.set_area(chunks[1]);
-    }
-
-    fn get_title(&self) -> String {
-        self.title.clone()
     }
 }

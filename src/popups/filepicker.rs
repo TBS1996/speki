@@ -92,6 +92,7 @@ impl<'a> FilePicker<'a> {
         }
         self.contents = StatefulList::with_items("".to_string(), myvec);
     }
+
     fn newdir(&mut self, newpath: PathBuf) {
         let mut myvec = Vec::<MyPath>::new();
         match fs::read_dir(&newpath) {

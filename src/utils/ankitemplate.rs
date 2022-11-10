@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     app::{AppData, Audio},
-    popups::message_popup::Msg,
+    popups::{anki_users::copy_folder, message_popup::Msg},
     utils::aliases::*,
 };
 
@@ -30,7 +30,8 @@ pub struct Kort {
     card_id: AnkiCID,
     note_id: NoteID,
     pub template_ord: usize,
-    reps: u32,
+    reps: Vec<Review>,
+    repqty: u32,
     interval: f32,
 }
 
@@ -101,7 +102,8 @@ impl Template {
                 card_id: 0,
                 note_id: index,
                 template_ord: 0,
-                reps: 0,
+                reps: vec![],
+                repqty: 0,
                 interval: 1.0,
             };
             cards.push(kort);
@@ -171,10 +173,63 @@ impl Template {
     fn init(&mut self, deckname: &String, paths: &SpekiPaths) {
         let mut deckdb = paths.media.clone();
         deckdb.push(format!("{}/collection.anki2", &deckname));
-        let ankon = Arc::new(Mutex::new(Connection::open(deckdb).unwrap()));
+        let ankon = Arc::new(Mutex::new(Connection::open(deckdb.clone()).unwrap()));
+        let folderpath = deckdb.join(deckname);
         self.load_models(&ankon);
-        self.load_notes(&ankon, deckname, paths).unwrap();
+        self.load_notes(&ankon, &folderpath).unwrap();
         self.load_cards(&ankon).unwrap();
+    }
+
+    pub fn new_from_path(appdata: &AppData, path: PathBuf) -> Self {
+        let username = path.file_name().unwrap();
+        let cards = vec![];
+        let notes: HashMap<NoteID, Note> = HashMap::new();
+        let models: HashMap<ModelID, Model> = HashMap::new();
+
+        let mut temp = Self {
+            cards,
+            notes,
+            models,
+        };
+        let dbpath = path.clone().join("collection.anki2");
+        let ankon = Arc::new(Mutex::new(Connection::open(dbpath).unwrap()));
+        let originmedia = path.clone().join("collection.media/");
+        let destiny = appdata
+            .paths
+            .media
+            .clone()
+            .join("ankiusers/")
+            .join(username);
+        copy_folder(originmedia, destiny.clone()).unwrap();
+
+        temp.load_models(&ankon);
+        temp.load_notes(&ankon, &destiny).unwrap();
+        temp.load_cards(&ankon).unwrap();
+        temp
+    }
+
+    fn load_notes(&mut self, conn: &Arc<Mutex<Connection>>, folderpath: &PathBuf) -> Result<()> {
+        let guard = conn.lock().unwrap();
+        let mut stmt = guard.prepare("SELECT id, mid, flds FROM notes")?;
+        stmt.query_map([], |row| {
+            let id: NoteID = row.get::<usize, NoteID>(0).unwrap();
+            let model_id: ModelID = row.get::<usize, ModelID>(1).unwrap();
+            let fields: Vec<CardField> = row
+                .get::<usize, String>(2)
+                .unwrap()
+                .split('')
+                .map(|x| {
+                    let mut text = x.to_string();
+                    let audio = extract_audio(&mut text, &folderpath);
+                    let image = extract_image(&mut text, &folderpath);
+                    CardField { text, audio, image }
+                })
+                .collect();
+            self.notes.insert(id, Note { model_id, fields });
+            Ok(())
+        })?
+        .for_each(|_| {});
+        Ok(())
     }
 
     pub fn fill_front_view(&self, template: String, idx: usize) -> String {
@@ -251,7 +306,7 @@ impl Template {
                     max: cardlen,
                 });
             };
-            if self.cards[idx].reps == 0 {
+            if self.cards[idx].reps.len() == 0 {
                 card::Card::new(CardTypeData::Pending(PendingInfo::default()))
                     .question(frontside)
                     .answer(backside)
@@ -262,7 +317,6 @@ impl Template {
                     .backaudio(media.backaudio)
                     .save_card(&conn);
             } else {
-                let history = Self::get_review_history(&conn, self.cards[idx].card_id);
                 let interval = self.cards[idx].interval;
                 let card_id = card::Card::new(CardTypeData::Finished(FinishedInfo {
                     strength: 1.0,
@@ -277,7 +331,7 @@ impl Template {
                 .backaudio(media.backaudio)
                 .save_card(&conn);
 
-                for review in history {
+                for review in &self.cards[idx].reps {
                     revlog_new(&conn, card_id, review).unwrap();
                 }
             }
@@ -288,10 +342,10 @@ impl Template {
         let mut reviews = vec![];
         let guard = conn.lock().unwrap();
         let mut stmt = guard
-            .prepare("SELECT id, ease, time where cid = ?")
+            .prepare("SELECT id, ease, time FROM revlog WHERE cid = ?")
             .unwrap();
         stmt.query_map([id], |row| {
-            let date: AnkiCID = row.get::<usize, AnkiCID>(0).unwrap();
+            let date: AnkiCID = row.get::<usize, AnkiCID>(0).unwrap() / 1000; // millisec -> sec
             let grade: RecallGrade = match row.get::<usize, NoteID>(1).unwrap() {
                 1 => RecallGrade::Failed,
                 2 | 3 => RecallGrade::Decent,
@@ -529,62 +583,37 @@ impl Template {
     }
 
     fn load_cards(&mut self, conn: &Arc<Mutex<Connection>>) -> Result<()> {
-        let guard = conn.lock().unwrap();
-        let mut stmt = guard
-            .prepare("SELECT id, nid, ord, ivl, reps FROM cards")
-            .unwrap();
-        stmt.query_map([], |row| {
-            let card_id: AnkiCID = row.get::<usize, AnkiCID>(0).unwrap();
-            let note_id: NoteID = row.get::<usize, NoteID>(1).unwrap();
-            let template_ord: usize = row.get::<usize, usize>(2).unwrap();
-            let interval: i32 = row.get::<usize, i32>(3).unwrap();
-            let reps: u32 = row.get::<usize, u32>(4).unwrap();
+        {
+            let guard = conn.lock().unwrap();
+            let mut stmt = guard
+                .prepare("SELECT id, nid, ord, ivl, reps FROM cards")
+                .unwrap();
+            stmt.query_map([], |row| {
+                let card_id: AnkiCID = row.get::<usize, AnkiCID>(0).unwrap();
+                let note_id: NoteID = row.get::<usize, NoteID>(1).unwrap();
+                let template_ord: usize = row.get::<usize, usize>(2).unwrap();
+                let interval: i32 = row.get::<usize, i32>(3).unwrap();
+                let repqty: u32 = row.get::<usize, u32>(4).unwrap();
 
-            let interval = if interval > 0 {
-                interval as f32
-            } else {
-                (interval * -1) as f32 / 86400.0f32
-            };
+                let interval = if interval > 0 { interval as f32 } else { 1.0 };
 
-            self.cards.push(Kort {
-                card_id,
-                note_id,
-                template_ord,
-                interval,
-                reps,
-            });
-            Ok(())
-        })?
-        .for_each(|_| {});
-        Ok(())
-    }
-
-    fn load_notes(
-        &mut self,
-        conn: &Arc<Mutex<Connection>>,
-        deckname: &String,
-        paths: &SpekiPaths,
-    ) -> Result<()> {
-        let guard = conn.lock().unwrap();
-        let mut stmt = guard.prepare("SELECT id, mid, flds FROM notes")?;
-        stmt.query_map([], |row| {
-            let id: NoteID = row.get::<usize, NoteID>(0).unwrap();
-            let model_id: ModelID = row.get::<usize, ModelID>(1).unwrap();
-            let fields: Vec<CardField> = row
-                .get::<usize, String>(2)
-                .unwrap()
-                .split('')
-                .map(|x| {
-                    let mut text = x.to_string();
-                    let audio = extract_audio(&mut text, deckname, paths);
-                    let image = extract_image(&mut text, deckname, paths);
-                    CardField { text, audio, image }
-                })
-                .collect();
-            self.notes.insert(id, Note { model_id, fields });
-            Ok(())
-        })?
-        .for_each(|_| {});
+                self.cards.push(Kort {
+                    card_id,
+                    note_id,
+                    template_ord,
+                    reps: vec![],
+                    repqty,
+                    interval,
+                });
+                Ok(())
+            })?
+            .for_each(|_| {});
+        }
+        for card in &mut self.cards {
+            if card.repqty != 0 {
+                card.reps = Self::get_review_history(conn, card.card_id);
+            }
+        }
         Ok(())
     }
 
@@ -737,32 +766,24 @@ fn remove_useless_formatting(trd: &mut String) {
     *trd = re.replace_all(trd, "").to_string();
 }
 
-fn extract_image(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Option<PathBuf> {
+fn extract_image(trd: &mut String, folderpath: &PathBuf) -> Option<PathBuf> {
     let pattern = "<img src=\"(.*?)\" />".to_string();
+    extract_pattern(trd, folderpath, pattern)
+}
+
+fn extract_audio(trd: &mut String, folderpath: &PathBuf) -> Option<PathBuf> {
+    let pattern = r"\[sound:(.*?)\]".to_string();
+    extract_pattern(trd, folderpath, pattern)
+}
+
+fn extract_pattern(trd: &mut String, folderpath: &PathBuf, pattern: String) -> Option<PathBuf> {
     let re = Regex::new(&pattern).unwrap();
 
     let res = match re.captures(trd)?.get(1) {
         Some(res) => {
-            let mut imagepath = paths.media.clone();
-            imagepath.push(format!("{}/{}", deckname, res.as_str()));
-            Some(imagepath)
-        }
-        None => None,
-    };
-    *trd = re.replace_all(trd, "").to_string();
-    res
-}
-
-fn extract_audio(trd: &mut String, deckname: &String, paths: &SpekiPaths) -> Option<PathBuf> {
-    let pattern = r"\[sound:(.*?)\]".to_string();
-    let re = Regex::new(&pattern).unwrap();
-    let foo = re.captures(trd)?;
-
-    let res = match foo.get(1) {
-        Some(res) => {
-            let mut audiopath = paths.media.clone();
-            audiopath.push(format!("{}/{}", deckname, res.as_str()));
-            Some(audiopath)
+            let mut patternpath = folderpath.clone();
+            patternpath = patternpath.join(res.as_str());
+            Some(patternpath)
         }
         None => None,
     };

@@ -102,7 +102,7 @@ pub fn update_both(conn: &Arc<Mutex<Connection>>, dependent: u32, dependency: u3
     Ok(())
 }
 
-pub fn revlog_new(conn: &Arc<Mutex<Connection>>, card_id: u32, review: Review) -> Result<()> {
+pub fn revlog_new(conn: &Arc<Mutex<Connection>>, card_id: u32, review: &Review) -> Result<()> {
     conn.lock().unwrap().execute(
         "INSERT INTO revlog (unix, cid, grade, qtime, atime) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![

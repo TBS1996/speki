@@ -8,7 +8,8 @@ use tui::{
 };
 
 use crate::{
-    tabs::{add_card::NewCard, import::import_tab},
+    popups::menu::Menu,
+    tabs::add_card::NewCard,
     utils::{
         aliases::Pos,
         misc::{draw_paragraph, split_updown, View},
@@ -76,9 +77,9 @@ impl TabsState {
         let mut tabs: Vec<Box<dyn Tab>> = vec![];
         let revlist = MainReview::new(appdata);
         let addcards = NewCard::new(appdata);
-        let incread = MainInc::new(&appdata.conn);
-        let importer = import_tab::new();
         let browse = Browse::new(appdata);
+        let incread = MainInc::new(&appdata.conn);
+        let importer = Menu::new_import_tab();
 
         tabs.push(Box::new(revlist));
         tabs.push(Box::new(addcards));
@@ -104,6 +105,7 @@ impl TabsState {
             xpos += title.len() + padlen;
             self.titlepositions.push(xpos);
         }
+        self.titlepositions.pop();
     }
 
     fn get_tab_index(&self, pos: Pos) -> usize {

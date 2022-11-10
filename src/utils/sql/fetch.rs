@@ -357,7 +357,7 @@ pub fn get_history(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<Vec<Review>
     let mut vecofrows = Vec::<Review>::new();
     conn.lock()
         .unwrap()
-        .prepare("SELECT * FROM revlog WHERE cid = ?")?
+        .prepare("SELECT * FROM revlog WHERE cid = ? ORDER BY unix ASC")?
         .query_map([id], |row| {
             vecofrows.push(Review {
                 grade: RecallGrade::from(row.get(2)?).unwrap(),

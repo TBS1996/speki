@@ -109,18 +109,24 @@ impl<'a> Tab for Menu<'a> {
     }
 
     fn keyhandler(&mut self, appdata: &crate::app::AppData, key: crate::MyKey, cursor: &Pos) {
-        if let MyKey::Enter | MyKey::KeyPress(_) = key {
-            for button in &mut self.buttons {
-                if button.button.is_selected(cursor) {
-                    if !self.in_place {
-                        let obj = (button.tab)(appdata);
-                        self.set_popup(obj)
-                    } else {
-                        self.tabdata.state = PopUpState::Switch((button.tab)(appdata));
-                    };
-                    return;
+        match key {
+            MyKey::Enter | MyKey::KeyPress(_) => {
+                for button in &mut self.buttons {
+                    if button.button.is_selected(cursor) {
+                        if !self.in_place {
+                            let obj = (button.tab)(appdata);
+                            self.set_popup(obj)
+                        } else {
+                            self.tabdata.state = PopUpState::Switch((button.tab)(appdata));
+                        };
+                        return;
+                    }
                 }
             }
+
+            MyKey::Up => self.tabdata.view.move_up(),
+            MyKey::Down => self.tabdata.view.move_down(),
+            _ => {}
         }
     }
 }

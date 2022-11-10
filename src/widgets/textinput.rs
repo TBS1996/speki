@@ -307,7 +307,7 @@ impl Field {
             }
         }
         let col = self.current_visual_col();
-        let xclicked = (pos.x - self.area.x - 1) as usize;
+        let xclicked = (pos.x - self.area.x) as usize - 1;
 
         let rowlen = self.current_rowlen();
         let rightlen = if rowlen > self.cursor.column {

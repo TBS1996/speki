@@ -93,6 +93,29 @@ impl<'a> LoadCards<'a> {
         ldc
     }
 
+    pub fn new_from_path(appdata: &AppData, path: PathBuf) -> Self {
+        let template = Template::new_from_path(appdata, path);
+        let fields = StatefulList::new("Fields".to_string());
+        let importbutton = Button::new("import cards".to_string());
+        let previewbutton = Button::new("previewing card".to_string());
+
+        let mut ldc = Self {
+            template,
+            front_view: Field::default(),
+            back_view: Field::default(),
+            front_template: Field::new("Front template".to_string()),
+            back_template: Field::new("Back template".to_string()),
+            topics: TopicList::new(&appdata.conn),
+            importbutton,
+            previewbutton,
+            fields,
+            viewpos: 0,
+            tabdata: TabData::new("Load cards".to_string()),
+        };
+        ldc.refresh_template_and_view(0);
+        ldc
+    }
+
     fn refresh_template_and_view(&mut self, viewpos: usize) {
         self.front_template
             .replace_text(self.template.get_front_template(viewpos));
@@ -246,7 +269,7 @@ impl<'a> Tab for LoadCards<'a> {
                 self.refresh_template_and_view(self.viewpos);
             }
             Char('l') | Right if self.previewbutton.is_selected(cursor) => {
-                if self.viewpos < self.template.notes.len() - 1 {
+                if self.viewpos < self.template.cards.len() - 1 {
                     self.viewpos += 1;
                     self.refresh_template_and_view(self.viewpos);
                     self.template.play_front_audio(&appdata.audio, self.viewpos);

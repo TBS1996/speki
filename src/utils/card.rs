@@ -222,7 +222,7 @@ impl Card {
         let card_id = save_card(conn, self);
 
         if finished {
-            revlog_new(conn, card_id, Review::from(&RecallGrade::Decent)).unwrap();
+            revlog_new(conn, card_id, &Review::from(&RecallGrade::Decent)).unwrap();
         }
 
         for dependency in dependencies {
@@ -262,14 +262,14 @@ impl Card {
     }
 
     pub fn new_review(conn: &Arc<Mutex<Connection>>, id: CardID, review: RecallGrade) {
-        revlog_new(conn, id, Review::from(&review)).unwrap();
+        revlog_new(conn, id, &Review::from(&review)).unwrap();
         super::interval::calc_stability(conn, id);
     }
     pub fn complete_card(conn: &Arc<Mutex<Connection>>, id: CardID) {
         let card = fetch_card(conn, id);
         remove_unfinished(conn, id).unwrap();
         new_finished(conn, id).unwrap();
-        revlog_new(conn, id, Review::from(&RecallGrade::Decent)).unwrap();
+        revlog_new(conn, id, &Review::from(&RecallGrade::Decent)).unwrap();
         for dependent in card.dependents {
             Card::check_resolved(dependent, conn);
         }

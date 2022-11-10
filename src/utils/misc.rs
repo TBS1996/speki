@@ -41,11 +41,15 @@ pub enum PopUpStatus {
 }
 
 pub fn play_audio(audio: &Option<Audio>, path: PathBuf) {
-    if let Ok(file) = std::fs::File::open(path) {
+    if let Ok(file) = std::fs::File::open(&path) {
         if let Some(audio) = audio {
-            let beep1 = audio.handle.play_once(BufReader::new(file)).unwrap();
-            beep1.set_volume(audio.volume);
-            beep1.detach();
+            match audio.handle.play_once(BufReader::new(file)) {
+                Ok(beep) => {
+                    beep.set_volume(audio.volume);
+                    beep.detach();
+                }
+                Err(_err) => {}
+            }
         }
     }
 }
@@ -241,6 +245,7 @@ pub struct SpekiPaths {
     pub downloc: PathBuf,
     pub backups: PathBuf,
     pub config: PathBuf,
+    pub anki: PathBuf,
 }
 
 impl SpekiPaths {
@@ -249,18 +254,20 @@ impl SpekiPaths {
         "#;
     pub fn new(mut home: PathBuf) -> Self {
         let mut configpath = home.clone();
+        let mut anki = home.clone();
         if cfg!(windows) {
             home.push(".speki/");
-            if !std::path::Path::new(&home).exists() {
-                std::fs::create_dir(&home).unwrap();
-            }
+            anki.push("AppData/Roaming/Anki2/");
             configpath.push("config.toml");
+            std::fs::create_dir_all(&anki.parent().unwrap()).unwrap();
+            std::fs::create_dir_all(&home.parent().unwrap()).unwrap();
             if !std::path::Path::new(&configpath).exists() {
                 let mut file = File::create(&configpath).unwrap();
                 file.write_all(Self::DEFAULTCONFIG.as_bytes()).unwrap();
             }
         } else {
             home.push(".local/share/speki/");
+            anki.push(".local/share/Anki2");
             std::fs::create_dir_all(&home).unwrap();
             configpath.push(".config/speki/config.toml");
             std::fs::create_dir_all(&configpath.parent().unwrap()).unwrap();
@@ -290,6 +297,7 @@ impl SpekiPaths {
             downloc,
             backups,
             config: configpath,
+            anki,
         }
     }
 }

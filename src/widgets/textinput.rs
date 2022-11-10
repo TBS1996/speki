@@ -292,7 +292,11 @@ impl Field {
     }
 
     fn keypress(&mut self, pos: Pos) {
-        if pos.y <= self.area.y || pos.x == self.area.x || pos.y > self.area.y + self.area.height {
+        if pos.y <= self.area.y
+            || pos.x <= self.area.x
+            || pos.y > self.area.y + self.area.height
+            || pos.x > self.area.x + self.area.width
+        {
             return;
         }
         let line = self.current_abs_visual_line() - self.scroll as usize;
@@ -307,6 +311,9 @@ impl Field {
             }
         }
         let col = self.current_visual_col();
+        if pos.x < self.area.x {
+            dbg!(pos.x, self.area.x);
+        }
         let xclicked = (pos.x - self.area.x) as usize - 1;
 
         let rowlen = self.current_rowlen();

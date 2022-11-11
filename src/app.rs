@@ -34,7 +34,7 @@ pub struct Config {
 use toml;
 
 impl Config {
-    fn new(paths: &SpekiPaths) -> Self {
+    pub fn new(paths: &SpekiPaths) -> Self {
         let contents = std::fs::read_to_string(&paths.config).expect("Error reading file");
         let config: Config = toml::from_str(&contents).expect("invalid config file");
         config
@@ -48,7 +48,7 @@ pub struct Audio {
 }
 
 impl Audio {
-    fn new() -> Option<Self> {
+    pub fn new() -> Option<Self> {
         let (source, handle) = rodio::OutputStream::try_default().unwrap();
         let volume = 0.2;
         Some(Audio {
@@ -380,13 +380,16 @@ pub trait Tab {
     ) {
         if let Some(popup) = self.get_popup() {
             navbar.push_str(" ❱❱ ");
-            navbar.push_str(&popup.get_title());
             let state = popup.get_state();
             match std::mem::take(state) {
-                PopUpState::Continue => popup.main_render(f, appdata, area, navbar),
+                PopUpState::Continue => {
+                    navbar.push_str(&popup.get_title());
+                    popup.main_render(f, appdata, area, navbar);
+                }
                 PopUpState::Exit => self.exit_popup(appdata),
                 PopUpState::Switch(tab) => {
                     *popup = tab;
+                    navbar.push_str(&popup.get_title());
                     popup.main_render(f, appdata, area, navbar);
                 }
             }
@@ -431,7 +434,7 @@ pub trait Tab {
         self.get_tabdata().popup = None;
     }
 
-    fn switch_popup(&mut self, _obj: &Box<dyn Tab>) {}
+    fn switch_popup(&mut self, _obj: Box<dyn Tab>) {}
 
     fn set_popup(&mut self, popup: Box<dyn Tab>) {
         self.get_tabdata().popup = Some(popup);

@@ -17,6 +17,10 @@ use tui::{
     Frame,
 };
 
+pub mod info;
+pub mod keyhandler;
+pub mod navigation;
+
 /*
 
 
@@ -49,7 +53,7 @@ impl CursorPos {
 pub struct Field {
     pub text: Vec<String>,
     pub cursor: CursorPos,
-    rowlen: u16,
+    pub rowlen: u16,
     window_height: u16,
     startselect: Option<CursorPos>,
     scroll: u16,
@@ -133,24 +137,12 @@ impl Field {
     }
 
     pub fn debug(&mut self) {
-        let x = self.current_visual_col();
-        let y = self.current_abs_visual_line();
-        dbg!(x, y, self.rowlen);
-    }
-
-    fn jump_forward(&mut self, jmp: usize) {
-        self.cursor.column = std::cmp::min(
-            self.text[self.cursor.row].graphemes(true).count(),
-            self.cursor.column + jmp,
+        dbg!(
+            self.current_visual_col(),
+            self.current_abs_visual_line(),
+            self.rowlen,
+            self.cursor
         );
-    }
-
-    fn jump_backward(&mut self, jmp: usize) {
-        if jmp < self.cursor.column {
-            self.cursor.column -= jmp;
-        } else {
-            self.cursor.column = 0;
-        }
     }
 
     pub fn addchar(&mut self, c: char) {
@@ -172,21 +164,6 @@ impl Field {
             self.cursor.row -= 1;
             self.cursor.column = self.current_rowlen();
         }
-    }
-    fn get_rowlen(&self, row: usize) -> usize {
-        self.text[row].graphemes(true).count()
-    }
-
-    fn current_rowlen(&self) -> usize {
-        self.get_rowlen(self.cursor.row)
-    }
-
-    fn get_visrow_qty(&self, row: usize) -> u16 {
-        (self.get_rowlen(row) as u16 / (self.rowlen + 0) as u16) + 1
-    }
-
-    fn get_current_visrow_qty(&self) -> u16 {
-        self.get_visrow_qty(self.cursor.row)
     }
 
     pub fn newline(&mut self) {
@@ -231,66 +208,6 @@ impl Field {
         retstring
     }
 
-    fn scroll_half_up(&mut self) {
-        let halfup = self.window_height / 2;
-        let var = std::cmp::min(self.scroll, halfup);
-        self.scroll -= var;
-        for _ in 0..var {
-            self.visual_up();
-        }
-    }
-
-    fn scroll_half_down(&mut self) {
-        let halfdown = self.window_height / 2;
-        self.scroll += halfdown;
-        for _ in 0..halfdown {
-            self.visual_down();
-        }
-    }
-
-    fn start_of_next_word(&mut self) {
-        let mut found_whitespace = false;
-        for (col, chr) in self.text[self.cursor.row].chars().enumerate() {
-            if chr.is_ascii_whitespace() && col >= self.cursor.column {
-                found_whitespace = true;
-            }
-            if col > self.cursor.column && !chr.is_ascii_whitespace() && found_whitespace {
-                self.cursor.column = col;
-                return;
-            }
-        }
-    }
-
-    fn start_of_previous_word(&mut self) {
-        let mut is_prev_white = true;
-        let startcol = self.cursor.column;
-        if startcol == 0 {
-            return;
-        }
-        self.cursor.column = 0;
-
-        for (col, chr) in self.text[self.cursor.row].chars().enumerate() {
-            if !is_prev_white && chr.is_ascii_whitespace() && col < startcol - 1 {
-                self.cursor.column = col + 1;
-            }
-            is_prev_white = chr.is_ascii_whitespace();
-        }
-    }
-
-    fn end_of_next_word(&mut self) {
-        let mut found_nonwhite = false;
-
-        for (col, chr) in self.text[self.cursor.row].chars().enumerate() {
-            if !chr.is_ascii_whitespace() && col > self.cursor.column {
-                found_nonwhite = true;
-            }
-            if chr.is_ascii_whitespace() && col > self.cursor.column && found_nonwhite {
-                self.cursor.column = col - 1;
-                return;
-            }
-        }
-    }
-
     fn keypress(&mut self, pos: Pos) {
         if pos.y <= self.area.y
             || pos.x <= self.area.x
@@ -311,9 +228,6 @@ impl Field {
             }
         }
         let col = self.current_visual_col();
-        if pos.x < self.area.x {
-            dbg!(pos.x, self.area.x);
-        }
         let xclicked = (pos.x - self.area.x) as usize - 1;
 
         let rowlen = self.current_rowlen();
@@ -352,10 +266,6 @@ impl Field {
         }
     }
 
-    pub fn selection_exists(&self) -> bool {
-        self.startselect.is_some()
-    }
-
     fn get_text_left_of_position(&self, pos: &CursorPos) -> String {
         let mut retstring = String::new();
         let line = self.text[pos.row].clone();
@@ -370,14 +280,6 @@ impl Field {
         retstring.push_str(firstselect);
         retstring
     }
-
-    /*
-
-
-
-
-
-    */
 
     pub fn return_selection(&self) -> Option<String> {
         if self.selection_exists() {
@@ -409,24 +311,6 @@ impl Field {
         }
     }
 
-    fn find_grapheme_bytepos(mystr: &String, column: usize) -> usize {
-        let mut boundary = 0;
-        let mut cursor = unicode_segmentation::GraphemeCursor::new(0, mystr.len(), false);
-
-        for _ in 0..column {
-            if let Ok(opt) = cursor.next_boundary(mystr, 0) {
-                if let Some(bnd) = opt {
-                    boundary = bnd;
-                } else {
-                    return boundary;
-                };
-            } else {
-                return boundary;
-            };
-        }
-        boundary
-    }
-
     fn cursor_after(&mut self) {
         self.set_insert_mode();
         self.next();
@@ -440,66 +324,11 @@ impl Field {
             .collect();
     }
 
-    fn start_of_line(&mut self) {
-        self.cursor.column = 0;
-    }
-
-    fn end_of_line(&mut self) {
-        self.cursor.column = self.text[self.cursor.row].graphemes(true).count() - 1;
-    }
-
-    fn is_cursor_in_view(&mut self) -> bool {
-        let current_line = self.current_abs_visual_line() as u16;
-        let scroll = self.scroll as u16;
-        let winheight = self.window_height as u16;
-        (current_line > scroll) && (current_line < (scroll + winheight))
-    }
-
     fn align_to_cursor(&mut self) {
         if self.is_cursor_in_view() {
             return;
         }
         self.scroll = std::cmp::max((self.current_abs_visual_line() as i32) - 2, 0) as u16;
-    }
-
-    fn current_abs_visual_line(&self) -> usize {
-        self.get_line_number(&self.cursor)
-    }
-
-    fn get_line_number(&self, cursor: &CursorPos) -> usize {
-        let mut lines = 0;
-        for i in 0..self.text.len() {
-            if i == cursor.row {
-                let heythere = self.get_rowcol(cursor) as usize;
-                return heythere + lines;
-            }
-            let actual_rowlen = self.get_rowlen(i);
-            lines += if actual_rowlen == self.rowlen as usize {
-                1
-            } else {
-                (self.get_rowlen(i) as u16 / (self.rowlen + 0) as u16) as usize + 1
-            }
-        }
-        panic!();
-    }
-    /*
-        fn get_visrow_qty(&self, row: usize) -> u16 {
-            (self.get_rowlen(row) as u16 / (self.rowlen + 0) as u16) + 1
-        }
-    */
-
-    fn get_rowcol(&self, cursor: &CursorPos) -> u16 {
-        cursor.column as u16 / self.rowlen as u16
-    }
-
-    fn current_rel_visual_line(&self) -> u16 {
-        self.get_rowcol(&self.cursor)
-    }
-
-    fn get_xy(&self, cursor: &CursorPos) -> (usize, usize) {
-        let y = self.get_line_number(cursor);
-        let x = self.get_linecol(cursor);
-        (x, y)
     }
 
     fn cursorsplit(&mut self, f: &mut Frame<MyType>, area: Rect, selected: bool) -> Vec<Spans> {
@@ -534,22 +363,6 @@ impl Field {
         spanvec
     }
 
-    fn goto_end_visual_line(&mut self) {
-        let totrowlen = self.current_rowlen() as u16;
-        let currvisual = self.current_visual_col();
-        let endofline = self.cursor.column + self.rowlen as usize - currvisual - 1;
-        let themin = std::cmp::min(totrowlen as usize, endofline as usize);
-        self.cursor.column = themin;
-    }
-
-    fn goto_start_visual_line(&mut self) {
-        let mut i = 1;
-        while i * self.rowlen < self.cursor.column as u16 {
-            i += 1;
-        }
-        self.cursor.column = ((i as u16 - 1) * self.rowlen as u16) as usize;
-    }
-
     fn validate_prefcol(&mut self, old_offset: usize, new_offset: usize) {
         let rowlen = self.current_rowlen();
         if new_offset < old_offset {
@@ -565,144 +378,32 @@ impl Field {
             }
         }
     }
-
-    fn visual_down(&mut self) {
-        let rowlen = self.current_rowlen() + 1;
-        let offset = self.current_visual_col();
-        let one_down = self.cursor.column + self.rowlen as usize;
-        if one_down > rowlen {
-            match self.is_cursor_last_vis_row() {
-                true => {
-                    if self.cursor.row != self.text.len() - 1 {
-                        self.cursor.row += 1;
-                        let next_rowlen = self.current_rowlen();
-                        self.cursor.column = std::cmp::min(next_rowlen, offset);
-                    }
-                }
-                false => {
-                    self.cursor.column = rowlen - 1;
-                }
-            }
-        } else {
-            self.cursor.column = one_down;
-        }
-        let new_offset = self.current_visual_col();
-        self.validate_prefcol(offset, new_offset);
-        let line = self.current_abs_visual_line() as u16;
-        if (self.scroll + self.window_height) - line < 10 {
-            self.scroll += 1;
-        }
-    }
-
-    fn visual_up(&mut self) {
-        let offset = self.current_visual_col();
-        if self.cursor.column < self.rowlen as usize {
-            // if youre on first line of a row
-            if self.cursor.row != 0 {
-                self.cursor.row -= 1;
-                let prev_rowlen = self.current_rowlen();
-                self.cursor.column = prev_rowlen;
-                let new_offset = self.current_visual_col();
-                if new_offset > offset {
-                    self.cursor.column -= new_offset - offset;
-                }
-            }
-        } else {
-            self.cursor.column -= self.rowlen as usize;
-        }
-        let new_offset = self.current_visual_col();
-        self.validate_prefcol(offset, new_offset);
-        let line = self.current_abs_visual_line() as u16;
-        if line - self.scroll < 10 && self.scroll > 0 {
-            self.scroll -= 1;
-        }
-    }
-
-    fn is_cursor_last_vis_row(&self) -> bool {
-        self.current_rel_visual_line() as u16 == self.current_rowlen() as u16 / self.rowlen as u16
-    }
-
-    fn count_visrow_len(&self, row: usize) -> u16 {
-        self.get_rowlen(row) as u16 / self.rowlen
-    }
-
-    fn current_visrow_count(&self) -> u16 {
-        self.count_visrow_len(self.cursor.row)
-    }
-
-    fn current_visual_col(&self) -> usize {
-        self.get_linecol(&self.cursor)
-    }
-
-    fn get_linecol(&self, cursor: &CursorPos) -> usize {
-        cursor.column % self.rowlen as usize
-    }
-
-    fn prev(&mut self) {
-        self.preferredcol = None;
-        if self.cursor.column == 0 && self.cursor.row == 0 {
-            return;
-        }
-
-        if self.cursor.column != 0 {
-            self.cursor.column -= 1;
-        }
-    }
-
-    fn next(&mut self) {
-        let maxcol = self.current_rowlen();
-
-        if self.cursor.column != maxcol {
-            self.cursor.column += 1;
-        } else if self.cursor.row != self.text.len() - 1 {
-            self.cursor.row += 1;
-            self.cursor.column = 0;
-        }
-    }
-
+    // @asdfak sflasjdfkljds kjfdksjf ksjfks djas a ds
     fn delete_previous_word(&mut self) {
-        let mut char_found = false;
-        if self.text[self.cursor.row].graphemes(true).count() == self.cursor.column {
-            self.prev();
-        }
         if self.cursor.column == 0 {
-            self.merge_with_row_above();
             return;
         }
+
+        let mut char_found = false;
 
         while self.cursor.column != 0 {
-            let bytecol = self.text[self.cursor.row]
-                .char_indices()
-                .nth(self.cursor.column)
-                .unwrap()
-                .0;
-            let mychar = self.text[self.cursor.row].remove(bytecol);
+            let bytepos =
+                Self::find_grapheme_bytepos(&self.text[self.cursor.row], self.cursor.column - 1);
+            let mychar = self.text[self.cursor.row].chars().nth(bytepos).unwrap();
 
             self.cursor.column -= 1;
-            if !char_found {
-                if !mychar.is_whitespace() {
+
+            match (char_found, mychar.is_whitespace()) {
+                (false, true) => {
                     char_found = true;
                 }
-            } else if mychar.is_whitespace() {
-                break;
+                (true, true) => {
+                    return;
+                }
+                (_, _) => {}
             }
+            self.text[self.cursor.row].remove(bytepos);
         }
-    }
-
-    fn current_bytepos(&self) -> usize {
-        self.relative_bytepos(0)
-    }
-
-    fn relative_bytepos(&self, offset: i32) -> usize {
-        let count = self.text[self.cursor.row].graphemes(true).count();
-        let pos = match self.text[self.cursor.row]
-            .char_indices()
-            .nth((self.cursor.column as i32 + offset) as usize)
-        {
-            Some(val) => val.0,
-            _ => count,
-        };
-        pos
     }
 
     fn delete(&mut self) {
@@ -741,86 +442,6 @@ impl Field {
         self.cursor.row += 1;
         self.cursor.column = 0;
         self.set_insert_mode();
-    }
-
-    fn insert_keyhandler(&mut self, key: MyKey) {
-        use MyKey::*;
-        match key {
-            Alt('p') => self.debug(),
-            End => self.goto_end_visual_line(),
-            Home => self.goto_start_visual_line(),
-            Down => self.visual_down(),
-            Left => self.prev(),
-            Up => self.visual_up(),
-            Ctrl('u') => self.scroll_half_up(),
-            Ctrl('d') => self.scroll_half_down(),
-            Ctrl('c') => self.set_normal_mode(),
-            Right => self.next(),
-
-            Char(c) => self.addchar(c),
-            Backspace => self.backspace(),
-
-            key => {
-                // these modify the text
-                match key {
-                    Ctrl('w') => self.delete_previous_word(),
-                    Delete => self.delete(),
-                    Enter => self.newline(),
-                    Paste(paste) => self.paste(paste),
-                    _ => {}
-                }
-            }
-        }
-    }
-    fn normal_keyhandler(&mut self, key: MyKey) {
-        use MyKey::*;
-        match key {
-            Char('i') => self.set_insert_mode(),
-            Char('a') => self.cursor_after(),
-            End => self.goto_end_visual_line(),
-            Home => self.goto_start_visual_line(),
-            Char('e') => self.end_of_next_word(),
-            Char('b') => self.start_of_previous_word(),
-            //Char('Y') => self.copy_right(),
-            Char('k') | Up => self.visual_up(),
-            Char('j') | Down => self.visual_down(),
-            Char('h') | Left => self.prev(),
-            Char('l') | Right => self.next(),
-            Char('w') => self.start_of_next_word(),
-            Char('v') => self.set_visual_mode(),
-            Ctrl('u') => self.scroll_half_up(),
-            Ctrl('d') => self.scroll_half_down(),
-            Char('^') => self.start_of_line(),
-            Char('$') => self.end_of_line(),
-
-            key => {
-                match key {
-                    Char('D') => self.delete_right_of_cursor(),
-                    //Char('p') => self.paste_buffer(),
-                    Char('O') => self.insert_newline_above(),
-                    Char('o') => self.insert_newline_below(),
-                    Char('x') => self.delete(),
-                    _ => {}
-                }
-            }
-        }
-    }
-    fn visual_keyhandler(&mut self, key: MyKey) {
-        use MyKey::*;
-        match key {
-            Char('e') => self.jump_forward(5),
-            Char('b') => self.jump_backward(5),
-            Ctrl('c') => self.set_normal_mode(),
-            End => self.goto_end_visual_line(),
-            Home => self.goto_start_visual_line(),
-            Char('k') | Up => self.visual_up(),
-            Char('j') | Down => self.visual_down(),
-            Char('h') | Left => self.prev(),
-            Char('l') | Right => self.next(),
-            Ctrl('u') => self.scroll_half_up(),
-            Ctrl('d') => self.scroll_half_down(),
-            _ => {}
-        }
     }
 }
 

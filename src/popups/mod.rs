@@ -9,4 +9,5 @@ pub mod menu;
 pub mod message_popup;
 pub mod newchild;
 pub mod progress_popup;
+pub mod splash_message;
 pub mod wikiselect;

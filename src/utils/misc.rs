@@ -269,6 +269,7 @@ impl SpekiPaths {
             home.push(".local/share/speki/");
             anki.push(".local/share/Anki2");
             std::fs::create_dir_all(&home).unwrap();
+            std::fs::create_dir_all(&anki).unwrap();
             configpath.push(".config/speki/config.toml");
             std::fs::create_dir_all(&configpath.parent().unwrap()).unwrap();
             if !std::path::Path::new(&configpath).exists() {

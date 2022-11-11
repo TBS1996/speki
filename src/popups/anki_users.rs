@@ -4,11 +4,11 @@ use std::{
 };
 
 use crate::{
-    app::{AppData, Tab},
+    app::{AppData, PopUpState, Tab},
     popups::load_cards::LoadCards,
 };
 
-use super::menu::Menu;
+use super::{menu::Menu, splash_message::Splash};
 
 #[derive(Debug)]
 struct AnkiUser {
@@ -61,7 +61,12 @@ impl<'a> Menu<'a> {
         let names = names;
         let tabs = closures;
 
-        Menu::new(title, prompt, xpad, ypad, names, tabs, in_place)
+        let mut menu = Menu::new(title, prompt, xpad, ypad, names, tabs, in_place);
+        if users.len() == 0 {
+            menu.get_tabdata().state =
+                PopUpState::Switch(Box::new(Splash::new("No anki users found".to_string())))
+        }
+        menu
     }
 }
 

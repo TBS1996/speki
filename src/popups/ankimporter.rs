@@ -243,9 +243,7 @@ impl<'a> Tab for Ankimporter<'a> {
                     thread::spawn(move || {
                         download_deck(download_link, tx, threadpaths);
                     });
-                    let wiki = WikiSelect::new(3);
-                    let prog =
-                        Progress::new(rx, "Downloading deck".to_string(), Some(Box::new(wiki)));
+                    let prog = Progress::new(rx, "Downloading deck".to_string(), None);
                     self.set_popup(Box::new(prog));
                     self.state = State::Downloading(name);
                 }
@@ -325,7 +323,6 @@ use futures_util::StreamExt;
 use super::load_cards::LoadCards;
 use super::message_popup::{Msg, MsgPopup};
 use super::progress_popup::Progress;
-use super::wikiselect::WikiSelect;
 #[tokio::main]
 pub async fn download_deck(
     url: String,

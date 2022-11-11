@@ -123,7 +123,6 @@ impl<'a> Tab for Menu<'a> {
                     }
                 }
             }
-
             MyKey::Up => self.tabdata.view.move_up(),
             MyKey::Down => self.tabdata.view.move_down(),
             _ => {}

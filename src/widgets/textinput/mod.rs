@@ -378,7 +378,7 @@ impl Field {
             }
         }
     }
-    // @asdfak sflasjdfkljds kjfdksjf ksjfks djas a ds
+    //the quick brown fox jumps over the lazy dog
     fn delete_previous_word(&mut self) {
         if self.cursor.column == 0 {
             return;
@@ -391,13 +391,15 @@ impl Field {
                 Self::find_grapheme_bytepos(&self.text[self.cursor.row], self.cursor.column - 1);
             let mychar = self.text[self.cursor.row].chars().nth(bytepos).unwrap();
 
+            if !mychar.is_whitespace() {
+                char_found = true;
+            }
+
             self.cursor.column -= 1;
 
             match (char_found, mychar.is_whitespace()) {
-                (false, true) => {
-                    char_found = true;
-                }
                 (true, true) => {
+                    self.next();
                     return;
                 }
                 (_, _) => {}

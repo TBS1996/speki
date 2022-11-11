@@ -1,3 +1,5 @@
+use tui::widgets::Borders;
+
 use crate::{
     app::{PopUpState, Tab, TabData, Widget},
     widgets::infobox::InfoBox,
@@ -10,7 +12,7 @@ pub struct Splash<'a> {
 
 impl<'a> Splash<'a> {
     pub fn new(msg: String) -> Self {
-        let msg = InfoBox::new(msg);
+        let msg = InfoBox::new(msg).borders(Borders::BOTTOM);
         let title = "Display".to_string();
         let tabdata = TabData::new(title);
         Self { msg, tabdata }
@@ -48,7 +50,7 @@ impl<'a> Tab for Splash<'a> {
     fn transform_area(&self, area: &mut tui::layout::Rect) {
         let width = area.width;
         let height = area.height;
-        area.height = std::cmp::min(5, area.height);
+        area.height = std::cmp::min(3, area.height);
         area.width = std::cmp::min(self.msg.txtlen as u16 + 4, area.width);
         area.x = (width / 2) + area.x - (area.width / 2);
         area.y = (height / 3) + area.y - (area.height / 2);

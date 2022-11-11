@@ -164,12 +164,27 @@ fn norm_e() {
 #[test]
 fn delete_word_left() {
     let appdata = get_appdata();
-    let input_text = "hey there man".to_string();
-    let mut txt = Field::new_with_text(input_text.clone(), 0, 10);
+    let input_text = "the quick brown fox jumps over the lazy dog".to_string();
+    let mut txt = Field::new_with_text(input_text.clone(), 0, 14);
     txt.set_insert_mode();
-    txt.keyhandler(&appdata, MyKey::Ctrl('w'));
 
-    assert_eq!(txt.return_text(), "hey man".to_string());
+    txt.keyhandler(&appdata, MyKey::Ctrl('w'));
+    assert_eq!(
+        txt.return_text(),
+        "the quick n fox jumps over the lazy dog".to_string()
+    );
+
+    txt.keyhandler(&appdata, MyKey::Ctrl('w'));
+    assert_eq!(
+        txt.return_text(),
+        "the n fox jumps over the lazy dog".to_string()
+    );
+
+    txt.keyhandler(&appdata, MyKey::Ctrl('w'));
+    assert_eq!(
+        txt.return_text(),
+        "n fox jumps over the lazy dog".to_string()
+    );
 }
 
 #[test]

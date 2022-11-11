@@ -57,4 +57,8 @@ impl<'a> Tab for Editor<'a> {
     ) {
         self.card.render(f, appdata, cursor);
     }
+
+    fn refresh(&mut self, appdata: &AppData) {
+        self.card.refresh(appdata);
+    }
 }

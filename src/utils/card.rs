@@ -500,6 +500,11 @@ impl<'a> CardView<'a> {
         };
         self.card = Some(card);
     }
+    pub fn refresh(&mut self, appdata: &AppData) {
+        if let Some(card) = &self.card {
+            self.change_card(&appdata.conn, card.id);
+        }
+    }
 
     pub fn clear_card(&mut self, appdata: &AppData) {
         *self = Self::new(&appdata.conn);

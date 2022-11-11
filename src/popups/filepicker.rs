@@ -1,3 +1,5 @@
+use tui::widgets::Borders;
+
 use crate::app::AppData;
 use crate::app::Tab;
 use crate::app::TabData;
@@ -58,7 +60,7 @@ impl<'a> FilePicker<'a> {
         let path = std::env::current_dir().unwrap();
         let contents = StatefulList::new("".to_string());
         let tabdata = TabData::new("File picker".to_string());
-        let description = InfoBox::new(description);
+        let description = InfoBox::new(description).borders(Borders::NONE);
 
         let mut me = Self {
             contents,

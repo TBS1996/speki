@@ -108,6 +108,9 @@ impl<'a> IncView<'a> {
             parent,
         }
     }
+    pub fn save_state(&mut self, appdata: &AppData) {
+        self.text.update_text(&appdata.conn);
+    }
 
     pub fn keyhandler(
         &mut self,

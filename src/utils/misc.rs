@@ -442,6 +442,7 @@ pub fn draw_paragraph(
     borders: Borders,
 ) {
     let block = Block::default().borders(borders).border_style(borderstyle);
+
     let paragraph = Paragraph::new(text)
         .block(block)
         .alignment(alignment)

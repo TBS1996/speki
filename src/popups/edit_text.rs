@@ -55,4 +55,8 @@ impl<'a> Tab for TextEditor<'a> {
         self.incview
             .keyhandler(appdata, &mut self.tabdata, cursor, key);
     }
+
+    fn save_state(&mut self, appdata: &AppData) {
+        self.incview.save_state(appdata);
+    }
 }

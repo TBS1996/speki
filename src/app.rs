@@ -150,7 +150,7 @@ impl TabsState {
         }
     }
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
-        let mut navbar = String::new();
+        let mut navbar = vec![];
         self.tabs[self.index].main_render(f, appdata, area, &mut navbar);
     }
 }
@@ -330,7 +330,7 @@ pub trait Tab {
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey, cursor: &Pos);
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos);
 
-    fn refresh(&mut self) {}
+    fn refresh(&mut self, _appdata: &AppData) {}
     fn get_manual(&self) -> String {
         String::new()
     }
@@ -356,7 +356,10 @@ pub trait Tab {
     fn main_keyhandler(&mut self, appdata: &AppData, key: MyKey) {
         if let Some(popup) = self.get_popup() {
             match key {
-                MyKey::Esc if popup.get_popup().is_none() => self.exit_popup(appdata),
+                MyKey::Esc if popup.get_popup().is_none() => {
+                    popup.save_state(appdata);
+                    self.exit_popup(appdata);
+                }
                 key => popup.main_keyhandler(appdata, key),
             }
             return;
@@ -376,20 +379,29 @@ pub trait Tab {
         f: &mut Frame<MyType>,
         appdata: &AppData,
         mut area: Rect,
-        navbar: &mut String,
+        navbar: &mut Vec<Span>,
     ) {
+        let bg = Color::Reset;
+        let arrcol = Style::default().fg(Color::Rgb(255, 255, 255)).bg(bg);
+        let hicol = Style::default().fg(Color::Rgb(150, 255, 150)).bg(bg);
+        let titcol = Style::default().fg(Color::Rgb(200, 255, 200)).bg(bg);
         if let Some(popup) = self.get_popup() {
-            navbar.push_str(" ❱❱ ");
+            let title = popup.get_title().clone();
+            navbar.push(Span::styled(" ❱❱", arrcol));
             let state = popup.get_state();
             match std::mem::take(state) {
                 PopUpState::Continue => {
-                    navbar.push_str(&popup.get_title());
+                    if popup.get_popup().is_some() {
+                        navbar.push(Span::styled(title, titcol));
+                    } else {
+                        navbar.push(Span::styled(title, hicol));
+                    }
                     popup.main_render(f, appdata, area, navbar);
                 }
                 PopUpState::Exit => self.exit_popup(appdata),
                 PopUpState::Switch(tab) => {
+                    navbar.push(Span::styled(title, arrcol));
                     *popup = tab;
-                    navbar.push_str(&popup.get_title());
                     popup.main_render(f, appdata, area, navbar);
                 }
             }
@@ -403,7 +415,7 @@ pub trait Tab {
                     vec![Spans::from(navbar.clone())],
                     Style::default(),
                     Alignment::Left,
-                    Borders::ALL,
+                    Borders::NONE,
                 );
                 area = chunks[1];
                 self.transform_area(&mut area);
@@ -429,9 +441,10 @@ pub trait Tab {
             None
         }
     }
+    fn save_state(&mut self, _appdata: &AppData) {}
     fn exit_popup(&mut self, appdata: &AppData) {
-        let _ = appdata;
         self.get_tabdata().popup = None;
+        self.refresh(appdata);
     }
 
     fn switch_popup(&mut self, _obj: Box<dyn Tab>) {}

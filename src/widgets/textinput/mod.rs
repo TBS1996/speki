@@ -378,14 +378,12 @@ impl Field {
             }
         }
     }
-    //the quick brown fox jumps over the lazy dog
     fn delete_previous_word(&mut self) {
         if self.cursor.column == 0 {
             return;
         }
 
         let mut char_found = false;
-
         while self.cursor.column != 0 {
             let bytepos =
                 Self::find_grapheme_bytepos(&self.text[self.cursor.row], self.cursor.column - 1);
@@ -395,15 +393,11 @@ impl Field {
                 char_found = true;
             }
 
-            self.cursor.column -= 1;
-
-            match (char_found, mychar.is_whitespace()) {
-                (true, true) => {
-                    self.next();
-                    return;
-                }
-                (_, _) => {}
+            if let (true, true) = (char_found, mychar.is_whitespace()) {
+                return;
             }
+
+            self.cursor.column -= 1;
             self.text[self.cursor.row].remove(bytepos);
         }
     }

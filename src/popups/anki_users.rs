@@ -8,7 +8,10 @@ use crate::{
     popups::load_cards::LoadCards,
 };
 
-use super::{menu::Menu, splash_message::Splash};
+use super::{
+    menu::{Menu, TraitButton},
+    splash_message::Splash,
+};
 
 #[derive(Debug)]
 struct AnkiUser {
@@ -40,28 +43,27 @@ impl<'a> Menu<'a> {
             }
         }
 
-        let mut names: Vec<String> = vec![];
-        let mut closures: Vec<Box<dyn FnMut(&AppData) -> Box<dyn Tab>>> = vec![];
+        let mut buttons = vec![];
 
         for user in &users {
-            names.push(user.name.clone());
             let path = user.path.clone();
             let closure = move |appdata: &AppData| -> Box<dyn Tab> {
                 let path = path.clone();
                 Box::new(LoadCards::new_from_path(appdata, path))
             };
-            closures.push(Box::new(closure));
+            buttons.push(TraitButton::new(
+                Box::new(closure),
+                user.name.clone(),
+                false,
+            ));
         }
 
         let title = "Find anki user".to_string();
         let prompt = "Select an anki user that you'd like to import from".to_string();
         let xpad = 4;
         let ypad = 3;
-        let in_place = false;
-        let names = names;
-        let tabs = closures;
 
-        let mut menu = Menu::new(title, prompt, xpad, ypad, names, tabs, in_place);
+        let mut menu = Menu::new(title, prompt, xpad, ypad, buttons);
         if users.len() == 0 {
             menu.get_tabdata().state =
                 PopUpState::Switch(Box::new(Splash::new("No anki users found".to_string())))

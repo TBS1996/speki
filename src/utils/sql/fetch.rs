@@ -478,7 +478,7 @@ pub fn get_dependencies(conn: &Arc<Mutex<Connection>>, dependent: CardID) -> Res
 
 use crate::utils::card::CardType;
 
-use crate::utils::incread::IncRead;
+use crate::utils::incread::{IncRead, IncStatus};
 use crate::widgets::textinput::Field;
 
 struct IncTemp {
@@ -500,6 +500,9 @@ pub fn fetch_media(conn: &Arc<Mutex<Connection>>, id: CardID) -> MediaContents {
 
 // -------------------------------------------------------------- //
 
+/*
+
+(   */
 pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> IncRead {
     let extracts = load_extracts(conn, id).unwrap();
     let clozes = CardQuery::default().source(id).fetch_carditems(conn);
@@ -515,9 +518,9 @@ pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> IncRead {
                     row.get(7).unwrap(),
                     row.get(8).unwrap(),
                 ),
+                status: IncStatus::new_from_row(row),
                 extracts,
                 clozes,
-                isactive: row.get(4).unwrap(),
             })
         })
         .unwrap()

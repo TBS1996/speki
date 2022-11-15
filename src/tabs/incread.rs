@@ -1,16 +1,22 @@
 use crate::app::AppData;
-use crate::app::Tab;
 use crate::app::TabData;
 use crate::app::Widget;
 use crate::popups::edit_text::TextEditor;
+use crate::popups::filepicker::FilePicker;
+use crate::popups::filepicker::FilePickerPurpose;
+use crate::popups::menu::Menu;
+use crate::popups::menu::TraitButton;
 use crate::popups::wikiselect::WikiSelect;
 use crate::utils::misc::split_leftright_by_percent;
 use crate::MyKey;
 use crate::MyType;
 
 use crate::utils::aliases::*;
+use crate::utils::misc::split_updown_by_percent;
 use crate::utils::sql::fetch::load_inc_items;
+use crate::utils::sql::insert::new_incread;
 use crate::utils::statelist::StatefulList;
+use crate::widgets::button::Button;
 use crate::widgets::topics::TopicList;
 use tui::layout::Rect;
 use tui::Frame;
@@ -18,54 +24,29 @@ use tui::Frame;
 use crate::utils::incread::IncListItem;
 use std::sync::{Arc, Mutex};
 
-pub struct MainInc {
+pub struct MainInc<'a> {
     pub inclist: StatefulList<IncListItem>,
     pub topics: TopicList,
+    import_button: Button<'a>,
     tabdata: TabData,
 }
 
 use rusqlite::Connection;
 
-impl MainInc {
+impl<'a> MainInc<'a> {
     pub fn new(conn: &Arc<Mutex<Connection>>) -> Self {
         let items = load_inc_items(conn, 1).unwrap();
         let inclist = StatefulList::with_items("Sources".to_string(), items);
         let topics = TopicList::new(conn);
+        let import_button = Button::new("Import texts".to_string());
 
         MainInc {
             inclist,
             topics,
             tabdata: TabData::new("Incremental reading".to_string()),
+            import_button,
         }
     }
-    /*
-    pub fn update_text(&self, conn: &Arc<Mutex<Connection>>) {
-        if let Some(inc) = &self.focused {
-            let id = inc.id;
-            let text = inc.source.return_text();
-            update_inc_text(conn, text, id, &inc.source.cursor).unwrap();
-        }
-    }
-
-    fn focus_list(&mut self, conn: &Arc<Mutex<Connection>>) {
-        if let Some(idx) = self.inclist.state.selected() {
-            let id: IncID = self.inclist.items[idx].id;
-            let incread = get_incread(conn, id).unwrap();
-            self.focused = Some(incread);
-            self.extracts.items = load_extracts(conn, id).unwrap();
-        }
-    }
-
-    fn focus_extracts(&mut self, conn: &Arc<Mutex<Connection>>) {
-        if let Some(idx) = self.extracts.state.selected() {
-            let id: IncID = self.extracts.items[idx].id;
-            let incread = get_incread(conn, id).unwrap();
-            self.focused = Some(incread);
-            self.extracts.items = load_extracts(conn, id).unwrap();
-        }
-    }
-
-    */
 
     pub fn reload_inc_list(&mut self, conn: &Arc<Mutex<Connection>>) {
         let items = load_inc_items(conn, self.topics.get_selected_id().unwrap()).unwrap();
@@ -73,19 +54,22 @@ impl MainInc {
     }
 }
 
-impl Tab for MainInc {
+impl<'a> crate::app::Tab for MainInc<'a> {
     fn get_tabdata(&mut self) -> &mut TabData {
         &mut self.tabdata
     }
 
     fn set_selection(&mut self, area: Rect) {
-        let chunks = split_leftright_by_percent([25, 75], area);
+        let leftright = split_leftright_by_percent([25, 75], area);
+        let right = split_updown_by_percent([90, 10], leftright[1]);
 
-        self.tabdata.view.areas.push(chunks[0]);
-        self.tabdata.view.areas.push(chunks[1]);
+        self.tabdata.view.areas.push(leftright[0]);
+        self.tabdata.view.areas.push(right[0]);
+        self.tabdata.view.areas.push(right[1]);
 
-        self.topics.set_area(chunks[0]);
-        self.inclist.set_area(chunks[1]);
+        self.topics.set_area(leftright[0]);
+        self.inclist.set_area(right[0]);
+        self.import_button.set_area(right[1]);
     }
 
     fn get_manual(&self) -> String {
@@ -117,11 +101,38 @@ make cloze (visual mode): Alt+z
         use crate::MyKey::*;
 
         match key {
-            //MyKey::Alt('a') => self.create_source(&appdata.conn, "".to_string()),
-            Alt('w') => {
-                let topic: TopicID = self.topics.get_selected_id().unwrap();
-                let wiki = WikiSelect::new(topic);
-                self.set_popup(Box::new(wiki));
+            Enter | KeyPress(_) if self.import_button.is_selected(cursor) => {
+                let topic = self.topics.get_selected_id().unwrap();
+
+                let a = move |appdata: &AppData| -> Box<dyn crate::app::Tab> {
+                    let id = new_incread(&appdata.conn, 0, topic, "".to_string(), true);
+                    Box::new(TextEditor::new(appdata, id))
+                };
+                let b = move |_appdata: &AppData| -> Box<dyn crate::app::Tab> {
+                    Box::new(FilePicker::new(
+                        FilePickerPurpose::LoadBook(topic),
+                        "Choose an epub file".to_string(),
+                        ["epub".to_string()],
+                    ))
+                };
+                let c = move |_appdata: &AppData| -> Box<dyn crate::app::Tab> {
+                    Box::new(WikiSelect::new(topic))
+                };
+
+                let buttons = [
+                    TraitButton::new(Box::new(a), "New blank", true),
+                    TraitButton::new(Box::new(b), "Load from file", false),
+                    TraitButton::new(Box::new(c), "Download from wikipedia", false),
+                ];
+
+                let popup = Menu::new(
+                    "Import selection".to_string(),
+                    "".to_string(),
+                    4,
+                    4,
+                    buttons,
+                );
+                self.set_popup(Box::new(popup));
             }
             Enter if self.inclist.is_selected(cursor) => {
                 if let Some(idx) = self.inclist.state.selected() {
@@ -141,6 +152,7 @@ make cloze (visual mode): Alt+z
     }
 
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
+        self.import_button.render(f, appdata, cursor);
         self.topics.render(f, appdata, cursor);
         self.inclist.render(f, appdata, cursor);
     }

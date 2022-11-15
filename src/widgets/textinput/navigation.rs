@@ -125,7 +125,7 @@ impl Field {
         let new_offset = self.current_visual_col();
         self.validate_prefcol(offset, new_offset);
         let line = self.current_abs_visual_line() as u16;
-        if (self.scroll + self.window_height) - line < 10 {
+        if (self.scroll + self.window_height) - line < 5 {
             self.scroll += 1;
         }
     }
@@ -136,7 +136,7 @@ impl Field {
             if self.cursor.row != 0 {
                 self.cursor.row -= 1;
                 let prev_rowlen = self.current_rowlen();
-                self.cursor.column = prev_rowlen - 1;
+                self.cursor.column = if prev_rowlen > 0 { prev_rowlen - 1 } else { 0 };
                 let new_offset = self.current_visual_col();
                 if new_offset > offset {
                     self.cursor.column -= new_offset - offset;
@@ -148,7 +148,7 @@ impl Field {
         let new_offset = self.current_visual_col();
         self.validate_prefcol(offset, new_offset);
         let line = self.current_abs_visual_line() as u16;
-        if line - self.scroll < 10 && self.scroll > 0 {
+        if line - self.scroll < 5 && self.scroll > 0 {
             self.scroll -= 1;
         }
     }

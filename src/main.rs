@@ -31,7 +31,7 @@ pub type MyType = CrosstermBackend<std::io::Stdout>;
 fn main() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "1");
 
-    let paths = SpekiPaths::new(home::home_dir().unwrap());
+    let paths = SpekiPaths::new(&home::home_dir().unwrap());
     let is_new_db = init_db(&paths.database).unwrap();
 
     // setup terminal

@@ -10,6 +10,7 @@ use crate::utils::card::CardItem;
 use crate::utils::sql::update::update_inc_text;
 use crate::utils::statelist::StatefulList;
 use crate::widgets::button::Button;
+use crate::widgets::infobox::InfoBox;
 use crate::widgets::textinput::Field;
 use crate::widgets::topics::TopicList;
 use crate::{MyKey, MyType};
@@ -39,11 +40,34 @@ impl Display for IncListItem {
     }
 }
 
+pub enum IncStatus {
+    Done,
+    Active(IncActive),
+}
+
+impl IncStatus {
+    pub fn new_from_row(row: &rusqlite::Row<'_>) -> IncStatus {
+        match row.get(4).unwrap() {
+            1 => IncStatus::Done,
+            0 => IncStatus::Active(IncActive {
+                interval: row.get(5).unwrap(),
+                timestamp: row.get(6).unwrap(),
+            }),
+            _ => panic!(),
+        }
+    }
+}
+
+pub struct IncActive {
+    interval: u32,
+    timestamp: UnixTime,
+}
+
 pub struct IncRead {
     pub id: IncID,
     pub parent: IncID,
     pub topic: TopicID,
-    pub isactive: bool,
+    pub status: IncStatus,
     pub source: Field,
     pub extracts: Vec<IncListItem>,
     pub clozes: Vec<CardItem>,
@@ -56,7 +80,7 @@ impl IncRead {
 
     pub fn extract(&mut self, conn: &Arc<Mutex<Connection>>) {
         if let Some(extract) = self.source.return_selection() {
-            new_incread(conn, self.id, self.topic, extract, true).unwrap();
+            new_incread(conn, self.id, self.topic, extract, true);
             self.extracts = load_extracts(conn, self.id).unwrap();
         }
     }
@@ -87,6 +111,7 @@ pub struct IncView<'a> {
     pub extracts: StatefulList<IncListItem>,
     pub clozes: StatefulList<CardItem>,
     pub parent: Button<'a>,
+    pub info: InfoBox<'a>,
 }
 
 impl<'a> IncView<'a> {
@@ -100,12 +125,14 @@ impl<'a> IncView<'a> {
         if parent_id == 0 {
             parent.inner.textstyle = Style::default().add_modifier(Modifier::DIM);
         }
+        let info = InfoBox::new("hey there".to_string());
         Self {
             text,
             topics,
             extracts,
             clozes,
             parent,
+            info,
         }
     }
     pub fn save_state(&mut self, appdata: &AppData) {
@@ -170,5 +197,6 @@ impl<'a> IncView<'a> {
         self.clozes.render(f, appdata, cursor);
         self.topics.render(f, appdata, cursor);
         self.parent.render(f, appdata, cursor);
+        self.info.render(f, appdata, cursor);
     }
 }

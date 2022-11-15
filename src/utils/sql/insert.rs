@@ -1,5 +1,7 @@
 use crate::utils::aliases::*;
-use crate::utils::card::{Card, CardType, CardTypeData, Review}; //, Status, Topic, Review}
+use crate::utils::card::{Card, CardType, CardTypeData, Review};
+use crate::utils::misc::get_current_unix;
+//, Status, Topic, Review}
 use crate::utils::sql::update::set_cardtype;
 use rusqlite::{params, Connection, Result};
 use std::sync::{Arc, Mutex};
@@ -130,16 +132,13 @@ pub fn new_incread(
     topic: u32,
     source: String,
     isactive: bool,
-) -> Result<()> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as u32;
+) -> TopicID {
+    let now = get_current_unix();
     conn.lock().unwrap().execute(
         "INSERT INTO incread (parent, topic, source, active, skiptime, skipduration, row, column) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![parent, topic, source, isactive, now, 1.0, 0, 0],
-    )?;
-    Ok(())
+    ).unwrap();
+    conn.lock().unwrap().last_insert_rowid() as TopicID
 }
 
 pub fn new_finished(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<()> {

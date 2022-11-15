@@ -1,10 +1,13 @@
 use tui::widgets::Borders;
 
 use crate::app::AppData;
+use crate::app::PopUpState;
 use crate::app::Tab;
 use crate::app::TabData;
 use crate::app::Widget;
 use crate::utils::aliases::Pos;
+use crate::utils::aliases::TopicID;
+use crate::utils::epub::load_book;
 use crate::utils::misc::split_updown_by_percent;
 use crate::utils::statelist::KeyHandler;
 use crate::utils::statelist::StatefulList;
@@ -41,6 +44,7 @@ enum FileType {
 
 pub enum FilePickerPurpose {
     LoadCards,
+    LoadBook(TopicID),
 }
 
 pub struct FilePicker<'a> {
@@ -152,6 +156,10 @@ impl<'a> FilePicker<'a> {
             FilePickerPurpose::LoadCards => {
                 let popup = LoadCards::new_csv(appdata, path);
                 self.set_popup(Box::new(popup));
+            }
+            FilePickerPurpose::LoadBook(id) => {
+                load_book(appdata, &path, id);
+                self.tabdata.state = PopUpState::Exit;
             }
         }
     }

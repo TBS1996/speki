@@ -8,8 +8,19 @@ use crate::{
 };
 
 pub struct TraitButton<'a> {
-    tab: Box<dyn FnMut(&AppData) -> Box<dyn Tab>>,
+    tab: MenuTrait,
     button: Button<'a>,
+    in_place: bool, // should the new tab replace current one or be overlaid?
+}
+
+impl<'a> TraitButton<'a> {
+    pub fn new<T: Into<String>>(tab: MenuTrait, text: T, in_place: bool) -> Self {
+        TraitButton {
+            tab,
+            button: Button::new(text.into()),
+            in_place,
+        }
+    }
 }
 
 pub struct Menu<'a> {
@@ -17,42 +28,23 @@ pub struct Menu<'a> {
     tabdata: TabData,
     xpad: u32,
     ypad: u32,
-    in_place: bool,
     prompt: InfoBox<'a>,
 }
 
+pub type MenuTrait = Box<dyn FnMut(&AppData) -> Box<dyn Tab>>;
+
 impl<'a> Menu<'a> {
-    pub fn new<T, U>(
-        title: String,
-        prompt: String,
-        xpad: u32,
-        ypad: u32,
-        names: T,
-        tabs: U,
-        in_place: bool,
-    ) -> Self
+    pub fn new<T>(title: String, prompt: String, xpad: u32, ypad: u32, buttons: T) -> Self
     where
-        T: Into<Vec<String>>,
-        U: Into<Vec<Box<dyn FnMut(&AppData) -> Box<dyn Tab>>>>,
+        T: Into<Vec<TraitButton<'a>>>,
     {
-        let names = names.into();
-        let mut tabs = tabs.into();
-        let mut buttons = vec![];
         let prompt = InfoBox::new(prompt).borders(Borders::NONE);
 
-        for i in 0..names.len() {
-            buttons.push(TraitButton {
-                tab: tabs.remove(0),
-                button: Button::new(names[i].clone()),
-            });
-        }
-
         Self {
-            buttons,
+            buttons: buttons.into(),
             tabdata: TabData::new(title),
             xpad,
             ypad,
-            in_place,
             prompt,
         }
     }
@@ -113,7 +105,7 @@ impl<'a> Tab for Menu<'a> {
             MyKey::Enter | MyKey::KeyPress(_) => {
                 for button in &mut self.buttons {
                     if button.button.is_selected(cursor) {
-                        if !self.in_place {
+                        if !button.in_place {
                             let obj = (button.tab)(appdata);
                             self.set_popup(obj)
                         } else {

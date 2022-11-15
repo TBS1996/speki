@@ -54,6 +54,43 @@ pub fn play_audio(audio: &Option<Audio>, path: PathBuf) {
     }
 }
 
+pub fn abs_centered(area: Rect, width: u16, height: u16) -> Rect {
+    let area = abs_leftright_centered(area, width);
+    abs_updown_centered(area, height)
+}
+
+pub fn abs_leftright_centered(area: Rect, width: u16) -> Rect {
+    if width >= area.width {
+        return area;
+    }
+
+    let diff = area.width - width;
+    let xpad = diff / 2;
+
+    Rect {
+        x: area.x + xpad,
+        y: area.y,
+        width,
+        height: area.height,
+    }
+}
+
+pub fn abs_updown_centered(area: Rect, height: u16) -> Rect {
+    if height >= area.height {
+        return area;
+    }
+
+    let diff = area.height - height;
+    let ypad = diff / 2;
+
+    Rect {
+        x: area.x,
+        y: area.y + ypad,
+        width: area.width,
+        height,
+    }
+}
+
 pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -252,7 +289,8 @@ impl SpekiPaths {
     const DEFAULTCONFIG: &'static str = r#"
 #gptkey = ""
         "#;
-    pub fn new(mut home: PathBuf) -> Self {
+    pub fn new(home: &PathBuf) -> Self {
+        let mut home = home.clone();
         let mut configpath = home.clone();
         let mut anki = home.clone();
         if cfg!(windows) {
@@ -291,7 +329,7 @@ impl SpekiPaths {
         downloc.push("ankitemp.apkg");
 
         Self {
-            base: home,
+            base: home.clone(),
             database,
             media,
             tempfolder,

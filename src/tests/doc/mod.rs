@@ -1,6 +1,7 @@
 #[cfg(test)]
 use std::sync::{Arc, Mutex};
-
+pub mod databasetest;
+pub mod pdftest;
 use rusqlite::Connection;
 use tui::layout::Rect;
 
@@ -12,7 +13,7 @@ use crate::{
 };
 
 pub fn get_appdata() -> AppData {
-    let paths = SpekiPaths::new(home::home_dir().unwrap());
+    let paths = SpekiPaths::new(&home::home_dir().unwrap());
     let conn = Arc::new(Mutex::new(
         Connection::open(&paths.database).expect("Failed to connect to database."),
     ));
@@ -29,6 +30,7 @@ pub fn get_appdata() -> AppData {
 #[test]
 fn is_last_visrow() {
     let input_text = "0123456789012".to_string();
+    dbg!("AHHH");
     let mut area = Rect::default();
     area.width = 12;
     area.height = 12;

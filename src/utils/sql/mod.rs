@@ -249,7 +249,7 @@ If youre not familiar with incremental reading I reccommend googling it first! w
 In the future there will be many more ways of getting text in here.
 
             "#.to_string();
-        new_incread(&conn, 0, 1, inc_introduction, true).unwrap();
+        new_incread(&conn, 0, 1, inc_introduction, true);
     }
 
     Ok(new_db)

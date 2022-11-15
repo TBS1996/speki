@@ -284,7 +284,7 @@ impl<'a> Tab for LoadCards<'a> {
                     self.template.play_back_audio(&appdata.audio, self.viewpos);
                 }
             }
-            Enter if self.importbutton.is_selected(cursor) => {
+            Enter | KeyPress(_) if self.importbutton.is_selected(cursor) => {
                 let mut tmpclone = self.template.clone();
                 let (tx, rx): (
                     std::sync::mpsc::SyncSender<ImportProgress>,

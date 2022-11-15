@@ -467,6 +467,7 @@ impl<'a> Tab for MainReview<'a> {
                     self.new_review(appdata, id, grade);
                     self.tabdata.view.move_up();
                 }
+
                 key if rev.cardview.is_selected(cursor) => {
                     rev.cardview
                         .keyhandler(appdata, &mut self.tabdata, cursor, key);

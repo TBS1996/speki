@@ -408,7 +408,7 @@ pub trait Tab {
         } else {
             if !navbar.is_empty() {
                 f.render_widget(Clear, area); //this clears out the background
-                let chunks = split_updown([Constraint::Length(3), Constraint::Min(1)], area);
+                let chunks = split_updown([Constraint::Length(1), Constraint::Min(1)], area);
                 draw_paragraph(
                     f,
                     chunks[0],
@@ -428,6 +428,7 @@ pub trait Tab {
     }
 
     fn transform_area(&self, area: &mut Rect) {
+        return;
         area.x += 2;
         area.y += 2;
         area.height -= 4;

@@ -367,7 +367,7 @@ impl<'a> CardView<'a> {
         key: MyKey,
     ) {
         match key {
-            MyKey::Char(' ') | MyKey::Enter
+            MyKey::Char(' ') | MyKey::Enter | MyKey::KeyPress(_)
                 if !self.revealed && self.answer.is_selected(cursor) =>
             {
                 self.revealed = true;

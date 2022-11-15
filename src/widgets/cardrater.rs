@@ -37,6 +37,23 @@ impl CardRater {
             RecallGrade::Easy => Some(RecallGrade::Decent),
         }
     }
+
+    fn keypress(&mut self, pos: Pos) {
+        if Self::is_selected(self, &pos) {
+            let area = self.get_area();
+            dbg!(area.x, area.width, pos.x);
+            if (area.x..(area.x + (area.width * 1 / 4))).contains(&pos.x) {
+                self.selection = Some(RecallGrade::None);
+            } else if (area.x..(area.x + (area.width * 2 / 4))).contains(&pos.x) {
+                self.selection = Some(RecallGrade::Failed);
+            } else if (area.x..(area.x + (area.width * 3) / 4)).contains(&pos.x) {
+                self.selection = Some(RecallGrade::Decent);
+            } else if (area.x..(area.x + (area.width * 4) / 4)).contains(&pos.x) {
+                self.selection = Some(RecallGrade::Easy);
+            }
+        }
+    }
+
     fn right(&mut self) {
         let selection = if let Some(selection) = &self.selection {
             selection
@@ -56,6 +73,7 @@ impl Widget for CardRater {
     fn keyhandler(&mut self, _appdata: &AppData, key: MyKey) {
         use MyKey::*;
         match key {
+            KeyPress(pos) => self.keypress(pos),
             Left | Char('h') => self.left(),
             Right | Char('l') => self.right(),
             _ => {}

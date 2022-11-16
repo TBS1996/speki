@@ -4,7 +4,7 @@ use tui::Frame;
 
 use crate::app::{AppData, PopUpState, Tab, TabData, Widget};
 use crate::utils::aliases::*;
-use crate::utils::misc::{abs_centered, split_updown};
+use crate::utils::area::{abs_centered, split_updown};
 use crate::utils::sql::insert::new_incread;
 use crate::widgets::infobox::InfoBox;
 use crate::widgets::textinput::Field;

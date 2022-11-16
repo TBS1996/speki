@@ -6,7 +6,9 @@ use crate::app::TabData;
 use crate::app::Widget;
 use crate::utils::aliases::Pos;
 use crate::utils::aliases::TopicID;
-use crate::utils::misc::split_updown_by_percent;
+use crate::utils::area::abs_centered;
+use crate::utils::area::split_updown_by_percent;
+use crate::utils::area::take_upper_area;
 use crate::utils::statelist::KeyHandler;
 use crate::utils::statelist::StatefulList;
 use crate::widgets::infobox::InfoBox;
@@ -28,7 +30,7 @@ impl MyPath {
 use std::fmt;
 impl fmt::Display for MyPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.inner.display())
+        write!(f, "{}", self.inner.file_name().unwrap().to_str().unwrap())
     }
 }
 
@@ -52,6 +54,7 @@ pub struct FilePicker<'a> {
     tabdata: TabData,
     description: InfoBox<'a>,
     purpose: FilePickerPurpose,
+    navbar: InfoBox<'a>,
 }
 
 impl<'a> FilePicker<'a> {
@@ -59,10 +62,13 @@ impl<'a> FilePicker<'a> {
     where
         E: Into<Vec<String>>,
     {
-        let path = std::env::current_dir().unwrap();
+        let path = home::home_dir().unwrap();
         let contents = StatefulList::new("".to_string());
         let tabdata = TabData::new("File picker".to_string());
         let description = InfoBox::new(description).borders(Borders::NONE);
+        let navbar = InfoBox::new(path.to_str().unwrap())
+            .borders(Borders::NONE)
+            .alignment(tui::layout::Alignment::Left);
 
         let mut me = Self {
             contents,
@@ -71,8 +77,9 @@ impl<'a> FilePicker<'a> {
             tabdata,
             description,
             purpose,
+            navbar,
         };
-        me.fill_vec(&path);
+        me.newdir(path);
         me
     }
 
@@ -165,10 +172,14 @@ impl<'a> FilePicker<'a> {
 
 impl<'a> Tab for FilePicker<'a> {
     fn set_selection(&mut self, area: tui::layout::Rect) {
-        let chunks = split_updown_by_percent([20, 80], area);
+        let area = abs_centered(area, 80, 30);
+        let mut chunks = split_updown_by_percent([20, 80], area);
+
+        let navrect = take_upper_area(&mut chunks[1], 1);
 
         self.tabdata.view.areas.push(chunks[1]);
         self.description.set_area(chunks[0]);
+        self.navbar.set_area(navrect);
         self.contents.set_area(chunks[1]);
     }
 
@@ -176,7 +187,7 @@ impl<'a> Tab for FilePicker<'a> {
         use crate::MyKey::*;
         match key {
             Char('h') | Left => self.prevdir(),
-            Char('l') | Right => self.select_dir(),
+            Char('l') | Right | Char(' ') => self.select_dir(),
             Enter => {
                 let idx = self.contents.state.selected().unwrap();
                 let path = self.contents.items[idx].inner.clone();
@@ -191,6 +202,7 @@ impl<'a> Tab for FilePicker<'a> {
             }
             key => self.contents.keyhandler(appdata, key),
         }
+        self.navbar.change_text(self.path.clone().to_str().unwrap())
     }
 
     fn get_tabdata(&mut self) -> &mut TabData {
@@ -199,6 +211,7 @@ impl<'a> Tab for FilePicker<'a> {
 
     fn render(&mut self, f: &mut tui::Frame<MyType>, appdata: &crate::app::AppData, cursor: &Pos) {
         self.description.render(f, appdata, cursor);
+        self.navbar.render(f, appdata, cursor);
         self.contents.render(f, appdata, cursor);
     }
 }

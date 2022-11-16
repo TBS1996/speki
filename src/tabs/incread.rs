@@ -7,12 +7,12 @@ use crate::popups::filepicker::FilePickerPurpose;
 use crate::popups::menu::Menu;
 use crate::popups::menu::TraitButton;
 use crate::popups::wikiselect::WikiSelect;
-use crate::utils::misc::split_leftright_by_percent;
+use crate::utils::area::split_leftright_by_percent;
 use crate::MyKey;
 use crate::MyType;
 
 use crate::utils::aliases::*;
-use crate::utils::misc::split_updown_by_percent;
+use crate::utils::area::split_updown_by_percent;
 use crate::utils::sql::fetch::load_inc_items;
 use crate::utils::sql::insert::new_incread;
 use crate::utils::statelist::StatefulList;

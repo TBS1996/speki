@@ -4,8 +4,8 @@ use crate::{
     app::{AppData, PopUpState, Tab, TabData, Widget},
     utils::{
         aliases::TopicID,
+        area::{split_leftright_by_percent, split_updown_by_percent},
         epub::load_book,
-        misc::{split_leftright_by_percent, split_updown_by_percent},
         sql::insert::new_incread,
         statelist::StatefulList,
     },

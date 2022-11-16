@@ -1,9 +1,8 @@
 use crate::app::{AppData, TabData, Widget};
 use crate::utils::aliases::*;
-use crate::utils::misc::{
-    get_dependencies, get_dependents, split_leftright_by_percent, split_updown,
-    split_updown_by_percent,
-};
+use crate::utils::misc::{get_dependencies, get_dependents};
+
+use crate::utils::area::{split_leftright_by_percent, split_updown, split_updown_by_percent};
 use crate::utils::sql::update::{set_suspended, update_inc_active};
 use crate::widgets::button::Button;
 use crate::widgets::mode_status::ModeStatus;

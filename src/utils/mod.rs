@@ -1,5 +1,6 @@
 pub mod aliases;
 pub mod ankitemplate;
+pub mod area;
 pub mod card;
 pub mod epub;
 pub mod incread;

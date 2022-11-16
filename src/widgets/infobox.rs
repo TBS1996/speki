@@ -19,7 +19,8 @@ pub struct InfoBox<'a> {
 }
 
 impl<'a> InfoBox<'a> {
-    pub fn new(text: String) -> Self {
+    pub fn new<T: Into<String>>(text: T) -> Self {
+        let text = text.into();
         let thelen = text.len();
         Self {
             area: Rect::default(),
@@ -54,7 +55,8 @@ impl<'a> InfoBox<'a> {
         self
     }
 
-    pub fn change_text(&mut self, text: String) {
+    pub fn change_text<T: Into<String>>(&mut self, text: T) {
+        let text = text.into();
         self.txtlen = text.len();
         self.text = vec![Spans::from(Span::from(text))];
     }

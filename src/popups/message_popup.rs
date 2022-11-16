@@ -1,6 +1,6 @@
 use crate::{
     app::{PopUpState, PopupValue, Tab, TabData, Widget},
-    utils::{aliases::Pos, misc::split_updown_by_percent},
+    utils::{aliases::Pos, area::split_updown_by_percent},
     widgets::infobox::InfoBox,
 };
 use std::sync::mpsc::{Receiver, TryRecvError};

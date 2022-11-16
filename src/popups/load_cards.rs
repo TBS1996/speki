@@ -4,7 +4,7 @@ use crate::app::{AppData, Tab, TabData};
 use crate::popups::progress_popup::Progress;
 use crate::utils::aliases::Pos;
 use crate::utils::ankitemplate::{ImportProgress, Template};
-use crate::utils::misc::{split_leftright_by_percent, split_updown_by_percent};
+use crate::utils::area::{split_leftright_by_percent, split_updown_by_percent};
 use crate::utils::statelist::{StatefulList, TextItem};
 use crate::widgets::textinput::Field;
 use crate::widgets::topics::TopicList;

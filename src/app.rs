@@ -12,14 +12,14 @@ use crate::{
     tabs::add_card::NewCard,
     utils::{
         aliases::Pos,
-        misc::{draw_paragraph, split_updown, View},
+        misc::{draw_paragraph, View},
     },
     NavDir,
 };
 
 use crate::{
     tabs::{browse::Browse, incread::MainInc, review::logic::MainReview},
-    utils::misc::split_leftright_by_percent,
+    utils::area::{split_leftright_by_percent, split_updown},
     widgets::textinput::Field,
     MyType, SpekiPaths,
 };

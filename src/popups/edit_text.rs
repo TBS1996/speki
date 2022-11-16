@@ -1,8 +1,8 @@
 use crate::{
     app::{AppData, Tab, TabData, Widget},
     utils::{
+        area::{split_leftright_by_percent, split_updown_by_percent},
         incread::IncView,
-        misc::{split_leftright_by_percent, split_updown_by_percent},
     },
 };
 

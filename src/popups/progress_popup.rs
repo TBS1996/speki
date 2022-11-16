@@ -2,7 +2,7 @@ use tui::style::Color;
 
 use crate::{
     app::{PopUpState, PopupValue, Tab, TabData, Widget},
-    utils::{aliases::Pos, ankitemplate::ImportProgress, misc::split_updown_by_percent},
+    utils::{aliases::Pos, ankitemplate::ImportProgress, area::split_updown_by_percent},
     widgets::progress_bar::ProgressBar,
 };
 use std::sync::mpsc::Receiver;

@@ -2,7 +2,7 @@ use tui::{layout::Rect, widgets::Borders};
 
 use crate::{
     app::{AppData, PopUpState, Tab, TabData, Widget},
-    utils::{aliases::Pos, misc::split_updown_by_percent},
+    utils::{aliases::Pos, area::split_updown_by_percent},
     widgets::{button::Button, infobox::InfoBox},
     MyKey,
 };

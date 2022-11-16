@@ -427,13 +427,7 @@ pub trait Tab {
         }
     }
 
-    fn transform_area(&self, area: &mut Rect) {
-        return;
-        area.x += 2;
-        area.y += 2;
-        area.height -= 4;
-        area.width -= 4;
-    }
+    fn transform_area(&self, _area: &mut Rect) {}
 
     fn get_popup(&mut self) -> Option<&mut Box<dyn Tab>> {
         if let Some(popup) = &mut self.get_tabdata().popup {
@@ -479,9 +473,9 @@ pub struct TabData {
 }
 
 impl TabData {
-    pub fn new(title: String) -> Self {
+    pub fn new<T: Into<String>>(title: T) -> Self {
         Self {
-            title,
+            title: title.into(),
             view: View::default(),
             popup: None,
             value: PopupValue::default(),

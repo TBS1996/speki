@@ -41,7 +41,6 @@ impl CardRater {
     fn keypress(&mut self, pos: Pos) {
         if Self::is_selected(self, &pos) {
             let area = self.get_area();
-            dbg!(area.x, area.width, pos.x);
             if (area.x..(area.x + (area.width * 1 / 4))).contains(&pos.x) {
                 self.selection = Some(RecallGrade::None);
             } else if (area.x..(area.x + (area.width * 2 / 4))).contains(&pos.x) {

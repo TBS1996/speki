@@ -1,5 +1,6 @@
 pub mod anki_users;
 pub mod ankimporter;
+pub mod chapter_selection;
 pub mod edit_card;
 pub mod edit_text;
 pub mod filepicker;

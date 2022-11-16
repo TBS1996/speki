@@ -35,7 +35,8 @@ pub struct StatefulList<T: Display + KeyHandler> {
 }
 
 impl<T: Display + KeyHandler> StatefulList<T> {
-    pub fn with_items(title: String, items: Vec<T>) -> StatefulList<T> {
+    pub fn with_items<U: Into<String>>(title: U, items: Vec<T>) -> StatefulList<T> {
+        let title = title.into();
         let mut thelist = Self {
             state: MyListState::default(),
             items,

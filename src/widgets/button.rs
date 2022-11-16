@@ -13,9 +13,9 @@ pub struct Button<'a> {
 }
 
 impl<'a> Button<'a> {
-    pub fn new(text: String) -> Self {
+    pub fn new<T: Into<String>>(text: T) -> Self {
         Self {
-            inner: InfoBox::new(text),
+            inner: InfoBox::new(text.into()),
         }
     }
     pub fn change_text(&mut self, text: String) {

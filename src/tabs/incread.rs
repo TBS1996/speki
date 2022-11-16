@@ -61,15 +61,15 @@ impl<'a> crate::app::Tab for MainInc<'a> {
 
     fn set_selection(&mut self, area: Rect) {
         let leftright = split_leftright_by_percent([25, 75], area);
-        let right = split_updown_by_percent([90, 10], leftright[1]);
+        let left = split_updown_by_percent([20, 80], leftright[0]);
 
-        self.tabdata.view.areas.push(leftright[0]);
-        self.tabdata.view.areas.push(right[0]);
-        self.tabdata.view.areas.push(right[1]);
+        self.tabdata.view.areas.push(leftright[1]);
+        self.tabdata.view.areas.push(left[0]);
+        self.tabdata.view.areas.push(left[1]);
 
-        self.topics.set_area(leftright[0]);
-        self.inclist.set_area(right[0]);
-        self.import_button.set_area(right[1]);
+        self.import_button.set_area(left[0]);
+        self.topics.set_area(left[1]);
+        self.inclist.set_area(leftright[1]);
     }
 
     fn get_manual(&self) -> String {

@@ -1,13 +1,11 @@
 use tui::widgets::Borders;
 
 use crate::app::AppData;
-use crate::app::PopUpState;
 use crate::app::Tab;
 use crate::app::TabData;
 use crate::app::Widget;
 use crate::utils::aliases::Pos;
 use crate::utils::aliases::TopicID;
-use crate::utils::epub::load_book;
 use crate::utils::misc::split_updown_by_percent;
 use crate::utils::statelist::KeyHandler;
 use crate::utils::statelist::StatefulList;
@@ -158,8 +156,8 @@ impl<'a> FilePicker<'a> {
                 self.set_popup(Box::new(popup));
             }
             FilePickerPurpose::LoadBook(id) => {
-                load_book(appdata, &path, id);
-                self.tabdata.state = PopUpState::Exit;
+                let popup = ChapterSelect::new(appdata, &path, id);
+                self.set_popup(Box::new(popup));
             }
         }
     }
@@ -207,4 +205,5 @@ impl<'a> Tab for FilePicker<'a> {
 
 use crate::MyType;
 
+use super::chapter_selection::ChapterSelect;
 use super::load_cards::LoadCards;

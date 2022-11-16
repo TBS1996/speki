@@ -4,16 +4,14 @@ struct Chapter {
     path: PathBuf,
     content: String,
 }
-use crate::utils::aliases::*;
 use ::epub::doc::EpubDoc;
 use epub::doc::NavPoint;
 
 use crate::app::AppData;
-use minidom::Element;
+use minidom::{Element, Node};
 use std::path::PathBuf;
 
-use super::sql::insert::new_incread;
-pub fn load_book(appdata: &AppData, path: &PathBuf, topic: TopicID) {
+pub fn load_book(_appdata: &AppData, path: &PathBuf) -> (String, Vec<String>) {
     let doc = EpubDoc::new(path);
     let mut doc = doc.unwrap();
 
@@ -34,9 +32,8 @@ pub fn load_book(appdata: &AppData, path: &PathBuf, topic: TopicID) {
         }
     }
 
-    let parent = new_incread(&appdata.conn, 0, topic, desc, false);
-
     let mut chapters: Vec<Chapter> = vec![];
+    let mut chaptercontent = vec![];
 
     for x in &doc.toc {
         print_labels(&mut chapters, x);
@@ -45,11 +42,10 @@ pub fn load_book(appdata: &AppData, path: &PathBuf, topic: TopicID) {
     for chapter in &mut chapters {
         if let Ok(content) = doc.get_resource_str_by_path(&chapter.path) {
             let source = get_body_contents(content);
-            if source.as_bytes().len() > 100 {
-                new_incread(&appdata.conn, parent, topic, source, false);
-            }
+            chaptercontent.push(source);
         }
     }
+    (desc, chaptercontent)
 }
 
 fn print_labels(chapters: &mut Vec<Chapter>, navpoint: &NavPoint) {
@@ -69,11 +65,23 @@ fn get_body_contents(xml: String) -> String {
     let mut thetext = String::new();
 
     let body = root.get_child("body", NAMESPACE).unwrap();
-    for x in body.children() {
-        if x.is("p", NAMESPACE) {
-            thetext.push_str(&x.text());
-        }
+    for node in body.nodes() {
+        get_text(&mut thetext, node);
+        thetext = thetext.trim().to_string();
         thetext.push('\n');
     }
     thetext
+}
+
+fn get_text(thetext: &mut String, node: &Node) {
+    match node {
+        Node::Element(element) => {
+            for child in element.nodes() {
+                get_text(thetext, child);
+            }
+        }
+        Node::Text(text) => {
+            thetext.push_str(&text);
+        }
+    }
 }

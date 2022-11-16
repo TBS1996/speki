@@ -110,7 +110,7 @@ pub fn revlog_new(conn: &Arc<Mutex<Connection>>, card_id: u32, review: &Review) 
         params![
             review.date,
             card_id,
-            review.grade as u32,
+            review.grade.clone() as u32,
             review.answertime,
             -1
         ],

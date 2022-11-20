@@ -158,11 +158,12 @@ impl Field {
 
     fn merge_with_row_above(&mut self) {
         if self.cursor.row > 0 {
+            let prevlen = self.get_rowlen(self.cursor.row - 1);
             let current = self.text[self.cursor.row].clone();
             self.text[self.cursor.row - 1].push_str(&current);
             self.text.remove(self.cursor.row);
             self.cursor.row -= 1;
-            self.cursor.column = self.current_rowlen();
+            self.cursor.column = prevlen;
         }
     }
 

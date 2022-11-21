@@ -99,7 +99,7 @@ impl Template {
             };
             notes.insert(index, note);
             let kort = Kort {
-                card_id: 0,
+                card_id: std::time::Duration::from_secs(0),
                 note_id: index,
                 template_ord: 0,
                 reps: vec![],
@@ -339,13 +339,14 @@ impl Template {
     }
 
     fn get_review_history(conn: &Arc<Mutex<Connection>>, id: AnkiCID) -> Vec<Review> {
+        let id = id.as_secs();
         let mut reviews = vec![];
         let guard = conn.lock().unwrap();
         let mut stmt = guard
             .prepare("SELECT id, ease, time FROM revlog WHERE cid = ?")
             .unwrap();
         stmt.query_map([id], |row| {
-            let date: AnkiCID = row.get::<usize, AnkiCID>(0).unwrap() / 1000; // millisec -> sec
+            let date: AnkiCID = std::time::Duration::from_millis(row.get::<usize, u64>(0).unwrap()); // millisec -> sec
             let grade: RecallGrade = match row.get::<usize, NoteID>(1).unwrap() {
                 1 => RecallGrade::Failed,
                 2 | 3 => RecallGrade::Decent,
@@ -589,7 +590,8 @@ impl Template {
                 .prepare("SELECT id, nid, ord, ivl, reps FROM cards")
                 .unwrap();
             stmt.query_map([], |row| {
-                let card_id: AnkiCID = row.get::<usize, AnkiCID>(0).unwrap();
+                let card_id: AnkiCID =
+                    std::time::Duration::from_secs(row.get::<usize, u64>(0).unwrap());
                 let note_id: NoteID = row.get::<usize, NoteID>(1).unwrap();
                 let template_ord: usize = row.get::<usize, usize>(2).unwrap();
                 let interval: i32 = row.get::<usize, i32>(3).unwrap();
@@ -623,6 +625,7 @@ impl Template {
             .query_row("select models from col", [], |row| row.get(0))
             .unwrap();
 
+        dbg!(&rawmodel);
         let jsonmodels: serde_json::Value = serde_json::from_str(&rawmodel).unwrap();
         let mut models = Vec::<Model>::new();
         let mut model_ids = Vec::<ModelID>::new();

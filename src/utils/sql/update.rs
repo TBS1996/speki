@@ -6,7 +6,7 @@ use rand::prelude::*;
 use rusqlite::{params, Connection, Result, ToSql};
 use std::fmt::Display;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub fn update_card<T, U, V, IDVec>(
     conn: &Arc<Mutex<Connection>>,
@@ -53,8 +53,15 @@ pub fn update_strength(conn: &Arc<Mutex<Connection>>, id: CardID, strength: f32)
     update_card(conn, "finished_cards", "strength", strength, [id]).unwrap()
 }
 
-pub fn set_stability(conn: &Arc<Mutex<Connection>>, id: CardID, stability: f32) {
-    update_card(conn, "finished_cards", "stability", stability, [id]).unwrap()
+pub fn set_stability(conn: &Arc<Mutex<Connection>>, id: CardID, stability: Duration) {
+    update_card(
+        conn,
+        "finished_cards",
+        "stability",
+        stability.as_secs_f64() / 86400.,
+        [id],
+    )
+    .unwrap()
 }
 
 pub fn update_position(conn: &Arc<Mutex<Connection>>, id: CardID, position: u32) {

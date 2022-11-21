@@ -9,7 +9,6 @@ use crate::widgets::textinput::Field;
 use crate::widgets::topics::TopicList;
 use crate::{MyKey, MyType};
 use rusqlite::Connection;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tui::layout::Rect;
 use tui::Frame;
 
@@ -45,10 +44,7 @@ pub struct Review {
 
 impl Review {
     pub fn from(grade: &RecallGrade) -> Review {
-        let unix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let unix = get_current_unix();
 
         Review {
             grade: grade.clone(),
@@ -108,7 +104,7 @@ impl Default for FinishedInfo {
 
 #[derive(Clone, Debug)]
 pub struct UnfinishedInfo {
-    pub skiptime: u32,
+    pub skiptime: UnixTime,
     pub skipduration: u32,
 }
 

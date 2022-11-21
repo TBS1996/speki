@@ -1,5 +1,6 @@
 use super::aliases::*;
 use super::card::{Card, CardTypeData, FinishedInfo};
+use super::misc::days_until_unix;
 use super::sql::fetch::{get_incread, load_extracts, CardQuery};
 use super::sql::insert::new_incread;
 use super::statelist::KeyHandler;
@@ -48,10 +49,10 @@ pub enum IncStatus {
 impl IncStatus {
     pub fn new_from_row(row: &rusqlite::Row<'_>) -> IncStatus {
         match row.get(4).unwrap() {
-            1 => IncStatus::Done,
-            0 => IncStatus::Active(IncActive {
-                interval: row.get(5).unwrap(),
-                timestamp: row.get(6).unwrap(),
+            0 => IncStatus::Done,
+            1 => IncStatus::Active(IncActive {
+                interval: row.get(6).unwrap(),
+                timestamp: std::time::Duration::from_secs(row.get::<usize, u64>(5).unwrap()),
             }),
             _ => panic!(),
         }
@@ -189,6 +190,20 @@ impl<'a> IncView<'a> {
 
             _ => {}
         }
+        self.update_info();
+    }
+
+    pub fn update_info(&mut self) {
+        let text = match &self.text.status {
+            IncStatus::Done => "This text is complete".to_string(),
+            IncStatus::Active(val) => {
+                format!(
+                    "Text is active! Interval is {}, next review is in some days",
+                    val.interval,
+                )
+            }
+        };
+        self.info.change_text(text);
     }
 
     pub fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {

@@ -77,7 +77,7 @@ use hyper_tls::HttpsConnector;
 use serde_derive::{Deserialize, Serialize};
 
 use super::{
-    aliases::{CardID, Pos},
+    aliases::{CardID, Pos, UnixTime},
     sql::fetch::fetch_card,
     statelist::StatefulList,
 };
@@ -233,18 +233,8 @@ impl SpekiPaths {
 
 */
 
-pub fn get_current_unix() -> u32 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as u32
-}
-
-pub fn get_current_unix_millis() -> u32 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u32
+pub fn get_current_unix() -> UnixTime {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
 }
 
 pub fn new_mod(num: i64) -> u32 {
@@ -256,7 +246,7 @@ pub fn new_mod(num: i64) -> u32 {
 }
 
 pub fn get_rgb(val: u32) -> (u8, u8, u8) {
-    let unix = get_current_unix() as i64;
+    let unix = get_current_unix().as_secs() as i64;
     let val = val as i64;
     let r = new_mod(val | unix) as u8;
     let g = new_mod(val ^ unix) as u8;
@@ -374,4 +364,10 @@ pub fn draw_paragraph(
         .alignment(alignment)
         .wrap(Wrap { trim: true });
     f.render_widget(paragraph, area);
+}
+
+pub fn days_until_unix(unix: UnixTime) -> i32 {
+    let current = get_current_unix();
+    let sec_diff = unix - current;
+    sec_diff.as_secs() as i32 / 86400
 }

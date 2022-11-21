@@ -34,7 +34,7 @@ impl<'a> Tab for TextEditor<'a> {
 
     fn set_selection(&mut self, area: tui::layout::Rect) {
         let leftright = split_leftright_by_percent([75, 25], area);
-        let rightcol = split_updown_by_percent([10, 30, 30, 30], leftright[1]);
+        let rightcol = split_updown_by_percent([20, 25, 25, 30], leftright[1]);
 
         self.tabdata.view.areas.push(leftright[0]);
         self.tabdata.view.areas.push(rightcol[0]);
@@ -43,7 +43,7 @@ impl<'a> Tab for TextEditor<'a> {
         self.tabdata.view.areas.push(rightcol[3]);
 
         self.incview.text.source.set_area(leftright[0]);
-        self.incview.parent.set_area(rightcol[0]);
+        self.incview.info.set_area(rightcol[0]);
         self.incview.topics.set_area(rightcol[1]);
         self.incview.extracts.set_area(rightcol[2]);
         self.incview.clozes.set_area(rightcol[3]);

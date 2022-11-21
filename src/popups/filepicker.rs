@@ -55,6 +55,7 @@ pub struct FilePicker<'a> {
     description: InfoBox<'a>,
     purpose: FilePickerPurpose,
     navbar: InfoBox<'a>,
+    show_hidden_files: bool,
 }
 
 impl<'a> FilePicker<'a> {
@@ -78,6 +79,7 @@ impl<'a> FilePicker<'a> {
             description,
             purpose,
             navbar,
+            show_hidden_files: false,
         };
         me.newdir(path);
         me

@@ -7,7 +7,7 @@ use crate::widgets::topics::Topic;
 use rusqlite::{Connection, Result, Row};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 enum CardFilter {
     Suspended(bool),
@@ -361,7 +361,7 @@ pub fn get_history(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<Vec<Review>
         .query_map([id], |row| {
             vecofrows.push(Review {
                 grade: RecallGrade::from(row.get(2)?).unwrap(),
-                date: row.get(0)?,
+                date: std::time::Duration::from_secs(row.get(0)?),
                 answertime: row.get(3)?,
             });
             Ok(())
@@ -636,13 +636,17 @@ pub fn get_skiptime(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<u32> {
     )
 }
 
-pub fn get_stability(conn: &Arc<Mutex<Connection>>, id: CardID) -> f32 {
+pub fn get_stability(conn: &Arc<Mutex<Connection>>, id: CardID) -> Duration {
     conn.lock()
         .unwrap()
         .query_row(
             "select stability FROM finished_cards WHERE id=?",
             [id],
-            |row| row.get(0),
+            |row| {
+                Ok(Duration::from_secs_f64(
+                    row.get::<usize, f64>(0).unwrap() * 86400.,
+                ))
+            },
         )
         .expect(&format!(
             "Couldn't find stability of card with following id: {}",

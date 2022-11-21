@@ -12,7 +12,7 @@ use crate::MyKey;
 use crate::MyType;
 
 use crate::utils::aliases::*;
-use crate::utils::area::split_updown_by_percent;
+use crate::utils::area::take_upper_area;
 use crate::utils::sql::fetch::load_inc_items;
 use crate::utils::sql::insert::new_incread;
 use crate::utils::statelist::StatefulList;
@@ -60,15 +60,15 @@ impl<'a> crate::app::Tab for MainInc<'a> {
     }
 
     fn set_selection(&mut self, area: Rect) {
-        let leftright = split_leftright_by_percent([25, 75], area);
-        let left = split_updown_by_percent([20, 80], leftright[0]);
+        let mut leftright = split_leftright_by_percent([25, 75], area);
+        let button = take_upper_area(&mut leftright[0], 4);
 
         self.tabdata.view.areas.push(leftright[1]);
-        self.tabdata.view.areas.push(left[0]);
-        self.tabdata.view.areas.push(left[1]);
+        self.tabdata.view.areas.push(button);
+        self.tabdata.view.areas.push(leftright[0]);
 
-        self.import_button.set_area(left[0]);
-        self.topics.set_area(left[1]);
+        self.import_button.set_area(button);
+        self.topics.set_area(leftright[0]);
         self.inclist.set_area(leftright[1]);
     }
 

@@ -78,7 +78,7 @@ pub fn save_card(conn: &Arc<Mutex<Connection>>, card: Card) -> CardID {
                 .unwrap()
                 .execute(
                     "INSERT INTO unfinished_cards (id, skiptime, skipduration) VALUES (?1, ?2, ?3)",
-                    params![id, unf.skiptime, unf.skipduration],
+                    params![id, unf.skiptime.as_secs(), unf.skipduration],
                 )
                 .unwrap();
         }
@@ -108,7 +108,7 @@ pub fn revlog_new(conn: &Arc<Mutex<Connection>>, card_id: u32, review: &Review) 
     conn.lock().unwrap().execute(
         "INSERT INTO revlog (unix, cid, grade, qtime, atime) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
-            review.date,
+            review.date.as_secs(),
             card_id,
             review.grade.clone() as u32,
             review.answertime,
@@ -136,7 +136,7 @@ pub fn new_incread(
     let now = get_current_unix();
     conn.lock().unwrap().execute(
         "INSERT INTO incread (parent, topic, source, active, skiptime, skipduration, row, column) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![parent, topic, source, isactive, now, 1.0, 0, 0],
+        params![parent, topic, source, isactive, now.as_secs(), 1.0, 0, 0],
     ).unwrap();
     conn.lock().unwrap().last_insert_rowid() as TopicID
 }

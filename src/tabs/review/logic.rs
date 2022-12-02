@@ -414,11 +414,9 @@ impl<'a> Tab for MainReview<'a> {
                     unf.cardview.save_state(&appdata.conn);
                     self.random_mode(appdata);
                 }
-                key if unf.cardview.question.is_selected(cursor) => {
-                    unf.cardview.question.keyhandler(appdata, key)
-                }
-                key if unf.cardview.answer.is_selected(cursor) => {
-                    unf.cardview.answer.keyhandler(appdata, key)
+                key if unf.cardview.is_selected(cursor) => {
+                    unf.cardview
+                        .keyhandler(appdata, &mut self.tabdata, cursor, key);
                 }
                 _ => {}
             },

@@ -1,4 +1,5 @@
 use crate::popups::edit_card::Editor;
+use crate::popups::edit_text::TextEditor;
 use crate::popups::find_card::{CardPurpose, FindCardWidget};
 use crate::popups::newchild::{AddChildWidget, Purpose};
 use crate::utils::sql::fetch::fetch_card;
@@ -413,6 +414,16 @@ impl<'a> CardView<'a> {
                 if let Some(idx) = self.dependencies.state.selected() {
                     let id = self.dependencies.items[idx].id;
                     let editor = Editor::new(appdata, id);
+                    tabdata.popup = Some(Box::new(editor));
+                }
+            }
+            MyKey::Alt('c') => {
+                if let Some(ref card) = self.card {
+                    let source = card.source;
+                    if source == 0 {
+                        return;
+                    }
+                    let editor = TextEditor::new(appdata, source);
                     tabdata.popup = Some(Box::new(editor));
                 }
             }

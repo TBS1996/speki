@@ -1,3 +1,4 @@
+use super::fetch::cards::{get_inc_skipduration, get_skipduration};
 use super::fetch::*;
 use crate::utils::aliases::*;
 use crate::utils::card::CardType;
@@ -140,7 +141,7 @@ pub fn double_skip_duration(conn: &Arc<Mutex<Connection>>, id: CardID) {
     let mut rng = rand::thread_rng();
     let mut y: f64 = rng.gen();
     y += 0.5; // y is now between 0.5 and 1.5
-    let skipduration = get_skipduration(conn, id).unwrap();
+    let skipduration = get_skipduration(conn, id);
     let new_skipduration = std::cmp::max((skipduration as f64 * y * 2.0) as u32, 2);
     update_card(
         conn,
@@ -165,7 +166,7 @@ pub fn double_inc_skip_duration(conn: &Arc<Mutex<Connection>>, id: IncID) -> Res
     let mut rng = rand::thread_rng();
     let mut y: f64 = rng.gen();
     y += 0.5; // y is now between 0.5 and 1.5
-    let skipduration = get_inc_skipduration(conn, id).unwrap();
+    let skipduration = get_inc_skipduration(conn, id);
     let new_skipduration = std::cmp::max((skipduration as f64 * y * 2.0) as u32, 2);
     conn.lock()
         .unwrap()

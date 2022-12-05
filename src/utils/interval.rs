@@ -1,7 +1,7 @@
 use crate::utils::{
     card::{RecallGrade, Review},
     sql::{
-        fetch::{get_history, get_stability},
+        fetch::cards::{get_history, get_stability},
         update::update_strength,
     },
 };

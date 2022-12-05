@@ -2,7 +2,7 @@ use crate::popups::edit_card::Editor;
 use crate::popups::edit_text::TextEditor;
 use crate::popups::find_card::{CardPurpose, FindCardWidget};
 use crate::popups::newchild::{AddChildWidget, Purpose};
-use crate::utils::sql::fetch::fetch_card;
+use crate::utils::sql::fetch::cards::fetch_card;
 use crate::utils::sql::update::update_topic;
 use crate::widgets::button::Button;
 use crate::widgets::cardrater::CardRater;
@@ -293,7 +293,7 @@ impl Card {
 
 use super::misc::{get_current_unix, get_gpt3_response};
 use super::sql::delete::{remove_pending, remove_unfinished};
-use super::sql::fetch::fetch_question;
+use super::sql::fetch::cards::fetch_question;
 use super::sql::insert::new_finished;
 use super::sql::insert::revlog_new;
 use super::sql::update::{update_card_answer, update_card_question};
@@ -406,14 +406,14 @@ impl<'a> CardView<'a> {
             MyKey::Char('e') | MyKey::Enter if self.dependents.is_selected(cursor) => {
                 if let Some(idx) = self.dependents.state.selected() {
                     let id = self.dependents.items[idx].id;
-                    let editor = Editor::new(appdata, id);
+                    let editor = Editor::new(appdata, vec![id]);
                     tabdata.popup = Some(Box::new(editor));
                 }
             }
             MyKey::Char('e') | MyKey::Enter if self.dependencies.is_selected(cursor) => {
                 if let Some(idx) = self.dependencies.state.selected() {
                     let id = self.dependencies.items[idx].id;
-                    let editor = Editor::new(appdata, id);
+                    let editor = Editor::new(appdata, vec![id]);
                     tabdata.popup = Some(Box::new(editor));
                 }
             }

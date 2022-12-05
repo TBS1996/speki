@@ -5,7 +5,7 @@ use crate::{
     utils::{
         aliases::{CardID, Pos},
         card::{Card, CardView},
-        sql::fetch::is_resolved,
+        sql::fetch::cards::is_resolved,
     },
     MyType,
 };

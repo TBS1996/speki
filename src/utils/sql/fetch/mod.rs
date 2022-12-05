@@ -1,13 +1,18 @@
 use crate::utils::aliases::*;
 use crate::utils::ankitemplate::MediaContents;
 use crate::utils::card::{
-    Card, CardTypeData, FinishedInfo, PendingInfo, RecallGrade, Review, UnfinishedInfo,
+    Card, CardType, CardTypeData, FinishedInfo, PendingInfo, RecallGrade, Review, UnfinishedInfo,
 }; //, Topic, Review}
 use crate::widgets::topics::Topic;
-use rusqlite::{Connection, Result, Row};
+use rusqlite::{Connection, Result, Row, Rows};
+use std::iter::Rev;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use color_eyre::eyre::Result as PrettyResult;
+
+pub mod cards;
 
 enum CardFilter {
     Suspended(bool),
@@ -28,7 +33,7 @@ enum CardFilter {
     DueUnfinished,
 }
 
-use std::fmt;
+use std::fmt::{self, Display};
 impl fmt::Display for CardFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use CardFilter::*;
@@ -256,59 +261,6 @@ impl CardQuery {
     }
 }
 
-fn fill_card_vec(cardvec: &mut Vec<Card>, conn: &Arc<Mutex<Connection>>) {
-    for i in 0..cardvec.len() {
-        let id = cardvec[i].id;
-        cardvec[i].dependencies = get_dependencies(conn, id).unwrap();
-        cardvec[i].dependents = get_dependents(conn, id).unwrap();
-        cardvec[i].history = get_history(conn, id).unwrap();
-    }
-}
-
-#[derive(Clone)]
-pub struct DepPair {
-    dependent: u32,
-    dependency: u32,
-}
-
-pub fn prev_id(conn: &Arc<Mutex<Connection>>) -> Result<u32> {
-    Ok(conn.lock().unwrap().last_insert_rowid() as u32)
-}
-
-pub fn fetch_question(conn: &Arc<Mutex<Connection>>, cid: CardID) -> String {
-    fetch_card(conn, cid).question
-}
-
-pub fn get_topic_of_card(conn: &Arc<Mutex<Connection>>, cid: CardID) -> TopicID {
-    fetch_card(conn, cid).topic
-}
-
-pub fn fill_dependencies(conn: &Arc<Mutex<Connection>>, mut card: Card) -> Card {
-    card.dependents = get_dependents(conn, card.id).unwrap();
-    card.dependencies = get_dependencies(conn, card.id).unwrap();
-    card
-}
-
-pub fn fetch_card(conn: &Arc<Mutex<Connection>>, cid: u32) -> Card {
-    let card = conn
-        .lock()
-        .unwrap()
-        .query_row("SELECT * FROM cards WHERE id=?", [cid], |row| {
-            Ok(row2card(row))
-        })
-        .expect(&format!("Failed to query following card: {}", cid));
-    fill_dependencies(conn, card)
-}
-
-pub fn get_pending_qty(conn: &Arc<Mutex<Connection>>) -> u32 {
-    conn.lock()
-        .unwrap()
-        .query_row("SELECT COUNT(*) FROM pending_cards", [], |row| {
-            Ok(row.get(0).unwrap())
-        })
-        .unwrap()
-}
-
 pub fn is_table_empty(conn: &Arc<Mutex<Connection>>, table_name: String) -> bool {
     let query = format!("SELECT EXISTS (SELECT 1 FROM {})", table_name);
     conn.lock()
@@ -318,21 +270,7 @@ pub fn is_table_empty(conn: &Arc<Mutex<Connection>>, table_name: String) -> bool
         == 0
 }
 
-pub fn get_highest_pos(conn: &Arc<Mutex<Connection>>) -> Option<u32> {
-    if is_table_empty(conn, "pending_cards".to_string()) {
-        return None;
-    }
-    let highest = conn
-        .lock()
-        .unwrap()
-        .query_row("SELECT MAX(position) FROM pending_cards", [], |row| {
-            Ok(row.get(0).unwrap())
-        })
-        .unwrap();
-    Some(highest)
-}
-
-pub fn get_topics(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Topic>> {
+pub fn get_topics(conn: &Arc<Mutex<Connection>>) -> PrettyResult<Vec<Topic>> {
     let mut vecoftops = Vec::<Topic>::new();
     conn.lock()
         .unwrap()
@@ -353,131 +291,6 @@ pub fn get_topics(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Topic>> {
     Ok(vecoftops)
 }
 
-pub fn get_history(conn: &Arc<Mutex<Connection>>, id: u32) -> Result<Vec<Review>> {
-    let mut vecofrows = Vec::<Review>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT * FROM revlog WHERE cid = ? ORDER BY unix ASC")?
-        .query_map([id], |row| {
-            vecofrows.push(Review {
-                grade: RecallGrade::from(row.get(2)?).unwrap(),
-                date: std::time::Duration::from_secs(row.get(0)?),
-                answertime: row.get(3)?,
-            });
-            Ok(())
-        })?
-        .for_each(|_| {});
-    Ok(vecofrows)
-}
-
-// pub fn row2card(conn: &Arc<Mutex<Connection>>, row: &Row) -> Result<Card>{
-
-pub fn row2card(row: &Row) -> Card {
-    let cardtype = match row.get::<usize, u32>(7).unwrap() {
-        0 => CardTypeData::Pending(PendingInfo::default()),
-        1 => CardTypeData::Unfinished(UnfinishedInfo::default()),
-        2 => CardTypeData::Finished(FinishedInfo::default()),
-        _ => panic!(),
-    };
-    let id = row.get(0).unwrap();
-
-    let frontaudio: Option<String> = row.get(3).unwrap();
-    let backaudio: Option<String> = row.get(4).unwrap();
-    let frontimage: Option<String> = row.get(5).unwrap();
-    let backimage: Option<String> = row.get(6).unwrap();
-
-    let frontaudio: Option<PathBuf> = frontaudio.map(|x| PathBuf::from(x));
-    let backaudio: Option<PathBuf> = backaudio.map(|x| PathBuf::from(x));
-    let frontimage: Option<PathBuf> = frontimage.map(|x| PathBuf::from(x));
-    let backimage: Option<PathBuf> = backimage.map(|x| PathBuf::from(x));
-
-    //  let dependencies = get_dependencies(conn, id).unwrap();
-    //  let dependents = get_depndents(conn, id).unwrap();
-    Card {
-        id,
-        question: row.get(1).unwrap(),
-        answer: row.get(2).unwrap(),
-        frontaudio,
-        backaudio,
-        frontimage,
-        backimage,
-        cardtype,
-        suspended: row.get(8).unwrap(),
-        resolved: row.get(9).unwrap(),
-        dependents: Vec::new(),
-        dependencies: Vec::new(),
-        history: Vec::new(),
-        topic: row.get(10).unwrap(),
-        source: row.get(11).unwrap(),
-    }
-}
-
-pub fn load_cards(conn: &Arc<Mutex<Connection>>) -> Result<Vec<Card>> {
-    let mut cardvec = Vec::<Card>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT * FROM cards")?
-        .query_map([], |row| {
-            cardvec.push(row2card(row));
-            Ok(())
-        })?
-        .for_each(|_| {});
-    for i in 0..cardvec.len() {
-        let id = cardvec[i].id;
-        cardvec[i].dependencies = get_dependencies(conn, id).unwrap();
-        cardvec[i].dependents = get_dependents(conn, id).unwrap();
-        cardvec[i].history = get_history(conn, id).unwrap();
-    }
-
-    Ok(cardvec)
-}
-
-pub fn load_card_matches(conn: &Arc<Mutex<Connection>>, search: &str) -> Result<Vec<Card>> {
-    let mut cardvec = Vec::<Card>::new();
-    conn
-        .lock()
-        .unwrap()
-        .prepare("SELECT * FROM cards WHERE (question LIKE '%' || ?1 || '%') OR (answer LIKE '%' || ?1 || '%') LIMIT 50")?
-        .query_map([search], |row| {
-            cardvec.push(row2card(row));
-            Ok(())
-        })?.for_each(|_|{});
-    for i in 0..cardvec.len() {
-        let id = cardvec[i].id;
-        cardvec[i].dependencies = get_dependencies(conn, id).unwrap();
-        cardvec[i].dependents = get_dependents(conn, id).unwrap();
-    }
-    Ok(cardvec)
-}
-
-pub fn get_dependents(conn: &Arc<Mutex<Connection>>, dependency: u32) -> Result<Vec<u32>> {
-    let mut depvec = Vec::<CardID>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT dependent FROM dependencies where dependency = ?")?
-        .query_map([dependency], |row| {
-            depvec.push(row.get(0).unwrap());
-            Ok(())
-        })?
-        .for_each(|_| {});
-    Ok(depvec)
-}
-
-pub fn get_dependencies(conn: &Arc<Mutex<Connection>>, dependent: CardID) -> Result<Vec<CardID>> {
-    let mut depvec = Vec::<CardID>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT dependency FROM dependencies where dependent = ?")?
-        .query_map([dependent], |row| {
-            depvec.push(row.get(0).unwrap());
-            Ok(())
-        })?
-        .for_each(|_| {});
-    Ok(depvec)
-}
-
-use crate::utils::card::CardType;
-
 use crate::utils::incread::{IncRead, IncStatus};
 use crate::widgets::textinput::Field;
 
@@ -486,16 +299,6 @@ struct IncTemp {
     topic: u32,
     source: String,
     isactive: bool,
-}
-
-pub fn fetch_media(conn: &Arc<Mutex<Connection>>, id: CardID) -> MediaContents {
-    let card = fetch_card(conn, id);
-    MediaContents {
-        frontaudio: card.frontaudio,
-        backaudio: card.backaudio,
-        frontimage: card.frontimage,
-        backimage: card.backimage,
-    }
 }
 
 // -------------------------------------------------------------- //
@@ -528,7 +331,10 @@ pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> IncRead {
 
 use crate::utils::incread::IncListItem;
 
-pub fn load_inc_items(conn: &Arc<Mutex<Connection>>, topic: TopicID) -> Result<Vec<IncListItem>> {
+pub fn load_inc_items(
+    conn: &Arc<Mutex<Connection>>,
+    topic: TopicID,
+) -> PrettyResult<Vec<IncListItem>> {
     let mut incvec = Vec::<IncListItem>::new();
     conn.lock()
         .unwrap()
@@ -545,7 +351,10 @@ pub fn load_inc_items(conn: &Arc<Mutex<Connection>>, topic: TopicID) -> Result<V
     Ok(incvec)
 }
 
-pub fn load_extracts(conn: &Arc<Mutex<Connection>>, parent: IncID) -> Result<Vec<IncListItem>> {
+pub fn load_extracts(
+    conn: &Arc<Mutex<Connection>>,
+    parent: IncID,
+) -> PrettyResult<Vec<IncListItem>> {
     let mut incvec = Vec::<IncListItem>::new();
     conn.lock()
         .unwrap()
@@ -583,6 +392,8 @@ pub fn load_active_inc(conn: &Arc<Mutex<Connection>>) -> Result<Vec<IncID>> {
 }
 
 use crate::utils::card::CardItem;
+
+use self::cards::{fill_card_vec, row2card};
 pub fn load_inc_text(conn: &Arc<Mutex<Connection>>, id: IncID) -> Result<String> {
     conn.lock()
         .unwrap()
@@ -612,93 +423,277 @@ pub fn get_topic_of_inc(conn: &Arc<Mutex<Connection>>, id: IncID) -> Result<Topi
         .query_row([id], |row| Ok(row.get(0).unwrap()))
 }
 
-pub fn get_skipduration(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<u32> {
-    conn.lock().unwrap().query_row(
-        "select skipduration FROM unfinished_cards WHERE id=?",
-        [id],
-        |row| row.get(0),
-    )
+enum Table {
+    Cards,
+    Dependencies,
+    FinishedCards,
+    IncRead,
+    PendingCards,
+    Revlog,
+    Topics,
+    UnfinishedCards,
 }
 
-pub fn get_inc_skipduration(conn: &Arc<Mutex<Connection>>, id: IncID) -> Result<u32> {
-    conn.lock()
-        .unwrap()
-        .query_row("select skipduration FROM incread WHERE id=?", [id], |row| {
-            row.get(0)
-        })
-}
-
-pub fn get_skiptime(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<u32> {
-    conn.lock().unwrap().query_row(
-        "select skiptime FROM unfinished_cards WHERE id=?",
-        [id],
-        |row| row.get(0),
-    )
-}
-
-pub fn get_stability(conn: &Arc<Mutex<Connection>>, id: CardID) -> Duration {
-    conn.lock()
-        .unwrap()
-        .query_row(
-            "select stability FROM finished_cards WHERE id=?",
-            [id],
-            |row| {
-                Ok(Duration::from_secs_f64(
-                    row.get::<usize, f64>(0).unwrap() * 86400.,
-                ))
-            },
-        )
-        .expect(&format!(
-            "Couldn't find stability of card with following id: {}",
-            id
-        ))
-}
-
-pub fn get_strength(conn: &Arc<Mutex<Connection>>, id: CardID) -> Result<f32> {
-    conn.lock().unwrap().query_row(
-        "select strength FROM finished_cards WHERE id=?",
-        [id],
-        |row| row.get(0),
-    )
-}
-
-pub fn is_resolved(conn: &Arc<Mutex<Connection>>, id: CardID) -> bool {
-    conn.lock()
-        .unwrap()
-        .query_row("select resolved FROM cards WHERE id=?", [id], |row| {
-            row.get(0)
-        })
-        .unwrap()
-}
-
-//use crate::utils::card::CardType;
-pub fn get_cardtype(conn: &Arc<Mutex<Connection>>, id: CardID) -> CardType {
-    match conn
-        .lock()
-        .unwrap()
-        .query_row("select cardtype FROM cards WHERE id=?", [id], |row| {
-            row.get::<usize, usize>(0)
-        })
-        .unwrap()
-    {
-        0 => CardType::Pending,
-        1 => CardType::Unfinished,
-        2 => CardType::Finished,
-        _ => panic!(),
+impl Display for Table {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Cards => "cards",
+            Self::Dependencies => "dependencies",
+            Self::FinishedCards => "finished_cards",
+            Self::IncRead => "incread",
+            Self::PendingCards => "pending_cards",
+            Self::Revlog => "revlog",
+            Self::Topics => "topics",
+            Self::UnfinishedCards => "unfinished_cards",
+        };
+        write!(f, "{}", s)
     }
 }
 
-pub fn is_pending(conn: &Arc<Mutex<Connection>>, id: CardID) -> bool {
-    CardType::Pending == get_cardtype(conn, id)
+enum CardsCols {
+    Id,
+    Question,
+    Answer,
+    FrontAudio,
+    BackAudio,
+    FrontImg,
+    BackImg,
+    CardType,
+    Suspended,
+    Resolved,
+    Topic,
+    Source,
 }
 
-pub struct PendingItem {
-    pub id: CardID,
-    pub pos: u32,
+impl Display for CardsCols {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Id => "id",
+            Self::Question => "question",
+            Self::Answer => "answer",
+            Self::FrontAudio => "frontaudio",
+            Self::BackAudio => "backaudio",
+            Self::FrontImg => "frontimg",
+            Self::BackImg => "backimg",
+            Self::CardType => "cardtype",
+            Self::Suspended => "suspended",
+            Self::Resolved => "resolved",
+            Self::Topic => "topic",
+            Self::Source => "source",
+        };
+        write!(f, "{}", s)
+    }
 }
 
-pub fn get_pending(conn: &Arc<Mutex<Connection>>) -> Vec<PendingItem> {
-    let mut cardvec = Vec::<PendingItem>::new();
+enum DependenciesCols {
+    Dependent,
+    Dependency,
+}
+
+impl Display for DependenciesCols {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Dependent => "dependent",
+            Self::Dependency => "dependency",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+enum FinishedCardsCols {
+    Id,
+    Strength,
+    Stability,
+}
+
+impl Display for FinishedCardsCols {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Id => "id",
+            Self::Strength => "strength",
+            Self::Stability => "stability",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+enum IncReadCols {
+    Id,
+    Parent,
+    Topic,
+    Source,
+    Active,
+    SkipTime,
+    SkipDuration,
+    Row,
+    Column,
+}
+
+impl Display for IncReadCols {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Id => "id",
+            Self::Parent => "parent",
+            Self::Topic => "topic",
+            Self::Source => "source",
+            Self::Active => "active",
+            Self::SkipTime => "skiptime",
+            Self::SkipDuration => "skipduration",
+            Self::Row => "row",
+            Self::Column => "column",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+enum PendingCardsCols {
+    Id,
+    Position,
+}
+
+impl Display for PendingCardsCols {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Id => "id",
+            Self::Position => "position",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+enum RevlogCols {
+    Unix,
+    Cid,
+    Grade,
+    Qtime,
+    Atime,
+}
+
+impl Display for RevlogCols {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Unix => "unix",
+            Self::Cid => "cid",
+            Self::Grade => "grade",
+            Self::Qtime => "qtime",
+            Self::Atime => "atime",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+enum TopicCols {
+    Id,
+    Name,
+    Parent,
+    Relpos,
+}
+
+impl Display for TopicCols {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Id => "id",
+            Self::Name => "name",
+            Self::Parent => "parent",
+            Self::Relpos => "relpos",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+enum UnfinishedCardsCols {
+    Id,
+    Skiptime,
+    Skipduration,
+}
+
+impl Display for UnfinishedCardsCols {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Id => "id",
+            Self::Skiptime => "skiptime",
+            Self::Skipduration => "skipduration",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+enum DBCol {
+    Cards(CardsCols),
+    Dependencies(DependenciesCols),
+    FinishedCards(FinishedCardsCols),
+    Incread(IncReadCols),
+    PendingCards(PendingCardsCols),
+    Revlog(RevlogCols),
+    Topic(TopicCols),
+    UnfinishedCards(UnfinishedCardsCols),
+}
+
+impl Display for DBCol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Cards(val) => val.to_string(),
+            Self::Dependencies(val) => val.to_string(),
+            Self::FinishedCards(val) => val.to_string(),
+            Self::Incread(val) => val.to_string(),
+            Self::PendingCards(val) => val.to_string(),
+            Self::Revlog(val) => val.to_string(),
+            Self::Topic(val) => val.to_string(),
+            Self::UnfinishedCards(val) => val.to_string(),
+        };
+        write!(f, "{}", s)
+    }
+}
+
+enum SqlOperator {
+    Equal,
+    GreaterThan,
+    LessThan,
+}
+
+impl Display for SqlOperator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Equal => "=",
+            Self::GreaterThan => ">",
+            Self::LessThan => "<",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+struct Matcher<T: Display> {
+    column: DBCol,
+    operator: SqlOperator,
+    value: T,
+}
+
+impl<T: Display> Display for Matcher<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {} {}", self.column, self.operator, self.value)
+    }
+}
+
+/*
+fn fetch_rows<T, U, V>(conn: Conn, table: Table, columns: T, matcher: U) -> Vec<Rows>
+where
+    T: Into<Vec<DBCol>>,
+    U: Into<Vec<Matcher<V>>>,
+    V: Display,
+{
+    let columns = columns.into();
+    let matcher = matcher.into();
+
+    let cols = if columns.is_empty() {
+        "*".to_string()
+    } else {
+        let mut foo = String::new();
+        for col in columns.iter().peekable() {
+            foo.push_str(&format!("{}, ", col));
+        }
+        foo
+    };
+
     conn.lock()
         .unwrap()
         .prepare("Select * from pending_cards ORDER BY position ASC")
@@ -712,6 +707,31 @@ pub fn get_pending(conn: &Arc<Mutex<Connection>>) -> Vec<PendingItem> {
         })
         .unwrap()
         .for_each(|_| {}); // this is just to make the iterator execute, feels clumsy so let me
-                           // know if there's a better way
-    cardvec
+}
+
+*/
+
+pub fn fetch_items<F, T>(conn: Conn, statement: String, mut genfun: F) -> PrettyResult<Vec<T>>
+where
+    F: FnMut(&Row) -> T,
+{
+    let mut vec = Vec::<T>::new();
+    conn.lock()
+        .unwrap()
+        .prepare(&statement)?
+        .query_map([], |row| {
+            vec.push(genfun(row));
+            Ok(())
+        })?
+        .for_each(|_| {});
+
+    Ok(vec)
+}
+
+pub fn fetch_item<F, T>(conn: Conn, statement: String, genfun: F) -> PrettyResult<T>
+where
+    F: FnMut(&Row) -> Result<T>,
+{
+    let res = conn.lock().unwrap().query_row(&statement, [], genfun)?;
+    Ok(res)
 }

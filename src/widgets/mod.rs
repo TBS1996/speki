@@ -7,6 +7,7 @@ pub mod optional_bool_filter;
 pub mod progress_bar;
 //pub mod radiomenu;
 //pub mod optionlist;
+pub mod cardstatus;
 pub mod checkboxlist;
 pub mod infobox;
 pub mod textinput;

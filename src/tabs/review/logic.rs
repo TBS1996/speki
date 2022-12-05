@@ -14,7 +14,7 @@ use crate::{
         card::{Card, CardType, RecallGrade},
         misc::modecolor,
         sql::{
-            fetch::get_cardtype,
+            fetch::cards::get_cardtype,
             update::{double_inc_skip_duration, double_skip_duration},
         },
     },

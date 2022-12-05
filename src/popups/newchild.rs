@@ -1,6 +1,6 @@
 use crate::app::{AppData, PopUpState, Tab, TabData, Widget};
 use crate::utils::card::{CardTypeData, CardView, FinishedInfo, UnfinishedInfo};
-use crate::utils::sql::fetch::get_topic_of_card;
+use crate::utils::sql::fetch::cards::get_topic_of_card;
 use crate::utils::{aliases::*, card::Card};
 use rusqlite::Connection;
 use tui::{

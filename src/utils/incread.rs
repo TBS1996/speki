@@ -3,10 +3,12 @@ use super::card::{Card, CardTypeData, FinishedInfo};
 use super::misc::days_until_unix;
 use super::sql::fetch::{get_incread, load_extracts, CardQuery};
 use super::sql::insert::new_incread;
+use super::sql::update::update_inc_active;
 use super::statelist::KeyHandler;
 use crate::app::{AppData, TabData, Widget};
 use crate::popups::edit_card::Editor;
 use crate::popups::edit_text::TextEditor;
+use crate::popups::newchild::{AddChildWidget, Purpose};
 use crate::utils::card::CardItem;
 use crate::utils::sql::update::update_inc_text;
 use crate::utils::statelist::StatefulList;
@@ -136,6 +138,43 @@ impl<'a> IncView<'a> {
             info,
         }
     }
+
+    pub fn change_inc(&mut self, appdata: &AppData, id: IncID) {
+        self.save_state(appdata);
+        let inc = get_incread(&appdata.conn, id);
+        self.text = inc;
+
+        self.extracts =
+            StatefulList::with_items("Extracts".to_string(), self.text.extracts.clone());
+        self.clozes = StatefulList::with_items("Clozes".to_string(), self.text.clozes.clone());
+    }
+
+    pub fn prev_sibling(&mut self, appdata: &AppData) {
+        let parent = self.text.parent;
+        let incs = load_extracts(&appdata.conn, parent).unwrap();
+        for (idx, inc) in incs.iter().enumerate() {
+            if inc.id == self.text.id {
+                if idx != 0 {
+                    self.change_inc(appdata, incs[idx - 1].id);
+                }
+                return;
+            }
+        }
+    }
+
+    pub fn next_sibling(&mut self, appdata: &AppData) {
+        let parent = self.text.parent;
+        let incs = load_extracts(&appdata.conn, parent).unwrap();
+        for (idx, inc) in incs.iter().enumerate() {
+            if inc.id == self.text.id {
+                if idx != incs.len() - 1 {
+                    self.change_inc(appdata, incs[idx + 1].id);
+                }
+                return;
+            }
+        }
+    }
+
     pub fn save_state(&mut self, appdata: &AppData) {
         self.text.update_text(&appdata.conn);
     }
@@ -148,13 +187,23 @@ impl<'a> IncView<'a> {
         key: MyKey,
     ) {
         match key {
-            MyKey::Enter if self.parent.is_selected(cursor) => {
+            MyKey::Alt('a') => {
+                let tab = AddChildWidget::new(appdata, Purpose::Source(self.text.id));
+                tabdata.popup = Some(Box::new(tab));
+            }
+            MyKey::Alt('d') => {
+                let id = self.text.id;
+                update_inc_active(&appdata.conn, id, false).unwrap();
+            }
+            MyKey::Up if self.info.is_selected(cursor) => {
                 let parent = self.text.parent;
                 if parent != 0 {
                     let inc = TextEditor::new(appdata, parent);
                     tabdata.popup = Some(Box::new(inc));
                 }
             }
+            MyKey::Right if self.info.is_selected(cursor) => self.next_sibling(appdata),
+            MyKey::Left if self.info.is_selected(cursor) => self.prev_sibling(appdata),
             MyKey::Char('e') | MyKey::Enter if self.extracts.is_selected(cursor) => {
                 if let Some(idx) = self.extracts.state.selected() {
                     let id = self.extracts.items[idx].id;
@@ -165,7 +214,7 @@ impl<'a> IncView<'a> {
             MyKey::Char('e') | MyKey::Enter if self.clozes.is_selected(cursor) => {
                 if let Some(idx) = self.clozes.state.selected() {
                     let id = self.clozes.items[idx].id;
-                    tabdata.popup = Some(Box::new(Editor::new(appdata, id)));
+                    tabdata.popup = Some(Box::new(Editor::new(appdata, vec![id])));
                 }
             }
             key if self.clozes.is_selected(cursor) => self.clozes.keyhandler(appdata, key),

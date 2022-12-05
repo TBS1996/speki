@@ -11,7 +11,7 @@ use crate::utils::aliases::*;
 use crate::utils::area::{split_leftright, split_updown_by_percent};
 use crate::utils::card::CardItem;
 use crate::utils::card::CardType;
-use crate::utils::sql::fetch::{get_highest_pos, is_pending, CardQuery};
+use crate::utils::sql::fetch::{cards::get_highest_pos, cards::is_pending, CardQuery};
 use crate::utils::sql::update::{set_suspended, update_position};
 use crate::utils::statelist::KeyHandler;
 use crate::widgets::checkbox::CheckBoxItem;
@@ -338,6 +338,12 @@ impl Browse {
                     self.set_popup(Box::new(cardfinder));
                 }
                 7 => self.save_pending_queue(&appdata.conn),
+                8 => {
+                    let ids: Vec<CardID> =
+                        self.selected.items.clone().iter().map(|x| x.id).collect();
+
+                    self.tabdata.popup = Some(Box::new(Editor::new(appdata, ids)));
+                }
                 _ => return,
             }
             self.apply_filter(&appdata.conn);
@@ -405,14 +411,14 @@ impl Tab for Browse {
             Char('e') if self.selected.is_selected(cursor) => {
                 if let Some(idx) = self.selected.state.selected() {
                     let id = self.selected.items[idx].id;
-                    let editor = Editor::new(appdata, id);
+                    let editor = Editor::new(appdata, vec![id]);
                     self.set_popup(Box::new(editor));
                 }
             }
             Char('e') if self.filtered.is_selected(cursor) => {
                 if let Some(idx) = self.filtered.state.selected() {
                     let id = self.filtered.items[idx].id;
-                    let editor = Editor::new(appdata, id);
+                    let editor = Editor::new(appdata, vec![id]);
                     self.set_popup(Box::new(editor));
                 }
             }
@@ -465,6 +471,7 @@ impl Default for StatefulList<ActionItem> {
             "Add new dependent".to_string(),
             "Add old dependent".to_string(),
             "Save to pending".to_string(),
+            "View cards".to_string(),
         ];
         let items = actions.into_iter().map(ActionItem::new).collect();
         StatefulList::with_items("Actions".to_string(), items)

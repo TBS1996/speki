@@ -78,7 +78,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use super::{
     aliases::{CardID, Pos, UnixTime},
-    sql::fetch::fetch_card,
+    sql::fetch::cards::fetch_card,
     statelist::StatefulList,
 };
 

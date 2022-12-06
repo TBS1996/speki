@@ -15,30 +15,26 @@ use crate::utils::{
 
 use super::{fetch_item, fetch_items, is_table_empty};
 
-pub fn get_history(conn: Conn, id: u32) -> PrettyResult<Vec<Review>> {
-    let mut vecofrows = Vec::<Review>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT * FROM revlog WHERE cid = ? ORDER BY unix ASC")?
-        .query_map([id], |row| {
-            vecofrows.push(Review {
-                grade: RecallGrade::from(row.get(2)?).unwrap(),
-                date: std::time::Duration::from_secs(row.get(0)?),
-                answertime: row.get(3)?,
-            });
-            Ok(())
-        })?
-        .for_each(|_| {});
-    Ok(vecofrows)
+pub fn get_history(conn: Conn, id: u32) -> Vec<Review> {
+    fetch_items(
+        conn,
+        format!("SELECT * FROM revlog WHERE cid={} ORDER BY unix ASC", id),
+        |row| Review {
+            grade: RecallGrade::from(row.get(2).unwrap()).unwrap(),
+            date: std::time::Duration::from_secs(row.get(0).unwrap()),
+            answertime: row.get(3).unwrap(),
+        },
+    )
+    .unwrap()
 }
 
 fn get_pending_position(conn: Conn, id: CardID) -> u32 {
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT position FROM pending_cards where id = ?")
-        .unwrap()
-        .query_row([id], |row| Ok(row.get(0).unwrap()))
-        .unwrap()
+    fetch_item(
+        conn,
+        format!("SELECT position FROM pending_cards WHERE id={}", id),
+        |row| row.get::<usize, u32>(0),
+    )
+    .unwrap()
 }
 
 pub fn get_cardtypedata(row: &Row) -> CardTypeData {
@@ -93,67 +89,56 @@ pub fn row2card(row: &Row) -> Card {
 }
 
 pub fn load_cards(conn: Conn) -> PrettyResult<Vec<Card>> {
-    let mut cardvec = Vec::<Card>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT * FROM cards")?
-        .query_map([], |row| {
-            cardvec.push(row2card(row));
-            Ok(())
-        })?
-        .for_each(|_| {});
+    let mut cardvec =
+        fetch_items(conn, "Select * FROM cards".to_string(), |row| row2card(row)).unwrap();
+
     for i in 0..cardvec.len() {
         let id = cardvec[i].id;
-        cardvec[i].dependencies = get_dependencies(conn, id).unwrap();
-        cardvec[i].dependents = get_dependents(conn, id).unwrap();
-        cardvec[i].history = get_history(conn, id).unwrap();
+        cardvec[i].dependencies = get_dependencies(conn, id);
+        cardvec[i].dependents = get_dependents(conn, id);
+        cardvec[i].history = get_history(conn, id);
     }
 
     Ok(cardvec)
 }
 
 pub fn load_card_matches(conn: Conn, search: &str) -> PrettyResult<Vec<Card>> {
-    let mut cardvec = Vec::<Card>::new();
-    conn
-        .lock()
-        .unwrap()
-        .prepare("SELECT * FROM cards WHERE (question LIKE '%' || ?1 || '%') OR (answer LIKE '%' || ?1 || '%') LIMIT 50")?
-        .query_map([search], |row| {
-            cardvec.push(row2card(row));
-            Ok(())
-        })?.for_each(|_|{});
+    let mut cardvec = fetch_items(
+        conn,
+        format!("SELECT * FROM cards WHERE (question LIKE '%' || {} || '%') OR (answer LIKE '%' || {} || '%') LIMIT 50", search, search),
+        |row| row2card(row)
+        ).unwrap();
+
     for i in 0..cardvec.len() {
         let id = cardvec[i].id;
-        cardvec[i].dependencies = get_dependencies(conn, id).unwrap();
-        cardvec[i].dependents = get_dependents(conn, id).unwrap();
+        cardvec[i].dependencies = get_dependencies(conn, id);
+        cardvec[i].dependents = get_dependents(conn, id);
     }
     Ok(cardvec)
 }
 
-pub fn get_dependents(conn: Conn, dependency: u32) -> PrettyResult<Vec<u32>> {
-    let mut depvec = Vec::<CardID>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT dependent FROM dependencies where dependency = ?")?
-        .query_map([dependency], |row| {
-            depvec.push(row.get(0).unwrap());
-            Ok(())
-        })?
-        .for_each(|_| {});
-    Ok(depvec)
+pub fn get_dependents(conn: Conn, dependency: u32) -> Vec<CardID> {
+    fetch_items(
+        conn,
+        format!(
+            "SELECT dependent FROM dependencies WHERE dependency = {}",
+            dependency
+        ),
+        |row| row.get::<usize, CardID>(0).unwrap(),
+    )
+    .unwrap()
 }
 
-pub fn get_dependencies(conn: Conn, dependent: CardID) -> PrettyResult<Vec<CardID>> {
-    let mut depvec = Vec::<CardID>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT dependency FROM dependencies where dependent = ?")?
-        .query_map([dependent], |row| {
-            depvec.push(row.get(0).unwrap());
-            Ok(())
-        })?
-        .for_each(|_| {});
-    Ok(depvec)
+pub fn get_dependencies(conn: Conn, dependent: u32) -> Vec<CardID> {
+    fetch_items(
+        conn,
+        format!(
+            "SELECT dependency FROM dependencies WHERE dependent = {}",
+            dependent
+        ),
+        |row| row.get::<usize, CardID>(0).unwrap(),
+    )
+    .unwrap()
 }
 
 //use crate::utils::card::CardType;
@@ -178,12 +163,12 @@ pub fn is_pending(conn: Conn, id: CardID) -> bool {
 }
 
 pub fn is_resolved(conn: Conn, id: CardID) -> bool {
-    conn.lock()
-        .unwrap()
-        .query_row("select resolved FROM cards WHERE id=?", [id], |row| {
-            row.get(0)
-        })
-        .unwrap()
+    fetch_item(
+        conn,
+        format!("SELECT resolved FROM cards WHERE id={}", id),
+        |row| row.get(0),
+    )
+    .unwrap()
 }
 
 pub struct PendingItem {
@@ -213,23 +198,21 @@ pub fn get_skipduration(conn: Conn, id: CardID) -> u32 {
 }
 
 pub fn get_inc_skipduration(conn: Conn, id: IncID) -> u32 {
-    conn.lock()
-        .unwrap()
-        .query_row("select skipduration FROM incread WHERE id=?", [id], |row| {
-            row.get(0)
-        })
-        .unwrap()
+    fetch_item(
+        conn,
+        format!("SELECT skipduration FROM incread WHERE id={}", id),
+        |row| row.get(0),
+    )
+    .unwrap()
 }
 
 pub fn get_skiptime(conn: Conn, id: CardID) -> u32 {
-    conn.lock()
-        .unwrap()
-        .query_row(
-            "select skiptime FROM unfinished_cards WHERE id=?",
-            [id],
-            |row| row.get(0),
-        )
-        .unwrap()
+    fetch_item(
+        conn,
+        format!("SELECT skiptime FROM unfinished_cards WHERE id={}", id),
+        |row| row.get(0),
+    )
+    .unwrap()
 }
 
 pub fn get_stability(conn: Conn, id: CardID) -> Duration {
@@ -286,37 +269,36 @@ pub fn get_topic_of_card(conn: Conn, cid: CardID) -> TopicID {
 }
 
 pub fn fill_dependencies(conn: Conn, mut card: Card) -> Card {
-    card.dependents = get_dependents(conn, card.id).unwrap();
-    card.dependencies = get_dependencies(conn, card.id).unwrap();
+    card.dependents = get_dependents(conn, card.id);
+    card.dependencies = get_dependencies(conn, card.id);
     card
 }
 
 pub fn fetch_card(conn: Conn, cid: u32) -> Card {
-    let card = conn
-        .lock()
-        .unwrap()
-        .query_row("SELECT * FROM cards WHERE id=?", [cid], |row| {
-            Ok(row2card(row))
-        })
-        .expect(&format!("Failed to query following card: {}", cid));
+    let card = fetch_item(
+        conn,
+        format!("SELECT * FROM cards WHERE id={}", cid),
+        |row| Ok(row2card(row)),
+    )
+    .unwrap();
+
     fill_dependencies(conn, card)
 }
 
 pub fn get_pending_qty(conn: Conn) -> u32 {
-    conn.lock()
-        .unwrap()
-        .query_row("SELECT COUNT(*) FROM pending_cards", [], |row| {
-            Ok(row.get(0).unwrap())
-        })
-        .unwrap()
+    fetch_item(
+        conn,
+        "SELECT COUNT(*) FROM pending_cards".to_string(),
+        |row| row.get(0),
+    )
+    .unwrap()
 }
-
 pub fn fill_card_vec(cardvec: &mut Vec<Card>, conn: Conn) {
     for i in 0..cardvec.len() {
         let id = cardvec[i].id;
-        cardvec[i].dependencies = get_dependencies(conn, id).unwrap();
-        cardvec[i].dependents = get_dependents(conn, id).unwrap();
-        cardvec[i].history = get_history(conn, id).unwrap();
+        cardvec[i].dependencies = get_dependencies(conn, id);
+        cardvec[i].dependents = get_dependents(conn, id);
+        cardvec[i].history = get_history(conn, id);
     }
 }
 
@@ -324,12 +306,11 @@ pub fn get_highest_pos(conn: Conn) -> Option<u32> {
     if is_table_empty(conn, "pending_cards".to_string()) {
         return None;
     }
-    let highest = conn
-        .lock()
-        .unwrap()
-        .query_row("SELECT MAX(position) FROM pending_cards", [], |row| {
-            Ok(row.get(0).unwrap())
-        })
-        .unwrap();
+    let highest = fetch_item(
+        conn,
+        "SELECT MAX(position) FROM pending_cards".to_string(),
+        |row| row.get(0),
+    )
+    .unwrap();
     Some(highest)
 }

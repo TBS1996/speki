@@ -2,7 +2,9 @@ use crate::utils::aliases::*;
 use crate::utils::ankitemplate::MediaContents;
 use crate::utils::card::{
     Card, CardType, CardTypeData, FinishedInfo, PendingInfo, RecallGrade, Review, UnfinishedInfo,
-}; //, Topic, Review}
+};
+use crate::utils::misc::get_current_unix;
+//, Topic, Review}
 use crate::widgets::topics::Topic;
 use rusqlite::{Connection, Result, Row, Rows};
 use std::iter::Rev;
@@ -261,12 +263,13 @@ impl CardQuery {
     }
 }
 
-pub fn is_table_empty(conn: &Arc<Mutex<Connection>>, table_name: String) -> bool {
-    let query = format!("SELECT EXISTS (SELECT 1 FROM {})", table_name);
-    conn.lock()
-        .unwrap()
-        .query_row(&query, [], |row| Ok(row.get::<usize, usize>(0).unwrap()))
-        .unwrap()
+pub fn is_table_empty(conn: Conn, table_name: String) -> bool {
+    fetch_item(
+        conn,
+        format!("SELECT EXISTS (SELECT 1 FROM {})", table_name),
+        |row| row.get::<usize, usize>(0),
+    )
+    .unwrap()
         == 0
 }
 
@@ -307,7 +310,7 @@ struct IncTemp {
 
 (   */
 pub fn get_incread(conn: &Arc<Mutex<Connection>>, id: u32) -> IncRead {
-    let extracts = load_extracts(conn, id).unwrap();
+    let extracts = load_extracts(conn, id);
     let clozes = CardQuery::default().source(id).fetch_carditems(conn);
     conn.lock()
         .unwrap()
@@ -351,44 +354,26 @@ pub fn load_inc_items(
     Ok(incvec)
 }
 
-pub fn load_extracts(
-    conn: &Arc<Mutex<Connection>>,
-    parent: IncID,
-) -> PrettyResult<Vec<IncListItem>> {
-    let mut incvec = Vec::<IncListItem>::new();
-    conn.lock()
-        .unwrap()
-        .prepare("SELECT * FROM incread where parent = ?")
-        .unwrap()
-        .query_map([parent], |row| {
-            incvec.push(IncListItem {
-                text: row.get(3)?,
-                id: row.get(0)?,
-            });
-            Ok(())
-        })?
-        .for_each(|_| {});
-    Ok(incvec)
+pub fn load_extracts(conn: &Arc<Mutex<Connection>>, parent: IncID) -> Vec<IncListItem> {
+    fetch_items(
+        conn,
+        format!("SELECT * FROM incread WHERE parent={}", parent),
+        |row| IncListItem {
+            text: row.get(3).unwrap(),
+            id: row.get(0).unwrap(),
+        },
+    )
+    .unwrap()
 }
 
-pub fn load_active_inc(conn: &Arc<Mutex<Connection>>) -> Result<Vec<IncID>> {
-    let current_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as u32;
-    let mut incvec = Vec::<IncID>::new();
-    conn.lock()
-        .unwrap()
-        .prepare(
-            "SELECT id FROM incread where active = 1 and ((? - skiptime) > (skipduration * 86400))",
-        )
-        .unwrap()
-        .query_map([current_time], |row| {
-            incvec.push(row.get(0).unwrap());
-            Ok(())
-        })?
-        .for_each(|_| {});
-    Ok(incvec)
+pub fn load_active_inc(conn: &Arc<Mutex<Connection>>) -> Vec<IncID> {
+    let current_time = get_current_unix();
+
+    fetch_items(
+        conn, 
+        format!("SELECT id FROM incread where active = 1 and (({} - skiptime) > (skipduration * 86400))", current_time.as_secs()), 
+        |row| row.get::<usize, IncID>(0).unwrap()
+        ).unwrap()
 }
 
 use crate::utils::card::CardItem;

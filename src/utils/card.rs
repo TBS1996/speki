@@ -258,10 +258,20 @@ impl Card {
         change_detected
     }
 
+    pub fn is_resolved(conn: Conn, id: CardID) -> bool {
+        fetch_item(
+            conn,
+            format!("SELECT resolved FROM cards WHERE id = {}", id),
+            |row| row.get::<usize, bool>(0),
+        )
+        .unwrap()
+    }
+
     pub fn new_review(conn: &Arc<Mutex<Connection>>, id: CardID, review: RecallGrade) {
         revlog_new(conn, id, &Review::from(&review)).unwrap();
         super::interval::calc_stability(conn, id);
     }
+
     pub fn complete_card(conn: &Arc<Mutex<Connection>>, id: CardID) {
         let card = fetch_card(conn, id);
         remove_unfinished(conn, id).unwrap();
@@ -294,6 +304,7 @@ impl Card {
 use super::misc::{get_current_unix, get_gpt3_response};
 use super::sql::delete::{remove_pending, remove_unfinished};
 use super::sql::fetch::cards::fetch_question;
+use super::sql::fetch::fetch_item;
 use super::sql::insert::new_finished;
 use super::sql::insert::revlog_new;
 use super::sql::update::{update_card_answer, update_card_question};

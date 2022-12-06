@@ -49,7 +49,7 @@ impl ForReview {
 
         let mut review_cards = CardQuery::default()
             .cardtype(vec![CardType::Finished])
-            .strength((0., 0.9))
+            .max_strength(0.9)
             .suspended(false)
             .resolved(true)
             .fetch_card_ids(conn);
@@ -67,7 +67,7 @@ impl ForReview {
             .resolved(true)
             .fetch_card_ids(conn);
 
-        let active_increads = load_active_inc(conn).unwrap();
+        let active_increads = load_active_inc(conn);
         unfinished_cards.shuffle(&mut thread_rng());
         review_cards.shuffle(&mut thread_rng());
 

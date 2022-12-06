@@ -84,7 +84,7 @@ impl IncRead {
     pub fn extract(&mut self, conn: &Arc<Mutex<Connection>>) {
         if let Some(extract) = self.source.return_selection() {
             new_incread(conn, self.id, self.topic, extract, true);
-            self.extracts = load_extracts(conn, self.id).unwrap();
+            self.extracts = load_extracts(conn, self.id);
         }
     }
     pub fn cloze(&mut self, conn: &Arc<Mutex<Connection>>) {
@@ -151,7 +151,7 @@ impl<'a> IncView<'a> {
 
     pub fn prev_sibling(&mut self, appdata: &AppData) {
         let parent = self.text.parent;
-        let incs = load_extracts(&appdata.conn, parent).unwrap();
+        let incs = load_extracts(&appdata.conn, parent);
         for (idx, inc) in incs.iter().enumerate() {
             if inc.id == self.text.id {
                 if idx != 0 {
@@ -164,7 +164,7 @@ impl<'a> IncView<'a> {
 
     pub fn next_sibling(&mut self, appdata: &AppData) {
         let parent = self.text.parent;
-        let incs = load_extracts(&appdata.conn, parent).unwrap();
+        let incs = load_extracts(&appdata.conn, parent);
         for (idx, inc) in incs.iter().enumerate() {
             if inc.id == self.text.id {
                 if idx != incs.len() - 1 {

@@ -18,10 +18,9 @@ use super::{
 
 use std::sync::{Arc, Mutex};
 
-fn func(passed: Duration, stability: Duration) -> f32 {
-    let wtf = Duration::default();
+pub fn strength_algo(passed: Duration, stability: Duration) -> f32 {
     let e = std::f32::consts::E;
-    (passed.as_secs() as f32 / stability.as_secs() as f32) * e.powf((0.9_f32).log(e))
+    (stability.as_secs() as f32 / passed.as_secs() as f32) * e.powf((0.9_f32).log(e))
 }
 
 fn time_passed_since_review(review: &Review) -> std::time::Duration {
@@ -39,7 +38,7 @@ pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
     let mut passed;
 
     for card in cards.iter() {
-        let history = get_history(conn, card.id).unwrap();
+        let history = get_history(conn, card.id);
         if card.is_complete() {
             let hislen = history.len();
             if hislen == 0 {
@@ -47,14 +46,14 @@ pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
             }
             let stability = get_stability(conn, card.id);
             passed = time_passed_since_review(&history[(history.len() - 1) as usize]);
-            strength = func(passed, stability);
+            strength = strength_algo(passed, stability);
             update_strength(conn, card.id, strength);
         }
     }
 }
 
 pub fn calc_stability(conn: &Arc<Mutex<Connection>>, id: CardID) {
-    let history = get_history(conn, id).unwrap();
+    let history = get_history(conn, id);
     let hislen = history.len();
     let grade = &history[hislen - 1].grade;
 
@@ -85,5 +84,5 @@ pub fn calc_stability(conn: &Arc<Mutex<Connection>>, id: CardID) {
         }
     };
 
-    set_stability(conn, id, Duration::from_secs_f32(new_stability * 86400.));
+    set_stability(conn, id, Duration::from_secs_f32(new_stability));
 }

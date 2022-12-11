@@ -464,6 +464,12 @@ impl<'a> Tab for MainReview<'a> {
                     self.new_review(appdata, id, grade);
                     self.tabdata.view.move_up();
                 }
+                Char(' ') | Enter
+                    if rev.cardview.cardrater.is_selected(cursor)
+                        && rev.cardview.cardrater.selection.is_none() =>
+                {
+                    self.random_mode(appdata);
+                }
 
                 key if rev.cardview.is_selected(cursor) => {
                     rev.cardview

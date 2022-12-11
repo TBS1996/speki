@@ -16,6 +16,7 @@ pub struct InfoBox<'a> {
     pub textstyle: Style,
     pub title_alignment: Alignment,
     pub txtlen: usize,
+    pub title: String,
 }
 
 impl<'a> InfoBox<'a> {
@@ -31,6 +32,7 @@ impl<'a> InfoBox<'a> {
             textstyle: Style::default(),
             title_alignment: Alignment::Left,
             txtlen: thelen,
+            title: String::new(),
         }
     }
     pub fn borders(mut self, borders: Borders) -> Self {
@@ -52,6 +54,11 @@ impl<'a> InfoBox<'a> {
     }
     pub fn title_alignment(mut self, alignment: Alignment) -> Self {
         self.alignment = alignment;
+        self
+    }
+
+    pub fn title(mut self, title: String) -> Self {
+        self.title = title;
         self
     }
 
@@ -79,6 +86,7 @@ impl<'a> Widget for InfoBox<'a> {
         let block = Block::default()
             .borders(self.borders)
             .title_alignment(self.title_alignment)
+            .title(self.title.clone())
             .border_style(self.borderstyle);
 
         let paragraph = Paragraph::new(self.text.clone())

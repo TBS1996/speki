@@ -52,37 +52,63 @@ pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
     }
 }
 
-pub fn calc_stability(conn: &Arc<Mutex<Connection>>, id: CardID) {
-    let history = get_history(conn, id);
-    let hislen = history.len();
-    let grade = &history[hislen - 1].grade;
+fn get_elapsed_time_reviews(reviews: &Vec<Review>) -> Vec<Duration> {
+    let mut times = vec![];
+    let revlen = reviews.len();
+    assert!(revlen > 1);
 
-    let gradefactor: f32 = match grade {
-        RecallGrade::None => 0.25,
-        RecallGrade::Failed => 0.5,
-        RecallGrade::Decent => 2.,
-        RecallGrade::Easy => 4.,
-    };
+    let mut prev_unix = reviews[0].date;
+    let mut curr_unix;
 
-    if hislen < 2 {
-        set_stability(conn, id, Duration::from_secs_f32(gradefactor * 86400.));
-        return;
+    for idx in 1..revlen {
+        curr_unix = reviews[idx].date;
+        times.push(curr_unix - prev_unix);
+        prev_unix = curr_unix;
+    }
+    times
+}
+
+pub fn calc_stability(
+    history: &Vec<Review>,
+    new_review: &Review,
+    prev_stability: Duration,
+) -> Duration {
+    let gradefactor = new_review.grade.get_factor();
+    if history.is_empty() {
+        return Duration::from_secs_f32(gradefactor * 86400.);
     }
 
-    let prev_stability = get_stability(conn, id).as_secs() as f32 / 86400.;
-    let time_passed =
-        time_passed_since_review(&history[(hislen - 2) as usize]).as_secs() as f32 / 86400.;
+    let mut newstory;
 
-    let new_stability = if gradefactor < 1. {
-        time_passed * gradefactor
+    let timevec = get_elapsed_time_reviews({
+        newstory = history.clone();
+        newstory.push(new_review.clone());
+        &newstory
+    });
+    let time_passed = timevec.last().unwrap();
+
+    if gradefactor < 1. {
+        return std::cmp::min(time_passed, &prev_stability).mul_f32(gradefactor);
+    }
+
+    if time_passed > &prev_stability {
+        return time_passed.mul_f32(gradefactor);
     } else {
-        if time_passed > prev_stability {
-            time_passed * gradefactor
-        } else {
-            ((prev_stability * gradefactor) - gradefactor) * time_passed / prev_stability
-                + prev_stability
-        }
-    };
+        let base = prev_stability;
+        let max = base.mul_f32(gradefactor);
+        let diff = max - base;
 
-    set_stability(conn, id, Duration::from_secs_f32(new_stability));
+        let percentage = time_passed.div_f32(prev_stability.as_secs_f32());
+
+        return (diff.mul_f32(percentage.as_secs_f32())) + base;
+    }
+}
+
+// call function BEFORE you insert new review to database
+pub fn new_card_stability(conn: Conn, id: CardID, new_review: &Review) -> Duration {
+    let history = get_history(conn, id);
+    let prev_stability = get_stability(conn, id);
+    let new_stability = calc_stability(&history, &new_review, prev_stability);
+    set_stability(conn, id, new_stability);
+    new_stability
 }

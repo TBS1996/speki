@@ -15,6 +15,7 @@ use tui::Frame;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub enum RecallGrade {
@@ -32,6 +33,15 @@ impl RecallGrade {
             2 => Some(RecallGrade::Decent),
             3 => Some(RecallGrade::Easy),
             _ => None,
+        }
+    }
+
+    pub fn get_factor(&self) -> f32 {
+        match self {
+            Self::None => 0.25,
+            Self::Failed => 0.5,
+            Self::Decent => 2.,
+            Self::Easy => 4.,
         }
     }
 }
@@ -88,19 +98,10 @@ pub enum CardTypeData {
     Pending(PendingInfo),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct FinishedInfo {
     pub strength: f32,
-    pub stability: f32,
-}
-
-impl Default for FinishedInfo {
-    fn default() -> Self {
-        Self {
-            strength: 1.0,
-            stability: 1.0,
-        }
-    }
+    pub stability: Duration,
 }
 
 #[derive(Clone, Debug)]
@@ -267,9 +268,10 @@ impl Card {
         .unwrap()
     }
 
-    pub fn new_review(conn: &Arc<Mutex<Connection>>, id: CardID, review: RecallGrade) {
-        revlog_new(conn, id, &Review::from(&review)).unwrap();
-        super::interval::calc_stability(conn, id);
+    pub fn new_review(conn: Conn, id: CardID, review: RecallGrade) {
+        let review = Review::from(&review);
+        super::interval::new_card_stability(conn, id, &review);
+        revlog_new(conn, id, &Review::from(&review.grade)).unwrap();
     }
 
     pub fn complete_card(conn: &Arc<Mutex<Connection>>, id: CardID) {
@@ -303,7 +305,7 @@ impl Card {
 
 use super::misc::{get_current_unix, get_gpt3_response};
 use super::sql::delete::{remove_pending, remove_unfinished};
-use super::sql::fetch::cards::fetch_question;
+use super::sql::fetch::cards::{fetch_question, get_stability};
 use super::sql::fetch::fetch_item;
 use super::sql::insert::new_finished;
 use super::sql::insert::revlog_new;
@@ -436,6 +438,13 @@ impl<'a> CardView<'a> {
                     }
                     let editor = TextEditor::new(appdata, source);
                     tabdata.popup = Some(Box::new(editor));
+                }
+            }
+            MyKey::Alt('f') => {
+                if let Some(ref card) = self.card {
+                    let id = card.id;
+                    Card::complete_card(&appdata.conn, id);
+                    *self = Self::new_with_id(appdata, id);
                 }
             }
             key if self.question.is_selected(cursor) => self.question.keyhandler(appdata, key),

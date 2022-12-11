@@ -37,15 +37,37 @@ fn get_pending_position(conn: Conn, id: CardID) -> u32 {
     .unwrap()
 }
 
-pub fn get_cardtypedata(row: &Row) -> CardTypeData {
-    let id = row.get::<usize, u32>(0).unwrap();
-    let cardtypedata = match row.get::<usize, u32>(7).unwrap() {
-        0 => CardTypeData::Pending(PendingInfo { pos: 0 }),
-        1 => CardTypeData::Unfinished(UnfinishedInfo::default()),
-        2 => CardTypeData::Finished(FinishedInfo::default()),
+pub fn get_cardtypedata(conn: Conn, id: CardID) -> CardTypeData {
+    let cardtype = get_cardtype(conn, id);
+
+    let cardtypedata = match cardtype {
+        CardType::Pending => CardTypeData::Pending(PendingInfo::default()),
+        CardType::Unfinished => CardTypeData::Unfinished(UnfinishedInfo::default()),
+        CardType::Finished => CardTypeData::Finished(FinishedInfo::default()),
         _ => panic!(),
     };
-    todo!();
+    match &cardtypedata {
+        CardTypeData::Pending(_) => {
+            let pos = get_pending_position(conn, id);
+            CardTypeData::Pending(PendingInfo { pos })
+        }
+        CardTypeData::Unfinished(_) => {
+            let skiptime = get_skiptime(conn, id);
+            let skipduration = get_skipduration(conn, id);
+            CardTypeData::Unfinished(UnfinishedInfo {
+                skiptime,
+                skipduration,
+            })
+        }
+        CardTypeData::Finished(_) => {
+            let strength = get_strength(conn, id);
+            let stability = get_stability(conn, id);
+            CardTypeData::Finished(FinishedInfo {
+                strength,
+                stability,
+            })
+        }
+    }
 }
 
 pub fn row2card(row: &Row) -> Card {
@@ -206,13 +228,15 @@ pub fn get_inc_skipduration(conn: Conn, id: IncID) -> u32 {
     .unwrap()
 }
 
-pub fn get_skiptime(conn: Conn, id: CardID) -> u32 {
-    fetch_item(
+pub fn get_skiptime(conn: Conn, id: CardID) -> Duration {
+    let dur = fetch_item(
         conn,
         format!("SELECT skiptime FROM unfinished_cards WHERE id={}", id),
         |row| row.get(0),
     )
-    .unwrap()
+    .unwrap();
+
+    Duration::from_secs(dur)
 }
 
 pub fn get_stability(conn: Conn, id: CardID) -> Duration {

@@ -342,6 +342,10 @@ impl Browse {
                     let ids: Vec<CardID> =
                         self.selected.items.clone().iter().map(|x| x.id).collect();
 
+                    if ids.is_empty() {
+                        return;
+                    }
+
                     self.tabdata.popup = Some(Box::new(Editor::new(appdata, ids)));
                 }
                 _ => return,

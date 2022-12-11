@@ -3,6 +3,7 @@ use std::{
     fs,
     path::PathBuf,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use crate::{
@@ -32,7 +33,7 @@ pub struct Kort {
     pub template_ord: usize,
     reps: Vec<Review>,
     repqty: u32,
-    interval: f32,
+    interval: Duration,
 }
 
 #[derive(Clone, Debug)]
@@ -104,7 +105,7 @@ impl Template {
                 template_ord: 0,
                 reps: vec![],
                 repqty: 0,
-                interval: 1.0,
+                interval: Duration::default(),
             };
             cards.push(kort);
             index += 1;
@@ -598,6 +599,7 @@ impl Template {
                 let repqty: u32 = row.get::<usize, u32>(4).unwrap();
 
                 let interval = if interval > 0 { interval as f32 } else { 1.0 };
+                let interval = Duration::from_secs((interval * 86400.) as u64);
 
                 self.cards.push(Kort {
                     card_id,

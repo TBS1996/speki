@@ -12,7 +12,7 @@ use crate::utils::misc::SpekiPaths;
 use crate::utils::{
     aliases::Conn,
     card::{self, Card, CardType, CardTypeData, FinishedInfo, RecallGrade, Review, UnfinishedInfo},
-    interval::strength_algo,
+    interval::{calc_stability, strength_algo},
     sql::{fetch::cards::fetch_card, init_db},
 };
 fn get_paths() -> SpekiPaths {
@@ -36,22 +36,59 @@ fn initdbtest() {
 }
 
 #[test]
-fn interval_test() {
-    let conn = get_conn();
+fn strength_test() {
     let x = strength_algo(
         std::time::Duration::from_secs(86400),
         std::time::Duration::from_secs(86400),
     );
     assert_eq!(x, 0.9);
+}
 
-    let id = Card::new(CardTypeData::Finished(FinishedInfo::default()))
-        .question("Wtf debug".to_string())
-        .save_card(&conn);
-    let newone = Review {
-        grade: RecallGrade::Decent,
-        date: Duration::from_secs(1000000),
+#[test]
+fn new_stability_test() {
+    let reviewvec = vec![Review {
+        grade: RecallGrade::Easy,
+        date: Duration::from_secs(1000),
+        answertime: 0.,
+    }];
+
+    let new_review = Review {
+        grade: RecallGrade::Easy,
+        date: Duration::from_secs(2000),
         answertime: 0.,
     };
+
+    let stability = Duration::from_secs(1000);
+
+    let new_stab = calc_stability(&reviewvec, &new_review, stability);
+
+    assert_eq!(new_stab, stability.mul_f32(RecallGrade::Easy.get_factor()));
+}
+
+fn new_half_correct_stability_test() {
+    let reviewvec = vec![Review {
+        grade: RecallGrade::Easy,
+        date: Duration::from_secs(1000),
+        answertime: 0.,
+    }];
+
+    let new_review = Review {
+        grade: RecallGrade::Easy,
+        date: Duration::from_secs(2000),
+        answertime: 0.,
+    };
+
+    let factor = RecallGrade::Easy.get_factor();
+    assert_eq!(factor, 2.);
+
+    let stability = Duration::from_secs(500);
+
+    let new_stab = calc_stability(&reviewvec, &new_review, stability);
+
+    assert!(
+        new_stab > Duration::from_secs(1000)
+            && new_stab < Duration::from_secs(2000).mul_f32(factor)
+    );
 }
 
 #[test]

@@ -87,7 +87,7 @@ pub fn save_card(conn: &Arc<Mutex<Connection>>, card: Card) -> CardID {
                 .unwrap()
                 .execute(
                     "INSERT INTO finished_cards (id, strength, stability) VALUES (?1, ?2, ?3)",
-                    params![id, fin.strength, fin.stability],
+                    params![id, fin.strength, (fin.stability.as_secs_f32() / 86400.)],
                 )
                 .unwrap();
         }

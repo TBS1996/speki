@@ -10,6 +10,7 @@ Flashcards for your terminal
 https://user-images.githubusercontent.com/56874491/197415847-43992a98-a9b8-4b63-ba4e-17c5a4204389.mp4
 
 
+note: I haven't developed it much the past months as I now have my first developer job so been busy on that and other stuff. 
 
 
 ## Installation

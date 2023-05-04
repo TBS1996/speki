@@ -31,6 +31,11 @@ pub type MyType = CrosstermBackend<std::io::Stdout>;
 fn main() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "1");
 
+    let _guard = sentry::init(("https://9be966e9a25345528b66889e96ba8e4f@o4505092893573120.ingest.sentry.io/4505125412077568", sentry::ClientOptions {
+    release: sentry::release_name!(),
+    ..Default::default()
+}));
+
     let paths = SpekiPaths::new(&home::home_dir().unwrap());
     let is_new_db = init_db(&paths.database).unwrap();
 
@@ -165,13 +170,13 @@ impl MyKey {
         if let Key(key) = event {
             let modifiers = key.modifiers;
 
-            if modifiers == event::KeyModifiers::ALT || modifiers == event::KeyModifiers::META {
+            if modifiers == event::KeyModifiers::ALT || modifiers == event::KeyModifiers::SHIFT {
                 match key.code {
                     KeyCode::Char('h') | KeyCode::Left => return Some(MyKey::Nav(NavDir::Left)),
                     KeyCode::Char('j') | KeyCode::Down => return Some(MyKey::Nav(NavDir::Down)),
                     KeyCode::Char('k') | KeyCode::Up => return Some(MyKey::Nav(NavDir::Up)),
                     KeyCode::Char('l') | KeyCode::Right => return Some(MyKey::Nav(NavDir::Right)),
-                    KeyCode::Char(c) => return Some(MyKey::Alt(c)),
+                    KeyCode::Char(c) => return Some(MyKey::Alt(c.to_ascii_lowercase())),
                     _ => {}
                 }
             }

@@ -277,7 +277,7 @@ impl Template {
             for i in 0..split_by_field.len() {
                 if i != 0 {
                     let replaced = self.note_from_card_index(viewpos).fields[val].clone();
-                    let right = split_by_field[i].clone();
+                    let right = split_by_field[i];
                     tempstring.push_str(&replaced.text);
                     tempstring.push_str(&right);
                 }
@@ -301,13 +301,13 @@ impl Template {
             let frontside = self.fill_front_view(front_template, idx);
             let backside = self.fill_back_view(back_template, idx);
             let media = self.get_media(idx);
-            if idx % 1 == 0 {
+            if true {
                 let _ = transmitter.try_send(ImportProgress {
                     curr_index: idx,
                     max: cardlen,
                 });
             };
-            if self.cards[idx].reps.len() == 0 {
+            if self.cards[idx].reps.is_empty() {
                 card::Card::new(CardTypeData::Pending(PendingInfo::default()))
                     .question(frontside)
                     .answer(backside)

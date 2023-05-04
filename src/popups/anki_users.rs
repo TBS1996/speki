@@ -64,7 +64,7 @@ impl<'a> Menu<'a> {
         let ypad = 3;
 
         let mut menu = Menu::new(title, prompt, xpad, ypad, buttons);
-        if users.len() == 0 {
+        if users.is_empty() {
             menu.get_tabdata().state =
                 PopUpState::Switch(Box::new(Splash::new("No anki users found".to_string())))
         }

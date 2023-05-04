@@ -144,10 +144,7 @@ impl TabsState {
     }
 
     fn keyhandler(&mut self, appdata: &AppData, key: MyKey) {
-        match key {
-            //MyKey::Nav(dir) => self.tabs[self.index].navigate(dir),
-            key => self.tabs[self.index].main_keyhandler(appdata, key),
-        }
+        self.tabs[self.index].main_keyhandler(appdata, key);
     }
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, area: Rect) {
         let mut navbar = vec![];
@@ -364,7 +361,7 @@ pub trait Tab {
             }
             return;
         }
-        if let MyKey::KeyPress(pos) = key.clone() {
+        if let MyKey::KeyPress(pos) = key {
             self.get_view().cursor = pos;
         }
         let cursor = self.get_cursor().clone();

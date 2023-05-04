@@ -145,7 +145,7 @@ impl<'a> FilePicker<'a> {
             if let Some('/') = wtf {
                 break;
             }
-            if let None = wtf {
+            if wtf.is_none() {
                 panic!("oh none");
             }
         }

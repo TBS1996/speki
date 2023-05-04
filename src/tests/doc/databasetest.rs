@@ -10,8 +10,7 @@ use rusqlite::Connection;
 #[cfg(test)]
 use crate::utils::misc::SpekiPaths;
 use crate::utils::{
-    aliases::Conn,
-    card::{self, Card, CardType, CardTypeData, FinishedInfo, RecallGrade, Review, UnfinishedInfo},
+    card::{Card, CardTypeData, FinishedInfo, RecallGrade, Review, UnfinishedInfo},
     interval::{calc_stability, strength_algo},
     sql::{fetch::cards::fetch_card, init_db},
 };
@@ -25,7 +24,7 @@ fn get_paths() -> SpekiPaths {
 fn get_conn() -> Arc<Mutex<Connection>> {
     let paths = get_paths();
     Arc::new(Mutex::new(
-        Connection::open(&paths.database).expect("Failed to connect to database."),
+        Connection::open(paths.database).expect("Failed to connect to database."),
     ))
 }
 
@@ -103,8 +102,8 @@ fn dependency_logic() {
         .answer(answer.clone())
         .save_card(&conn);
     let card = fetch_card(&conn, id1);
-    assert_eq!(question.clone(), card.question.clone());
-    assert_eq!(answer.clone(), card.answer.clone());
+    assert_eq!(question, card.question);
+    assert_eq!(answer, card.answer);
     assert!(Card::is_resolved(&conn, id1));
     let id2 = Card::new(CardTypeData::Unfinished(UnfinishedInfo::default()))
         .question("what is a capital".to_string())

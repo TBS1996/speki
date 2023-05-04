@@ -89,7 +89,6 @@ impl StatefulList<NumItem> {
             .map(|name| NumItem::new(name.0, name.1))
             .collect::<Vec<NumItem>>();
 
-        let myself = StatefulList::with_items(title, names);
-        myself
+        StatefulList::with_items(title, names)
     }
 }

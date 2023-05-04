@@ -119,7 +119,7 @@ impl<'a> Tab for AddChildWidget<'a> {
         self.cardview.answer.set_area(answer);
     }
     fn render(&mut self, f: &mut Frame<MyType>, appdata: &AppData, cursor: &Pos) {
-        self.prompt.render(f, appdata, &cursor);
+        self.prompt.render(f, appdata, cursor);
         self.cardview.render(f, appdata, cursor)
     }
 

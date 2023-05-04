@@ -13,7 +13,7 @@ impl Field {
         let totrowlen = self.current_rowlen() as u16;
         let currvisual = self.current_visual_col();
         let endofline = self.cursor.column + self.rowlen as usize - currvisual - 1;
-        let themin = std::cmp::min(totrowlen as usize, endofline as usize);
+        let themin = std::cmp::min(totrowlen as usize, endofline);
         self.cursor.column = themin;
     }
 
@@ -22,7 +22,7 @@ impl Field {
         while i * self.rowlen < self.cursor.column as u16 {
             i += 1;
         }
-        self.cursor.column = ((i as u16 - 1) * self.rowlen as u16) as usize;
+        self.cursor.column = ((i - 1) * self.rowlen) as usize;
     }
     pub fn start_of_line(&mut self) {
         self.cursor.column = 0;

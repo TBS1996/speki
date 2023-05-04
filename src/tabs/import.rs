@@ -1,7 +1,7 @@
 use crate::{
     app::{AppData, Tab},
     popups::{
-        ankimporter::Ankimporter,
+        self,
         filepicker::{FilePicker, FilePickerPurpose},
         menu::{Menu, TraitButton},
     },
@@ -9,7 +9,9 @@ use crate::{
 
 impl<'a> Menu<'a> {
     pub fn new_import_tab() -> Menu<'a> {
-        let a = |_appdata: &AppData| -> Box<dyn Tab> { Box::new(Ankimporter::new()) };
+        let a = |_appdata: &AppData| -> Box<dyn Tab> {
+            Box::<popups::ankimporter::Ankimporter<'_>>::default()
+        };
         let b = |appdata: &AppData| -> Box<dyn Tab> { Box::new(Menu::new_anki_users(appdata)) };
         let c = |_appdata: &AppData| -> Box<dyn Tab> {
             Box::new(FilePicker::new(

@@ -266,7 +266,7 @@ impl<'a> MainReview<'a> {
         };
 
         let color = modecolor(&self.mode);
-        let cursor = self.get_cursor().clone();
+        let cursor = *self.get_cursor();
         self.progress_bar.current = current;
         self.progress_bar.max = target;
         self.progress_bar.color = color;

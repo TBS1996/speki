@@ -72,14 +72,15 @@ impl fmt::Display for Deck {
     }
 }
 use crate::app::{AppData, Tab, TabData, Widget};
-impl<'a> Ankimporter<'a> {
-    pub fn new() -> Self {
+
+impl Default for Ankimporter<'_> {
+    fn default() -> Self {
         let mut list = StatefulList::<Deck>::new("".to_string());
         list.persistent_highlight = true;
         let searchterm = Field::default();
         let description = Field::default();
 
-        Ankimporter {
+        Self {
             prompt: Button::new("Choose anki deck".to_string()),
             searchterm,
             description,
@@ -89,16 +90,18 @@ impl<'a> Ankimporter<'a> {
             tabdata: TabData::new("Anki Importing".to_string()),
         }
     }
+}
 
+impl<'a> Ankimporter<'a> {
     fn update_desc(&mut self) {
         if let Some(idx) = self.list.state.selected() {
             let id = self.list.items[idx].id;
-            if !self.descmap.contains_key(&id) {
+            self.descmap.entry(id).or_insert_with(|| {
                 let url = format!("https://ankiweb.net/shared/info/{}", id);
                 let body = reqwest::blocking::get(url).unwrap().text().unwrap();
-                let desc = get_description(&body, &id);
-                self.descmap.insert(id, desc);
-            }
+
+                get_description(&body, &id)
+            });
         }
     }
 
@@ -117,13 +120,13 @@ impl<'a> Ankimporter<'a> {
         let body = reqwest::blocking::get(url).unwrap().text().unwrap();
 
         let splitter: Vec<&str> = body.split("const shared = new anki.SharedList(").collect();
-        let foo = splitter[1].to_string();
+        let xxx = splitter[1].to_string();
 
         let mut myvec = Vec::<Deck>::new();
         let mut stringstatus = Stringstatus::Beforeint;
         let mut title = String::new();
         let mut intrep = String::new();
-        for c in foo.chars() {
+        for c in xxx.chars() {
             if c == ';' {
                 break;
             }
@@ -170,11 +173,11 @@ impl<'a> Ankimporter<'a> {
         }
 
         for deck in &myvec {
-            if !self.descmap.contains_key(&deck.id) {
+            if let std::collections::hash_map::Entry::Vacant(e) = self.descmap.entry(deck.id) {
                 let url = format!("https://ankiweb.net/shared/info/{}", deck.id);
                 let body = reqwest::blocking::get(url).unwrap().text().unwrap();
                 let desc = get_description(&body, &deck.id);
-                self.descmap.insert(deck.id, desc);
+                e.insert(desc);
                 break;
             }
         }
@@ -204,7 +207,7 @@ impl<'a> Tab for Ankimporter<'a> {
                     });
                     let msg = MsgPopup::new(rx, "Unzipping".to_string());
                     self.set_popup(Box::new(msg));
-                    self.state = State::Unzipping(name.clone());
+                    self.state = State::Unzipping(name);
                 }
                 State::Unzipping(name) => {
                     let (tx, rx): (mpsc::SyncSender<ImportProgress>, Receiver<ImportProgress>) =
@@ -219,7 +222,7 @@ impl<'a> Tab for Ankimporter<'a> {
                     self.state = State::Renaming(name);
                 }
                 State::Renaming(name) => {
-                    let ldc = LoadCards::new(appdata, name.clone());
+                    let ldc = LoadCards::new(appdata, name);
                     self.set_popup(Box::new(ldc));
                     self.state = State::Main;
                 }
@@ -356,10 +359,10 @@ pub async fn download_deck(
 
     while let Some(item) = stream.next().await {
         let chunk = item
-            .or(Err(format!("Error while downloading file")))
+            .or(Err("Error while downloading file".to_string()))
             .unwrap();
         file.write_all(&chunk)
-            .or(Err(format!("Error while writing to file")))
+            .or(Err("Error while writing to file".to_string()))
             .unwrap();
         let new = std::cmp::min(downloaded + (chunk.len() as u64), total_size);
         downloaded = new;
@@ -373,18 +376,17 @@ pub async fn download_deck(
 fn extract_download_link(trd: &String) -> String {
     let pattern = r"(?P<link>(https:.*));".to_string();
     let re = Regex::new(&pattern).unwrap();
-    let foo = re.captures(&trd).expect(&format!(
-        "Couldnt find pattern on following string: {}@@",
-        trd
-    ));
-    foo.get(1).unwrap().as_str().to_string()
+    let xxx = re
+        .captures(trd)
+        .unwrap_or_else(|| panic!("Couldnt find pattern on following string: {}@@", trd));
+    xxx.get(1).unwrap().as_str().to_string()
 }
 
-fn get_k_value(pagesource: &String) -> String {
+fn get_k_value(pagesource: &str) -> String {
     let pattern = "k\" value=\"(.*)\"".to_string();
     let re = Regex::new(&pattern).unwrap();
-    let foo = re.captures(&pagesource).unwrap();
-    foo.get(1).unwrap().as_str().to_string()
+    let xxx = re.captures(pagesource).unwrap();
+    xxx.get(1).unwrap().as_str().to_string()
 }
 
 pub fn get_download_link(deckid: u32) -> String {
@@ -410,6 +412,5 @@ pub fn get_download_link(deckid: u32) -> String {
         .unwrap()
         .text()
         .unwrap();
-    let link = extract_download_link(&result);
-    return link;
+    extract_download_link(&result)
 }

@@ -56,16 +56,16 @@ pub struct TopicList {
 
 impl TopicList {
     pub fn new(conn: &Arc<Mutex<Connection>>) -> TopicList {
-        let mut foo = TopicList {
+        let mut xxx = TopicList {
             state: ListState::default(),
-            items: get_topics(&conn).unwrap(),
+            items: get_topics(conn).unwrap(),
             writing: None,
             area: Rect::default(),
         };
-        foo.add_kids();
-        foo.next();
-        foo.sort_topics();
-        foo
+        xxx.add_kids();
+        xxx.next();
+        xxx.sort_topics();
+        xxx
     }
 
     pub fn is_last_sibling(&self, id: u32) -> bool {
@@ -99,17 +99,11 @@ impl TopicList {
     }
 
     pub fn get_selected_id(&self) -> Option<u32> {
-        match self.state.selected() {
-            None => None,
-            Some(idx) => Some(self.items[idx as usize].id),
-        }
+        self.state.selected().map(|idx| self.items[idx].id)
     }
 
     pub fn get_selected_parent(&self) -> Option<u32> {
-        match self.state.selected() {
-            None => None,
-            Some(idx) => Some(self.items[idx as usize].parent),
-        }
+        self.state.selected().map(|idx| self.items[idx].parent)
     }
 
     pub fn index_from_id(&self, id: TopicID) -> u32 {
@@ -147,13 +141,13 @@ impl TopicList {
 
     pub fn children_from_id(&self, id: u32) -> Vec<u32> {
         let topic = self.topic_from_id(id);
-        let mut kids = topic.children.clone();
+        let mut kids = topic.children;
         kids.sort_unstable_by_key(|topid| self.items[self.index_from_id(*topid) as usize].relpos);
         kids
     }
     pub fn uncles_from_id(&self, id: u32) -> Vec<u32> {
         let grandparent = self.grandparent_from_id(id);
-        let mut uncles = grandparent.children.clone();
+        let mut uncles = grandparent.children;
         uncles.sort_unstable_by_key(|topid| self.items[self.index_from_id(*topid) as usize].relpos);
         uncles
     }
@@ -208,20 +202,20 @@ impl TopicList {
         let uncles = self.uncles_from_id(topic.id);
         let uncle_qty = uncles.len() as u32;
 
-        update_topic_parent(&conn, topic.id, parent.parent);
-        update_topic_relpos(&conn, topic.id, parent.relpos);
+        update_topic_parent(conn, topic.id, parent.parent);
+        update_topic_relpos(conn, topic.id, parent.relpos);
 
         for i in parent.relpos..uncle_qty {
             let uncle_id = uncles[i as usize];
             let uncle = self.topic_from_id(uncle_id);
-            update_topic_relpos(&conn, uncle_id, uncle.relpos + 1);
+            update_topic_relpos(conn, uncle_id, uncle.relpos + 1);
         }
         let siblings = self.siblings_from_id(topic.id);
         let sibling_qty = siblings.len() as u32;
 
         for i in (topic.relpos + 1)..sibling_qty {
             let sibling = self.topic_from_id(siblings[i as usize]);
-            update_topic_relpos(&conn, siblings[i as usize], sibling.relpos - 1);
+            update_topic_relpos(conn, siblings[i as usize], sibling.relpos - 1);
         }
     }
 
@@ -229,39 +223,39 @@ impl TopicList {
         let topic = self.topic_from_index(index);
 
         for (index, child) in topic.children.iter().enumerate() {
-            update_topic_parent(&conn, *child, topic.parent);
-            update_topic_relpos(&conn, *child, topic.relpos + index as u32);
+            update_topic_parent(conn, *child, topic.parent);
+            update_topic_relpos(conn, *child, topic.relpos + index as u32);
         }
 
-        delete_topic(&conn, topic.id).unwrap();
-        update_card_topic(&conn, topic.id, topic.parent); // all the cards with the deleted topic
-                                                          // get assigned to the topic above item
+        delete_topic(conn, topic.id).unwrap();
+        update_card_topic(conn, topic.id, topic.parent); // all the cards with the deleted topic
+                                                         // get assigned to the topic above item
 
         let siblings = self.siblings_from_id(topic.id);
         let siblingqty = siblings.len() as u32;
         let kidqty = topic.children.len() as u32;
 
         for i in (topic.relpos + 1)..(siblingqty) {
-            update_topic_relpos(&conn, siblings[(i) as usize], i + kidqty - 1);
+            update_topic_relpos(conn, siblings[(i) as usize], i + kidqty - 1);
         }
     }
 
     pub fn shift_right(&mut self, conn: &Arc<Mutex<Connection>>, index: u32) {
         let topic = self.topic_from_index(index);
         let below = self.topic_from_index(index + 1);
-        update_topic_parent(&conn, topic.id, below.id);
-        update_topic_relpos(&conn, topic.id, 0);
+        update_topic_parent(conn, topic.id, below.id);
+        update_topic_relpos(conn, topic.id, 0);
 
         for child_id in below.children {
             let child = self.topic_from_id(child_id);
-            update_topic_relpos(&conn, child_id, child.relpos + 1);
+            update_topic_relpos(conn, child_id, child.relpos + 1);
         }
         let siblings = self.siblings_from_id(topic.id);
         let sibling_qty = siblings.len() as u32;
 
         for i in (topic.relpos + 1)..sibling_qty {
             let sib = self.topic_from_id(siblings[i as usize]);
-            update_topic_relpos(&conn, sib.id, sib.relpos - 1);
+            update_topic_relpos(conn, sib.id, sib.relpos - 1);
         }
     }
 
@@ -277,9 +271,8 @@ impl TopicList {
         // if topic is not the last relpos, shift its relpos one down and the below it one up
 
         if topic.relpos != sibling_qty - 1 {
-            update_topic_relpos(&conn, topic.id, topic.relpos + 1);
-            update_topic_relpos(&conn, below_sibling.id, topic.relpos);
-            return;
+            update_topic_relpos(conn, topic.id, topic.relpos + 1);
+            update_topic_relpos(conn, below_sibling.id, topic.relpos);
         }
     }
 
@@ -289,8 +282,8 @@ impl TopicList {
             return;
         }
         let sibling_above = self.sibling_above(topic.id);
-        update_topic_relpos(&conn, topic.id, topic.relpos - 1);
-        update_topic_relpos(&conn, sibling_above.id, topic.relpos);
+        update_topic_relpos(conn, topic.id, topic.relpos - 1);
+        update_topic_relpos(conn, sibling_above.id, topic.relpos);
     }
 
     fn dfs(&mut self, id: u32, indices: &mut Vec<u32>) {
@@ -449,21 +442,21 @@ impl Widget for TopicList {
                     if self.items[index as usize].children.is_empty() {
                         return;
                     }
-                    self.shift_right(&appdata.conn, index as u32);
+                    self.shift_right(&appdata.conn, index);
                     self.reload_topics(&appdata.conn);
                     self.state.select(Some((index + 1) as usize));
                 }
                 Char('J') => {
                     let index = self.state.selected().unwrap() as u32;
                     let topic = self.items[index as usize].clone();
-                    self.shift_down(&appdata.conn, index as u32);
+                    self.shift_down(&appdata.conn, index);
                     self.reload_topics(&appdata.conn);
                     let new_index = self.index_from_id(topic.id);
                     self.state.select(Some((new_index) as usize));
                 }
                 Char('K') => {
                     let index = self.state.selected().unwrap();
-                    let topic = self.items[index as usize].clone();
+                    let topic = self.items[index].clone();
                     self.shift_up(&appdata.conn, index as u32);
                     self.reload_topics(&appdata.conn);
                     let new_index = self.index_from_id(topic.id);
@@ -485,7 +478,7 @@ impl Widget for TopicList {
                     let children = self.items[parent_index].children.clone();
                     let sibling_qty = children.len();
                     new_topic(&appdata.conn, name, parent, sibling_qty as u32).unwrap();
-                    let id = *(&appdata.conn.lock().unwrap().last_insert_rowid()) as u32;
+                    let id = appdata.conn.lock().unwrap().last_insert_rowid() as u32;
                     self.writing = Some(NewTopic::new(id));
                     self.reload_topics(&appdata.conn);
                 }
@@ -533,8 +526,8 @@ fn topic2string(topic: &Topic, app: &TopicList) -> String {
     let mut mystring: String = String::new();
     if topic.ancestors > 0 {
         for ancestor in 0..topic.ancestors - 1 {
-            let foo = app.ancestor_from_id(topic.id, ancestor + 1);
-            if app.is_last_sibling(foo.id) {
+            let xxx = app.ancestor_from_id(topic.id, ancestor + 1);
+            if app.is_last_sibling(xxx.id) {
                 mystring.insert_str(0, "  ");
             } else {
                 mystring.insert_str(0, "│ ");

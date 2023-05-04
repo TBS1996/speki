@@ -1,4 +1,4 @@
-use crate::utils::{aliases::CardID, card::CardTypeData};
+use crate::utils::card::CardTypeData;
 
 use super::infobox::InfoBox;
 

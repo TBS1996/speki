@@ -59,13 +59,11 @@ impl Tab for Progress {
                     self.tabdata.state = PopUpState::Exit;
                 }
             }
+        } else if let Some(tab) = std::mem::take(&mut self.next_tab) {
+            self.tabdata.state = PopUpState::Switch(tab);
         } else {
-            if let Some(tab) = std::mem::take(&mut self.next_tab) {
-                self.tabdata.state = PopUpState::Switch(tab);
-            } else {
-                self.popupvalue = PopupValue::Ok;
-                self.tabdata.state = PopUpState::Exit;
-            }
+            self.popupvalue = PopupValue::Ok;
+            self.tabdata.state = PopUpState::Exit;
         }
     }
 

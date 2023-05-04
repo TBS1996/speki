@@ -364,7 +364,7 @@ pub trait Tab {
         if let MyKey::KeyPress(pos) = key {
             self.get_view().cursor = pos;
         }
-        let cursor = self.get_cursor().clone();
+        let cursor = *self.get_cursor();
         match key {
             MyKey::Nav(dir) => self.navigate(dir),
             key => self.keyhandler(appdata, key, &cursor),
@@ -417,7 +417,7 @@ pub trait Tab {
                 area = chunks[1];
                 self.transform_area(&mut area);
             }
-            let cursor = self.get_cursor().clone();
+            let cursor = *self.get_cursor();
             self.set_selection(area);
             self.get_tabdata().view.validate_pos(); // ensures cursor is on a widget;
             self.render(f, appdata, &cursor);

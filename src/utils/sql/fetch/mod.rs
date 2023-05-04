@@ -1,16 +1,11 @@
 use crate::utils::aliases::*;
-use crate::utils::ankitemplate::MediaContents;
-use crate::utils::card::{
-    Card, CardType, CardTypeData, FinishedInfo, PendingInfo, RecallGrade, Review, UnfinishedInfo,
-};
+use crate::utils::card::{Card, CardType};
 use crate::utils::misc::get_current_unix;
 //, Topic, Review}
 use crate::widgets::topics::Topic;
-use rusqlite::{Connection, Result, Row, Rows};
-use std::iter::Rev;
-use std::path::PathBuf;
+use rusqlite::{Connection, Result, Row};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{ SystemTime, UNIX_EPOCH};
 
 use color_eyre::eyre::Result as PrettyResult;
 

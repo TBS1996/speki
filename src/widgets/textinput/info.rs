@@ -49,8 +49,8 @@ impl Field {
     }
     pub fn is_cursor_in_view(&mut self) -> bool {
         let current_line = self.current_abs_visual_line() as u16;
-        let scroll = self.scroll as u16;
-        let winheight = self.window_height as u16;
+        let scroll = self.scroll;
+        let winheight = self.window_height;
         (current_line > scroll) && (current_line < (scroll + winheight))
     }
 
@@ -65,14 +65,14 @@ impl Field {
             lines += if actual_rowlen == self.rowlen as usize {
                 1
             } else {
-                (self.get_rowlen(i) as u16 / (self.rowlen + 0) as u16) as usize + 1
+                (self.get_rowlen(i) as u16 / (self.rowlen + 0)) as usize + 1
             }
         }
         panic!();
     }
 
     fn get_rowcol(&self, cursor: &CursorPos) -> u16 {
-        cursor.column as u16 / self.rowlen as u16
+        cursor.column as u16 / self.rowlen
     }
 
     pub fn current_rel_visual_line(&self) -> u16 {

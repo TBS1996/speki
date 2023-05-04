@@ -16,14 +16,16 @@ pub struct CardRater {
     area: Rect,
 }
 
-impl CardRater {
-    pub fn new() -> CardRater {
-        CardRater {
+impl Default for CardRater {
+    fn default() -> Self {
+        Self {
             selection: Some(RecallGrade::Decent),
             area: Rect::default(),
         }
     }
+}
 
+impl CardRater {
     fn left(&mut self) {
         let selection = if let Some(selection) = &self.selection {
             selection
@@ -41,7 +43,7 @@ impl CardRater {
     fn keypress(&mut self, pos: Pos) {
         if Self::is_selected(self, &pos) {
             let area = self.get_area();
-            if (area.x..(area.x + (area.width * 1 / 4))).contains(&pos.x) {
+            if (area.x..(area.x + (area.width / 4))).contains(&pos.x) {
                 self.selection = Some(RecallGrade::None);
             } else if (area.x..(area.x + (area.width * 2 / 4))).contains(&pos.x) {
                 self.selection = Some(RecallGrade::Failed);

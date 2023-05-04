@@ -5,7 +5,7 @@ use crate::{
     utils::{
         area::{split_leftright_by_percent, split_updown_by_percent},
         card::{CardTypeData, CardView},
-        sql::fetch::cards::{get_cardtype, get_cardtypedata},
+        sql::fetch::cards::get_cardtypedata,
     },
     widgets::infobox::InfoBox,
     MyKey,

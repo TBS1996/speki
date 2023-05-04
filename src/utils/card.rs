@@ -346,7 +346,7 @@ impl<'a> CardView<'a> {
             card: None,
             revealed: true,
             revealbutton: Button::new("Reveal answer".to_string()),
-            cardrater: CardRater::new(),
+            cardrater: CardRater::default(),
             question: Field::new("Question".to_string()),
             answer: Field::new("Answer".to_string()),
             dependencies: StatefulList::new("Dependencies".to_string()),

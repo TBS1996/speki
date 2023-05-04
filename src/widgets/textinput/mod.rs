@@ -132,7 +132,7 @@ impl Field {
         self.mode = Mode::Insert;
     }
     pub fn set_visual_mode(&mut self) {
-        self.startselect = Some(self.cursor.clone());
+        self.startselect = Some(self.cursor);
         self.mode = Mode::Visual;
     }
 
@@ -284,11 +284,11 @@ impl Field {
 
     pub fn return_selection(&self) -> Option<String> {
         if self.selection_exists() {
-            let start = self.startselect.clone().unwrap();
-            let end = self.cursor.clone();
+            let start = self.startselect.unwrap();
+            let end = self.cursor;
             let mut splitvec = vec![start, end];
             splitvec.sort_by_key(|curse| (curse.row, curse.column));
-            let (start, end) = (splitvec[0].clone(), splitvec[1].clone());
+            let (start, end) = (splitvec[0], splitvec[1]);
             if start.row == end.row {
                 let line = self.text[start.row].clone();
                 let left_bytepos = Self::find_grapheme_bytepos(&line, end.column + 1);
@@ -372,11 +372,9 @@ impl Field {
             } else {
                 self.preferredcol = Some(old_offset);
             }
-        } else {
-            if let Some(prefcol) = self.preferredcol {
-                let target = self.cursor.column + prefcol - (new_offset);
-                self.cursor.column = std::cmp::min(target, rowlen);
-            }
+        } else if let Some(prefcol) = self.preferredcol {
+            let target = self.cursor.column + prefcol - (new_offset);
+            self.cursor.column = std::cmp::min(target, rowlen);
         }
     }
     fn delete_previous_word(&mut self) {
@@ -494,7 +492,7 @@ impl Widget for Field {
     }
 
     fn keyhandler(&mut self, _appdata: &AppData, key: MyKey) {
-        match key.clone() {
+        match key {
             MyKey::ScrollUp => self.visual_up(),
             MyKey::ScrollDown => self.visual_down(),
             MyKey::ScrollLeft => self.prev(),

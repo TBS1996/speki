@@ -162,13 +162,11 @@ impl StatefulList<CardMatch> {
             });
         }
         self.items = matching_cards;
-        if self.items.len() == 0 {
+        if self.items.is_empty() {
             self.state.select(None)
-        } else {
-            if let Some(idx) = self.state.selected() {
-                let new_index = std::cmp::min(idx, self.items.len() - 1);
-                self.state.select(Some(new_index));
-            }
+        } else if let Some(idx) = self.state.selected() {
+            let new_index = std::cmp::min(idx, self.items.len() - 1);
+            self.state.select(Some(new_index));
         }
     }
 

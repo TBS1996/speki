@@ -221,8 +221,8 @@ impl Template {
                 .split('')
                 .map(|x| {
                     let mut text = x.to_string();
-                    let audio = extract_audio(&mut text, &folderpath);
-                    let image = extract_image(&mut text, &folderpath);
+                    let audio = extract_audio(&mut text, folderpath);
+                    let image = extract_image(&mut text, folderpath);
                     CardField { text, audio, image }
                 })
                 .collect();
@@ -279,7 +279,7 @@ impl Template {
                     let replaced = self.note_from_card_index(viewpos).fields[val].clone();
                     let right = split_by_field[i];
                     tempstring.push_str(&replaced.text);
-                    tempstring.push_str(&right);
+                    tempstring.push_str(right);
                 }
             }
             template = tempstring.clone();
@@ -397,19 +397,19 @@ impl Template {
         for (i, field) in note.fields.iter().enumerate() {
             let fieldname = Self::with_braces(model.fields[i].clone());
             if let Some(path) = &field.audio {
-                front_template.match_indices(&fieldname).for_each(|foo| {
-                    frontaudiovec.push((foo.0, path.to_owned()));
+                front_template.match_indices(&fieldname).for_each(|xxx| {
+                    frontaudiovec.push((xxx.0, path.to_owned()));
                 });
-                back_template.match_indices(&fieldname).for_each(|foo| {
-                    backaudiovec.push((foo.0, path.to_owned()));
+                back_template.match_indices(&fieldname).for_each(|xxx| {
+                    backaudiovec.push((xxx.0, path.to_owned()));
                 });
             }
             if let Some(path) = &field.image {
-                front_template.match_indices(&fieldname).for_each(|foo| {
-                    frontimagevec.push((foo.0, path.to_owned()));
+                front_template.match_indices(&fieldname).for_each(|xxx| {
+                    frontimagevec.push((xxx.0, path.to_owned()));
                 });
-                back_template.match_indices(&fieldname).for_each(|foo| {
-                    backimagevec.push((foo.0, path.to_owned()));
+                back_template.match_indices(&fieldname).for_each(|xxx| {
+                    backimagevec.push((xxx.0, path.to_owned()));
                 });
             }
         }

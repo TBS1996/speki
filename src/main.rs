@@ -31,10 +31,16 @@ pub type MyType = CrosstermBackend<std::io::Stdout>;
 fn main() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "1");
 
-    let _guard = sentry::init(("https://9be966e9a25345528b66889e96ba8e4f@o4505092893573120.ingest.sentry.io/4505125412077568", sentry::ClientOptions {
-    release: sentry::release_name!(),
-    ..Default::default()
-}));
+    let _guard = sentry::init((
+        "https://9be966e9a25345528b66889e96ba8e4f:188ecdec47bc48e4a2fda10506ca3cd6@o4505092893573120.ingest.sentry.io/4505125412077568",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            traces_sample_rate: 1.0,
+            enable_profiling: true,
+            profiles_sample_rate: 1.0,
+            ..Default::default()
+        },
+    ));
 
     let paths = SpekiPaths::new(&home::home_dir().unwrap());
     let is_new_db = init_db(&paths.database).unwrap();

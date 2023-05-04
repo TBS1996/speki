@@ -1,6 +1,6 @@
 [package]
 name = "speki"
-version = "0.4.7"
+version = "0.4.8"
 edition = "2021"
 authors = ["Tor Berge torberge@outlook.com"]
 license = "GPL-2.0-only"
@@ -39,7 +39,8 @@ csv = "1.1.6"
 epub = "1.2.4"
 minidom = "0.15.0"
 color-eyre = "0.6.2"
-sentry = "0.31.0"
+sentry = { version = "0.31.0", features = ["profiling"] }
+
 
 
 [dependencies.crossterm]

@@ -84,10 +84,10 @@ pub fn row2card(row: &Row) -> Card {
     let frontimage: Option<String> = row.get(5).unwrap();
     let backimage: Option<String> = row.get(6).unwrap();
 
-    let frontaudio: Option<PathBuf> = frontaudio.map(|x| PathBuf::from(x));
-    let backaudio: Option<PathBuf> = backaudio.map(|x| PathBuf::from(x));
-    let frontimage: Option<PathBuf> = frontimage.map(|x| PathBuf::from(x));
-    let backimage: Option<PathBuf> = backimage.map(|x| PathBuf::from(x));
+    let frontaudio: Option<PathBuf> = frontaudio.map(PathBuf::from);
+    let backaudio: Option<PathBuf> = backaudio.map(PathBuf::from);
+    let frontimage: Option<PathBuf> = frontimage.map(PathBuf::from);
+    let backimage: Option<PathBuf> = backimage.map(PathBuf::from);
 
     //  let dependencies = get_dependencies(conn, id).unwrap();
     //  let dependents = get_depndents(conn, id).unwrap();

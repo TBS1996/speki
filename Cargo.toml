@@ -14,7 +14,7 @@ categories = ["command-line-utilities"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tui = { version = "0.16", default-features = false, features = ['crossterm'] }
+tui = { package = "ratatui", version = "0.20", default-features = false, features = ['crossterm'] }
 serde =  { version = "1.0.137", optional = false, features = ["derive"]}
 serde_derive = "1.0.137"
 serde_json = "1.0.81"
@@ -45,12 +45,12 @@ sentry = { version = "0.31.0", features = ["profiling"] }
 
 [dependencies.crossterm]
 version = "0.25.0"
-features = ["event-stream"] 
+features = ["event-stream"]
 
 # somehow, this makes it possible to build the binary on windows
 [dependencies.rusqlite]
 version="0.27.0"
-features=["bundled"] 
+features=["bundled"]
 
 
 [profile.release]

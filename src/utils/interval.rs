@@ -45,7 +45,7 @@ pub fn calc_strength(conn: &Arc<Mutex<Connection>>) {
                 panic! {"wtf {}", &card.question};
             }
             let stability = get_stability(conn, card.id);
-            passed = time_passed_since_review(&history[(history.len() - 1)]);
+            passed = time_passed_since_review(&history[history.len() - 1]);
             strength = strength_algo(passed, stability);
             update_strength(conn, card.id, strength);
         }

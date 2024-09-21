@@ -124,6 +124,6 @@ fn split(constraints: Vec<Constraint>, area: Rect, direction: Direction) -> Vec<
         .direction(direction.clone())
         .constraints(constraints)
         .split(area);
-    fill_areas(&mut areas, direction);
-    areas
+    fill_areas(&mut areas.to_vec(), direction);
+    areas.to_vec()
 }

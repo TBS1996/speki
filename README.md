@@ -1,6 +1,11 @@
 # Speki
 
 
+## update
+
+im no longer working on this, I am working on a graphical version: https://github.com/tbs1996/spekispace
+
+
 [![/r/speki](https://img.shields.io/reddit/subreddit-subscribers/speki?label=Subscribe%20to%20%2Fr%2Fspeki&style=social
 )](https://www.reddit.com/r/speki/)
 
